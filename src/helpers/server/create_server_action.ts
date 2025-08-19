@@ -1,5 +1,5 @@
 // import type * as schema from "@/db/schema";
-import type { AnyArgs } from "./type_helpers";
+import type { AnyArgs } from "../client/type_helpers";
 
 // type TableName<K extends keyof typeof schema> = K extends `${infer Name}Table`
 //   ? Name

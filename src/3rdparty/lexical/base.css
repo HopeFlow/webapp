@@ -1,0 +1,28 @@
+.ContentEditable__root__textBold {
+  font-weight: bold;
+}
+.ContentEditable__root__textItalic {
+  font-style: italic;
+}
+
+.ContentEditable__root ul,
+.ContentEditable__root ol {
+  list-style-position: inside;
+}
+
+.ContentEditable__root a {
+  cursor: pointer !important;
+}
+
+.ContentEditable__root ul {
+  list-style-type: "• ";
+}
+
+.ContentEditable__root ol {
+  list-style-type: decimal;
+}
+
+.ContentEditable__root a {
+  text-decoration: underline;
+  color: midnightblue;
+}

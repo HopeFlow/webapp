@@ -5,8 +5,8 @@ import type {
   CrudAction,
   ServerAction,
   CrudServerAction,
-} from "@/lib/server_action";
-import type { AnyArgs } from "@/lib/type_helpers";
+} from "@/helpers/server/create_server_action";
+import type { AnyArgs } from "@/helpers/client/type_helpers";
 import {
   type UseQueryResult,
   type UseMutationResult,

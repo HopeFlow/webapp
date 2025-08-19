@@ -7,8 +7,8 @@ export default defineConfig({
   dialect: "sqlite",
   driver: "d1-http",
   dbCredentials: {
-    accountId: "df21bd63604ae8dec9e43d7f29625da4",
-    databaseId: "acd5cea8-b4fd-4fd4-8e00-12b3f6faae7b",
-    token: process.env.HOPEFLOW_D1_TOKEN ?? ""
+    accountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? "",
+    databaseId: process.env.CLOUDFLARE_HOPEFLOW_DB_ID ?? "",
+    token: process.env.CLOUDFLARE_HOPEFLOW_TOKEN ?? "",
   },
 });

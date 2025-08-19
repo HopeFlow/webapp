@@ -2,84 +2,30 @@ import path from "node:path";
 import {
   Project,
   SyntaxKind,
-  Node,
   Symbol,
   SourceFile,
-  VariableDeclaration,
   ArrowFunction,
   Type,
   Block,
   InterfaceDeclaration,
-  ParameterDeclarationStructure,
 } from "ts-morph";
 import fs from "node:fs";
+import {
+  createProject,
+  createShortestModuleSpecifierGetter,
+  getOrThrow,
+  getRealSymbol,
+  getResolvedTypeText,
+  upperCaseFirstLetter,
+} from "./ts_morph_utilities";
 
-const getOriginalTypeText = (type: import("ts-morph").Type): string => {
-  // If it's a type alias, try to resolve
-  if (type.isTypeParameter() && type.getConstraint()) {
-    return getOriginalTypeText(type.getConstraint()!);
-  }
-  if (type.isUnion()) {
-    // For unions, join the text of constituent types
-    return type.getUnionTypes().map(getOriginalTypeText).join(" | ");
-  }
-  if (type.isTuple()) {
-    return (
-      "[" + type.getTupleElements().map(getOriginalTypeText).join(", ") + "]"
-    );
-  }
-  if (type.isLiteral()) {
-    return type.getText();
-  }
-  // Try to resolve to the target if it's an alias
-  const aliasSymbol = type.getAliasSymbol();
-  if (aliasSymbol) {
-    const targetType = type.getAliasTypeArguments()[0] ?? type;
-    return getOriginalTypeText(targetType);
-  }
-  // Fallback: just return the text
-  return type.getText();
-};
-
-const createProject = () => {
-  const project = new Project({
-    tsConfigFilePath: "tsconfig.json",
-  });
-
-  const projectRootPath =
-    project.getRootDirectories().at(0)?.getPath() ?? path.resolve("..");
-
-  const getShortestModuleSpecifier = (
-    moduleSpecifier: string,
-    importerModulePath: string,
-  ) => {
-    if (!moduleSpecifier.startsWith(".") && !moduleSpecifier.startsWith("/"))
-      return moduleSpecifier;
-    let result = null;
-    for (const candidate of [
-      path.relative(projectRootPath, moduleSpecifier),
-      path.relative(importerModulePath, moduleSpecifier),
-      path.join(
-        "@",
-        path.relative(path.join(projectRootPath, "src"), moduleSpecifier),
-      ),
-    ]) {
-      if (result === null || candidate.length < result.length)
-        result = candidate;
-    }
-    return (result as string).replace(/\.tsx?$/, "");
-  };
-  return [projectRootPath, getShortestModuleSpecifier, project] as const;
-};
-
-const realSymbol = (node: Node | undefined) => {
-  if (!node) return undefined;
-  const symbol = node.getSymbol();
-  return symbol?.getAliasedSymbol() ?? symbol;
-};
+type ServerActionType =
+  | "serverAction"
+  | "crudServerAction"
+  | "crudServerActionVariant";
 
 type ActionInfo = {
-  type: "serverAction" | "crudServerAction" | "crudServerActionVariant";
+  type: ServerActionType;
   id: string;
   variantName?: string;
   mutations?: string[];
@@ -88,125 +34,128 @@ type ActionInfo = {
   dependants?: Map<Symbol, ActionInfo>;
 };
 
-const analyseProject = (project: Project) => {
-  const actionSymbols = new Map<Symbol, ActionInfo>();
-
-  const dependants = new Map<Symbol, Set<Symbol>>();
-
-  for (const sourceFile of project.getSourceFiles()) {
-    for (const [name, declarations] of sourceFile.getExportedDeclarations()) {
-      for (const declaration of declarations) {
-        if (declaration.isKind(SyntaxKind.VariableDeclaration)) {
-          const candidateServerActionSymbol = realSymbol(declaration);
-          if (!candidateServerActionSymbol) {
-            console.warn(`Could not find symbol for declaration: ${name}`);
-            continue;
+const analyseSourceFile = (
+  sourceFile: SourceFile,
+  actionSymbols: Map<Symbol, ActionInfo>,
+  dependants: Map<Symbol, Set<Symbol>>,
+) => {
+  for (const [name, declarations] of sourceFile.getExportedDeclarations()) {
+    for (const declaration of declarations) {
+      if (declaration.isKind(SyntaxKind.VariableDeclaration)) {
+        const candidateServerActionSymbol = getRealSymbol(declaration);
+        if (!candidateServerActionSymbol) {
+          console.warn(`Could not find symbol for declaration: ${name}`);
+          continue;
+        }
+        const call = declaration
+          .getInitializer()
+          ?.asKind(SyntaxKind.CallExpression);
+        const callee = call?.getExpression();
+        if (!call || !callee) continue;
+        if (callee.isKind(SyntaxKind.Identifier)) {
+          if (callee.getText() === "createServerAction") {
+            const serverActionArguments = call.getArguments();
+            if (serverActionArguments.length !== 1)
+              throw new Error("Expected 1 argument for createServerAction");
+            actionSymbols.set(candidateServerActionSymbol, {
+              id: serverActionArguments[0]
+                .asKindOrThrow(SyntaxKind.StringLiteral)
+                .getLiteralValue(),
+              type: "serverAction",
+            });
           }
-          const call = declaration
-            .getInitializer()
-            ?.asKind(SyntaxKind.CallExpression);
-          const callee = call?.getExpression();
-          if (!call || !callee) continue;
-          if (callee.isKind(SyntaxKind.Identifier)) {
-            if (callee.getText() === "createServerAction") {
-              // TODO: Handle cases when parameter is not string literal
-              actionSymbols.set(candidateServerActionSymbol, {
-                id: call
-                  .getArguments()
-                  .at(0)!
-                  .asKind(SyntaxKind.StringLiteral)!
-                  .getLiteralValue(),
-                type: "serverAction",
-              });
-            }
-            if (callee.getText() === "createCrudServerAction") {
-              // TODO: Handle cases when parameter is not object literal
-              const argument = call
-                .getArguments()
-                .at(0)!
-                .asKind(SyntaxKind.ObjectLiteralExpression)!;
-
-              const isMutationProvided = (mutation: string) => {
-                const initializer = argument
-                  .getProperty(mutation)
-                  ?.asKind(SyntaxKind.PropertyAssignment)
-                  ?.getInitializer();
-                if (!initializer) return false;
-                return initializer.getText() !== "undefined";
-              };
-
-              actionSymbols.set(candidateServerActionSymbol, {
-                id: argument
-                  .getProperty("id")!
-                  .asKind(SyntaxKind.PropertyAssignment)!
-                  .getInitializer()!
-                  .asKind(SyntaxKind.StringLiteral)!
-                  .getLiteralValue(),
-                type: "crudServerAction",
-                mutations: ["create", "update", "remove"].filter((mutation) =>
-                  isMutationProvided(mutation),
-                ),
-              });
-            }
-          }
-          if (callee.isKind(SyntaxKind.PropertyAccessExpression)) {
-            const parent = realSymbol(
-              callee.getExpressionIfKind(SyntaxKind.Identifier),
+          if (callee.getText() === "createCrudServerAction") {
+            const serverActionArguments = call.getArguments();
+            if (serverActionArguments.length !== 1)
+              throw new Error("Expected 1 argument for createCrudServerAction");
+            const argument = serverActionArguments[0].asKindOrThrow(
+              SyntaxKind.ObjectLiteralExpression,
             );
-            if (parent && callee.getName() === "createVariant") {
-              const parentAction = actionSymbols.get(parent);
-              const variantName = call
-                .getArguments()
-                .at(0)!
-                .asKind(SyntaxKind.StringLiteral)!
-                .getLiteralValue();
-              actionSymbols.set(candidateServerActionSymbol, {
-                id: `${parentAction!.id}.${variantName}`,
-                variantName,
-                type: "crudServerActionVariant",
-                parent,
-              });
-            }
+
+            const isMutationProvided = (mutation: string) => {
+              const initializer = argument
+                .getProperty(mutation)
+                ?.asKind(SyntaxKind.PropertyAssignment)
+                ?.getInitializer();
+              if (!initializer) return false;
+              return initializer.getText() !== "undefined";
+            };
+
+            actionSymbols.set(candidateServerActionSymbol, {
+              id: argument
+                .getPropertyOrThrow("id")
+                .asKindOrThrow(SyntaxKind.PropertyAssignment)
+                .getInitializerIfKindOrThrow(SyntaxKind.StringLiteral)
+                .getLiteralValue(),
+              type: "crudServerAction",
+              mutations: ["create", "update", "remove"].filter((mutation) =>
+                isMutationProvided(mutation),
+              ),
+            });
+          }
+        }
+        if (callee.isKind(SyntaxKind.PropertyAccessExpression)) {
+          const parent = getRealSymbol(
+            callee.getExpressionIfKind(SyntaxKind.Identifier),
+          );
+          if (parent && callee.getName() === "createVariant") {
+            const parentAction = actionSymbols.get(parent);
+            const createVariantArguments = call.getArguments();
+            if (createVariantArguments.length < 1)
+              throw new Error("Expected at least 1 argument for createVariant");
+            const variantName = createVariantArguments[0]
+              .asKindOrThrow(SyntaxKind.StringLiteral)
+              .getLiteralValue();
+            actionSymbols.set(candidateServerActionSymbol, {
+              id: `${parentAction!.id}.${variantName}`,
+              variantName,
+              type: "crudServerActionVariant",
+              parent,
+            });
           }
         }
       }
     }
-    sourceFile.forEachDescendant((node) => {
-      if (!node.isKind(SyntaxKind.CallExpression)) return;
-      const callee = node.getExpression();
-      if (!callee.isKind(SyntaxKind.PropertyAccessExpression)) return;
-      if (callee.getName() !== "addInvalidation") return;
-      const candidateServerActionSymbol = realSymbol(
-        callee.getExpressionIfKind(SyntaxKind.Identifier),
-      );
-      if (!candidateServerActionSymbol) return;
-      const action = actionSymbols.get(candidateServerActionSymbol);
-      if (!action) {
-        console.warn(
-          `Could not find action for symbol: ${candidateServerActionSymbol.getName()}`,
-        );
-        return;
-      }
-      const args = node.getArguments();
-      if (args.length < 1) {
-        console.warn(
-          `Call ${candidateServerActionSymbol.getName()}.addInvalidation has no arguments`,
-        );
-        return;
-      }
-      const dependantSymbol = realSymbol(args[0]);
-      if (!dependantSymbol) {
-        console.warn(
-          `Could not find symbol for dependant in ${candidateServerActionSymbol.getName()}.addInvalidation(${args[0].getText()})`,
-        );
-        return;
-      }
-      if (!dependants.has(candidateServerActionSymbol))
-        dependants.set(candidateServerActionSymbol, new Set());
-      dependants.get(candidateServerActionSymbol)!.add(dependantSymbol);
-    });
   }
 
+  sourceFile.forEachDescendant((node) => {
+    if (!node.isKind(SyntaxKind.CallExpression)) return;
+    const callee = node.getExpression();
+    if (!callee.isKind(SyntaxKind.PropertyAccessExpression)) return;
+    if (callee.getName() !== "addInvalidation") return;
+    const candidateServerActionSymbol = getRealSymbol(
+      callee.getExpressionIfKind(SyntaxKind.Identifier),
+    );
+    if (!candidateServerActionSymbol) return;
+    const action = actionSymbols.get(candidateServerActionSymbol);
+    if (!action) {
+      console.warn(
+        `Could not find action for symbol: ${candidateServerActionSymbol.getName()}`,
+      );
+      return;
+    }
+    const args = node.getArguments();
+    if (args.length < 1) {
+      console.warn(
+        `Call ${candidateServerActionSymbol.getName()}.addInvalidation has no arguments`,
+      );
+      return;
+    }
+    const dependantSymbol = getRealSymbol(args[0]);
+    if (!dependantSymbol) {
+      console.warn(
+        `Could not find symbol for dependant in ${candidateServerActionSymbol.getName()}.addInvalidation(${args[0].getText()})`,
+      );
+      return;
+    }
+    const serverActionDependants = dependants.get(candidateServerActionSymbol);
+    if (!serverActionDependants)
+      dependants.set(candidateServerActionSymbol, new Set([dependantSymbol]));
+    else serverActionDependants.add(dependantSymbol);
+  });
+};
+
+const getVariants = (actionSymbols: Map<Symbol, ActionInfo>) => {
   const variants = new Map<Symbol, Set<Symbol>>();
   for (const [symbol, action] of Array.from(actionSymbols.entries()).filter(
     ([, action]) => action.type === "crudServerActionVariant",
@@ -215,12 +164,18 @@ const analyseProject = (project: Project) => {
       console.warn(`Variant action ${symbol.getName()} has no parent`);
       continue;
     }
-    if (!variants.has(action.parent)) {
-      variants.set(action.parent, new Set());
-    }
-    variants.get(action.parent)!.add(symbol);
+    const serverActionVariants = variants.get(action.parent);
+    if (!serverActionVariants) variants.set(action.parent, new Set([symbol]));
+    else serverActionVariants.add(symbol);
   }
+  return variants;
+};
 
+const rectifyActionSymbols = (
+  actionSymbols: Map<Symbol, ActionInfo>,
+  variants: Map<Symbol, Set<Symbol>>,
+  dependants: Map<Symbol, Set<Symbol>>,
+) => {
   return new Map<Symbol, ActionInfo>(
     actionSymbols
       .entries()
@@ -229,40 +184,59 @@ const analyseProject = (project: Project) => {
         symbol,
         {
           ...action,
-          dependants: !dependants.has(symbol)
-            ? undefined
-            : new Map(
-                Array.from(dependants.get(symbol)!).map((s) => [
-                  s,
-                  actionSymbols.get(s)!,
-                ]),
-              ),
-          variants: !variants.has(symbol)
-            ? undefined
-            : new Map(
-                Array.from(variants.get(symbol)!).map((s) => [
-                  s,
-                  actionSymbols.get(s)!,
-                ]),
-              ),
+          dependants: ((dependantsSet) =>
+            dependantsSet &&
+            new Map(
+              Array.from(dependantsSet).map((s) => [
+                s,
+                getOrThrow(actionSymbols, s),
+              ]),
+            ))(dependants.get(symbol)),
+          variants: ((variantsSet) =>
+            variantsSet &&
+            new Map(
+              Array.from(variantsSet).map((s) => [
+                s,
+                getOrThrow(actionSymbols, s),
+              ]),
+            ))(variants.get(symbol)),
         },
       ]),
   );
 };
 
-const upperCaseFirstLetter = (str: string) =>
-  str[0].toUpperCase() + str.slice(1);
+const analyseProject = (project: Project) => {
+  const actionSymbols = new Map<Symbol, ActionInfo>();
+  const dependants = new Map<Symbol, Set<Symbol>>();
 
-const idToHookName = (id: string) => `use${upperCaseFirstLetter(id)}`;
+  for (const sourceFile of project.getSourceFiles())
+    analyseSourceFile(sourceFile, actionSymbols, dependants);
 
-const getActionSymbolType = (actionSymbol: Symbol) =>
-  actionSymbol.getTypeAtLocation(actionSymbol.getDeclarations().at(0)!);
+  const variants = getVariants(actionSymbols);
+  return rectifyActionSymbols(actionSymbols, variants, dependants);
+};
+
+const getActionSymbolType = (actionSymbol: Symbol) => {
+  const declaration = actionSymbol.getDeclarations().at(0);
+  if (!declaration)
+    throw new Error(`Could not find declaration for ${actionSymbol.getName()}`);
+  return actionSymbol.getTypeAtLocation(declaration);
+};
 
 const getActionSymbolTypeParams = (actionSymbol: Symbol) =>
   getActionSymbolType(actionSymbol).getTypeArguments();
 
-const setHookName = (declaration: VariableDeclaration, id: string) =>
-  declaration.rename(idToHookName(id));
+const getTemplateHookVariableStatement = (
+  templateHookName: string,
+  templateSourceFile: SourceFile,
+) => {
+  const result = templateSourceFile.getVariableStatement(templateHookName);
+  if (!result)
+    throw new Error(
+      `Could not find template variable statement for ${templateHookName}`,
+    );
+  return result;
+};
 
 const addHookVariableStatement = (
   templateHookName: string,
@@ -273,8 +247,10 @@ const addHookVariableStatement = (
   sourceFile: SourceFile,
   mutationDataTypeMap?: Map<string, Type>,
 ) => {
-  const templateStatement =
-    templateSourceFile.getVariableStatement(templateHookName)!;
+  const templateStatement = getTemplateHookVariableStatement(
+    templateHookName,
+    templateSourceFile,
+  );
   const isOriginalArgsEmpty = isEmptyArgsType(argsType);
   const argsTypes = new Map(
     actionInfo.variants
@@ -337,7 +313,7 @@ const addHookVariableStatement = (
               {
                 isRestParameter: isRestParam(p),
                 name: p.getName(),
-                type: getOriginalTypeText(
+                type: getResolvedTypeText(
                   typeChecker.getTypeOfSymbolAtLocation(
                     p,
                     p.getValueDeclarationOrThrow(),
@@ -349,7 +325,7 @@ const addHookVariableStatement = (
       return {
         parameters: [...variantNameParam, ...restParams],
         returnType:
-          `UseQueryResult<${getOriginalTypeText(
+          `UseQueryResult<${getResolvedTypeText(
             typeChecker
               .getReturnTypeOfSignature(callSignature)
               .getTypeArguments()
@@ -358,7 +334,7 @@ const addHookVariableStatement = (
           (symbol === actionSymbol && actionInfo.mutations
             ? `& { ${actionInfo.mutations.map(
                 (mutation) =>
-                  `${mutation}: UseMutationResult<boolean, Error, ${getOriginalTypeText(
+                  `${mutation}: UseMutationResult<boolean, Error, ${getResolvedTypeText(
                     mutationDataTypeMap!.get(mutation)!,
                   )}>`,
               )} }`
@@ -377,7 +353,7 @@ const addHookVariableStatement = (
     .getDeclarations()
     .at(0)!
     .asKind(SyntaxKind.VariableDeclaration)!;
-  setHookName(hookDeclaration, actionInfo.id);
+  hookDeclaration.rename(`use${upperCaseFirstLetter(actionInfo.id)}`);
   const functionDeclaration = hookDeclaration.getInitializerIfKindOrThrow(
     SyntaxKind.ArrowFunction,
   );
@@ -399,7 +375,7 @@ const addHookVariableStatement = (
       .getParameterOrThrow("args")
       .setType(
         argsTypes.size === 1
-          ? getOriginalTypeText(Array.from(argsTypes.values()).at(0)![0])
+          ? getResolvedTypeText(Array.from(argsTypes.values()).at(0)![0])
           : "unknown[]",
       );
   return [
@@ -470,7 +446,7 @@ const rectifyServerActionCalls = (
           .filter((arg) => arg.getText() === "args")
           .forEach((arg) =>
             arg.replaceWithText(
-              `${arg.getText()} as ${getOriginalTypeText(argsType)}`,
+              `${arg.getText()} as ${getResolvedTypeText(argsType)}`,
             ),
           );
     });
@@ -573,7 +549,7 @@ const addCrudMutations = (
     const parameter = mutationFnAssignment.getFirstDescendantByKindOrThrow(
       SyntaxKind.Parameter,
     );
-    parameter.setType(getOriginalTypeText(mutationDataTypeMap.get(mutation)!));
+    parameter.setType(getResolvedTypeText(mutationDataTypeMap.get(mutation)!));
     const serverActionCall = mutationFnAssignment
       .getDescendantsOfKind(SyntaxKind.CallExpression)
       .find((call) => call.getExpression().getText() === "crudServerAction");
@@ -713,7 +689,7 @@ const buildCrudServerActionHook = (
             )} ? ${variantSymbol.getName()}(${
               variantArgsEmpty
                 ? ""
-                : `...args as ${getOriginalTypeText(variantArgsType)}`
+                : `...args as ${getResolvedTypeText(variantArgsType)}`
             }) : `;
           })
           .join("") +
@@ -725,19 +701,16 @@ const buildCrudServerActionHook = (
 };
 
 const main = () => {
-  const [projectRootPath, getShortestModuleSpecifier, project] =
-    createProject();
+  const [projectRootPath, project] = createProject();
+  const getShortestModuleSpecifier =
+    createShortestModuleSpecifierGetter(projectRootPath);
 
   const actionSymbols = analyseProject(project);
 
   const templateSourceFile = project.createSourceFile(
     "",
     fs.readFileSync(
-      path.join(
-        __dirname,
-        "gen_client_hooks",
-        "server_action_hook_template.ts",
-      ),
+      path.join(__dirname, "templates", "server_action_hook_template.ts"),
       "utf-8",
     ),
   );
@@ -758,7 +731,7 @@ const main = () => {
         console.log(`  Variant: ${variantSymbol.getName()}`);
       }
     }
-    const targetPath = `src/client/hooks/generated/${actionSymbol.getName()}.ts`;
+    const targetPath = `src/server_actions/client/${actionSymbol.getName()}.ts`;
     const hookSourceFile = project.createSourceFile(targetPath, "", {
       overwrite: true,
     });
