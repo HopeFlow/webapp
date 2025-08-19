@@ -78,3 +78,10 @@ export const redirectToRouteWithParamsSearchParams = (props: {
       ]),
     ].join("/") + toSearchParams(props, ["param2"]),
   );
+
+interface RedirectTo {}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const redirectTo: RedirectTo = (routeName: string, props?: any): never => {
+  redirect("");
+};

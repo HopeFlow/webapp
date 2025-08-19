@@ -255,6 +255,7 @@ const main = () => {
       );
     }
 
+    const redirectSignatures: Map<string, ArrowFunction> = new Map();
     const hookSignatures: Map<string, ArrowFunction> = new Map();
     for (const [routeName, routeInfo] of routes) {
       const { path, pathParts, propsType } = routeInfo;
@@ -271,6 +272,7 @@ const main = () => {
           .replaceWithText(
             `redirect("/${pathParts.map(({ part }) => part).join("/")}")`,
           );
+        redirectSignatures.set(routeName, redirectFunction);
       } else if (pathParts) {
         const searchParamProperties = propsType
           .getProperties()
@@ -290,6 +292,7 @@ const main = () => {
               .at(1),
             pathParts,
           );
+          redirectSignatures.set(routeName, redirectFunction);
         } else {
           const redirectFunction = addServerRedirectFunction(
             routeName,
@@ -315,6 +318,7 @@ const main = () => {
               .at(1),
             searchParamProperties,
           );
+          redirectSignatures.set(routeName, redirectFunction);
         }
       } else {
         const redirectFunction = addServerRedirectFunction(
@@ -331,6 +335,7 @@ const main = () => {
             .at(1),
           propsType.getProperties(),
         );
+        redirectSignatures.set(routeName, redirectFunction);
       }
 
       clientSourceFile.addStatements(`\n// Corresponding to ${path}`);
@@ -411,6 +416,51 @@ const main = () => {
       }
     }
 
+    const redirectInterface = serverSourceFile.addInterface({
+      name: "RedirectTo",
+      isExported: true,
+    });
+    redirectSignatures.forEach((redirectFunction, routeName) => {
+      redirectInterface.addCallSignature({
+        parameters: [
+          { name: "routeName", type: JSON.stringify(routeName) },
+          ...redirectFunction.getParameters().map((p) => p.getStructure()),
+        ],
+        returnType: "never",
+      });
+    });
+    const redirectStatement = serverSourceFile.addVariableStatement(
+      serverTemplate.getVariableStatementOrThrow("redirectTo").getStructure(),
+    );
+    const redirect = redirectStatement
+      .getDeclarations()
+      .at(0)
+      ?.getInitializerIfKind(SyntaxKind.ArrowFunction);
+    if (!redirect)
+      throw new Error("Could not locate redirectTo template function");
+    redirect.getParameterOrThrow("routeName").setType(
+      Array.from(hookSignatures.keys())
+        .map((k) => JSON.stringify(k))
+        .join(" | "),
+    );
+    redirect
+      .getBody()
+      .asKindOrThrow(SyntaxKind.Block)
+      .replaceWithText(
+        "{\nswitch(routeName) {\n" +
+          Array.from(hookSignatures.entries())
+            .map(
+              ([routeName, redirectFunction]) =>
+                `case ${JSON.stringify(
+                  routeName,
+                )}: return redirectTo${routeName}(${
+                  redirectFunction.getParameters().length === 0 ? "" : "props"
+                });`,
+            )
+            .join("\n") +
+          "}\n}",
+      );
+
     const useGotoInterface = clientSourceFile.addInterface({
       name: "UseGoto",
       isExported: true,
@@ -442,7 +492,9 @@ const main = () => {
           Array.from(hookSignatures.keys())
             .map(
               (routeName) =>
-                `case ${JSON.stringify(routeName)}: return useGoto${routeName}();`,
+                `case ${JSON.stringify(
+                  routeName,
+                )}: return useGoto${routeName}();`,
             )
             .join("\n") +
           "}\n}",

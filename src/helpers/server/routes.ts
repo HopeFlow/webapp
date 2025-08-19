@@ -43,3 +43,15 @@ export const redirectToLogin = (props: { url?: string | undefined; }): never =>
       ...toPathParams(props, [{ "part": "login", "isParam": false }]),
     ].join("/") + toSearchParams(props, ["url"]),
   );
+
+export interface RedirectTo {
+  (routeName: "Index"): never;
+  (routeName: "Login", props: { url?: string | undefined; }): never;
+}
+
+export const redirectTo: RedirectTo = (routeName: "Index" | "Login", props?: any): never => {
+  switch (routeName) {
+    case "Index": return redirectToIndex();
+    case "Login": return redirectToLogin(props);
+  }
+};
