@@ -36,7 +36,7 @@ const toSearchParams = <T extends { [key: string]: unknown }>(
 export const redirectToIndex = (): never => redirect("/");
 
 // Corresponding to src/app/login/page.tsx
-export const redirectToLogin = (props: { url: string; }): never =>
+export const redirectToLogin = (props: { url?: string | undefined; }): never =>
   redirect(
     [
       "",

@@ -3,6 +3,7 @@
 import { usePersistentState } from "@/app/(root)/persistent_state";
 import { Button, CloseButton, GhostButton } from "@/components/button";
 import { Steps } from "@/components/steps";
+import { useGotoLogin } from "@/helpers/client/routes";
 import Image from "next/image";
 
 const onboardingSteps = [
@@ -64,6 +65,7 @@ export default function Onboarding() {
     "root.onboardingStepIndex",
     0,
   );
+  const gotoLogin = useGotoLogin();
   const { image, title, shortDescription, description } =
     onboardingSteps[onboardingStepIndex];
   return (
@@ -121,7 +123,9 @@ export default function Onboarding() {
         </div>
         <div className="flex w-full flex-row gap-4 items-center justify-center h-12">
           {(onboardingStepIndex === onboardingSteps.length - 1 && (
-            <Button className="flex-1">Get started!</Button>
+            <Button className="flex-1" onClick={() => gotoLogin({ url: "" })}>
+              Get started!
+            </Button>
           )) || (
             <>
               <Button
@@ -140,6 +144,7 @@ export default function Onboarding() {
                 className="flex-1"
                 buttonType="neutral"
                 buttonStyle="soft"
+                onClick={() => gotoLogin({ url: "" })}
               >
                 Skip
               </Button>

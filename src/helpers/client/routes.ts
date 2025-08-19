@@ -43,7 +43,7 @@ export const useGotoIndex = () => {
 export const useGotoLogin = () => {
   const router = useRouter();
   return useCallback(
-    (props: { url: string; }) =>
+    (props: { url?: string | undefined; }) =>
       router.push(
         [
           "",
@@ -52,4 +52,16 @@ export const useGotoLogin = () => {
       ),
     [router],
   );
+};
+
+export interface UseGoto {
+  (routeName: "Index"): () => void;
+  (routeName: "Login"): (props: { url?: string | undefined; }) => void;
+}
+
+export const useGoto: UseGoto = (routeName: "Index" | "Login"): any => {
+  switch (routeName) {
+    case "Index": return useGotoIndex();
+    case "Login": return useGotoLogin();
+  }
 };
