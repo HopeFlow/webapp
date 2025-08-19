@@ -1,3 +1,6 @@
+# Under refactor
+DO NOT FORK THIS REPOSITORY YET. FEATURES DESCRIBED HERE ARE NOT YET COMPLETE.
+
 # HopeFlow
 
 HopeFlow is a referral-based social search platform that transforms traditional
