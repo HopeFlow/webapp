@@ -11,8 +11,8 @@ import { useGotoIndex } from "@/helpers/client/routes";
 export default function LoginMain({ url }: { url?: string }) {
   const gotoIndex = useGotoIndex();
   return (
-    <div className="w-full h-full flex flex-col gap-4 items-center justify-center">
-      <div className="w-lg p-6 flex flex-col gap-4 card shadow-2xl bg-base-100">
+    <div className="w-full h-full p-6 flex flex-col gap-4 items-center justify-center">
+      <div className="max-w-lg lg:w-lg p-6 flex flex-col gap-4 card shadow-2xl bg-base-100">
         <div className="flex flex-col gap-4 items-center justify-center">
           <HopeflowLogo size={48} />
           <h1 className="font-normal text-4xl">Login or Signup</h1>

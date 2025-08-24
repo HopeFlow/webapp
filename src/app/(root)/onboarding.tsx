@@ -143,7 +143,6 @@ export default function Onboarding() {
               <Button
                 className="flex-1"
                 buttonType="neutral"
-                buttonStyle="soft"
                 onClick={() => gotoLogin({ url: "" })}
               >
                 Skip
