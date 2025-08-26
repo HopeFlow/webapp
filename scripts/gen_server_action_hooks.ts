@@ -801,11 +801,9 @@ const main = () => {
       );
     } else throw new Error(`Invalid action type: ${actionInfo.type}`);
 
-    if (hasAnyType) {
-      hookSourceFile.insertStatements(0, [
-        "/* eslint-disable @typescript-eslint/no-explicit-any */",
-      ]);
-    }
+    hookSourceFile.insertStatements(0, [
+      "/* eslint-disable @typescript-eslint/no-explicit-any */",
+    ]);
 
     console.log(
       `Generating hook for ${actionSymbol.getName()} at ${targetPath}:`,

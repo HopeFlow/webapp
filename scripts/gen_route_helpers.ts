@@ -1,20 +1,11 @@
 import path from "node:path";
-import fs from "node:fs";
 import {
   createProject,
   doesResolveToObject,
   getResolvedTypeText,
   upperCaseFirstLetter,
 } from "./ts_morph_utilities";
-import {
-  ArrowFunction,
-  Node,
-  Signature,
-  SignaturedDeclaration,
-  Symbol,
-  SyntaxKind,
-  Type,
-} from "ts-morph";
+import { ArrowFunction, Node, Symbol, SyntaxKind, Type } from "ts-morph";
 
 const main = () => {
   const [projectRootPath, project] = createProject();
@@ -488,13 +479,18 @@ const main = () => {
       .getBody()
       .asKindOrThrow(SyntaxKind.Block)
       .replaceWithText(
-        "{\nswitch(routeName) {\n" +
+        "{\n" +
           Array.from(hookSignatures.keys())
             .map(
-              (routeName) =>
-                `case ${JSON.stringify(
-                  routeName,
-                )}: return useGoto${routeName}();`,
+              (routeName, index) =>
+                `const __route${index} = useGoto${routeName}();`,
+            )
+            .join("\n") +
+          "\nswitch(routeName) {\n" +
+          Array.from(hookSignatures.keys())
+            .map(
+              (routeName, index) =>
+                `case ${JSON.stringify(routeName)}: return __route${index};`,
             )
             .join("\n") +
           "}\n}",
@@ -514,6 +510,12 @@ const main = () => {
     ]);
   }
 
+  clientSourceFile.insertStatements(0, [
+    "/* eslint-disable @typescript-eslint/no-explicit-any */",
+  ]);
+  serverSourceFile.insertStatements(0, [
+    "/* eslint-disable @typescript-eslint/no-explicit-any */",
+  ]);
   clientSourceFile.fixUnusedIdentifiers();
   serverSourceFile.fixUnusedIdentifiers();
   clientSourceFile.formatText({

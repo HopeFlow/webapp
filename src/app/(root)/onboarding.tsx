@@ -2,6 +2,7 @@
 
 import { usePersistentState } from "@/app/(root)/persistent_state";
 import { Button, CloseButton, GhostButton } from "@/components/button";
+import { ArrowLeftIcon } from "@/components/icons/arrow_left";
 import { Steps } from "@/components/steps";
 import { useGotoLogin } from "@/helpers/client/routes";
 import Image from "next/image";
@@ -69,7 +70,7 @@ export default function Onboarding() {
   const { image, title, shortDescription, description } =
     onboardingSteps[onboardingStepIndex];
   return (
-    <div className="flex flex-col p-6 items-center justify-start w-full h-full bg-base-200">
+    <div className="flex-1 flex flex-col p-6 items-center justify-start w-full h-full">
       <div className="flex w-full flex-row gap-4 items-center h-12">
         <GhostButton
           onClick={() =>
@@ -78,20 +79,7 @@ export default function Onboarding() {
             )
           }
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="size-6"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"
-            />
-          </svg>
+          <ArrowLeftIcon />
         </GhostButton>
         <Steps
           numberOfSteps={onboardingSteps.length}
@@ -100,19 +88,19 @@ export default function Onboarding() {
         <CloseButton />
       </div>
       <div className="flex-1 flex flex-col p-6 items-center justify-start max-w-5xl">
-        <div className="flex-1 flex w-full max-h-full overflow-auto flex-col-reverse lg:flex-row gap-2 lg:gap-16 justify-end items-center lg:items-start">
+        <div className="flex-1 flex w-full max-h-full overflow-auto flex-col-reverse md:flex-row gap-2 md:gap-16 justify-end items-center md:items-start">
           <div className="flex-1 flex w-full flex-col gap-2 items-start">
-            <h1 className="text-4xl lg:text-5xl font-normal mb-2 lg:mb-4">
+            <h1 className="text-4xl md:text-5xl font-normal mb-2 md:mb-4">
               {title}
             </h1>
-            <p className="lg:hidden">{shortDescription}</p>
+            <p className="md:hidden">{shortDescription}</p>
             {description.map((paragraph, index) => (
-              <p key={`p-${index}`} className="hidden lg:block">
+              <p key={`p-${index}`} className="hidden md:block">
                 {paragraph}
               </p>
             ))}
           </div>
-          <div className="lg:max-w-[50%] lg:h-full flex items-center justify-center">
+          <div className="md:max-w-[50%] md:h-full flex items-center justify-center">
             <Image
               src={image.src}
               alt={image.alt}

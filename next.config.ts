@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    domains: ['mockmind-api.uifaces.co'],
+  }
 };
 
 const withBundleAnalyzer = require('@next/bundle-analyzer')({

@@ -36,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="w-full h-full">
       <body
-        className={`w-full h-full ${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`w-full min-h-full flex flex-col ${geistSans.variable} ${geistMono.variable} antialiased bg-base-200 text-base-content text-lg font-thin`}
       >
         <Suspense fallback={<SplashScreen />}>{children}</Suspense>
       </body>

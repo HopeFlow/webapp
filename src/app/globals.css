@@ -1,34 +1,33 @@
 @import "tailwindcss";
 
-
 @plugin "daisyui/theme" {
   name: "hopeflow";
   default: true;
   prefersdark: false;
   color-scheme: "light";
   --color-base-100: oklch(100% 0 0);
-  --color-base-200: #f5f5f5;
-  --color-base-300: #f0f0f0;
+  --color-base-200: oklch(99% 0.003 247.858);
+  --color-base-300: oklch(96% 0.003 264.542);
   --color-base-content: #000;
-  --color-primary: oklch(69% 0.17 162.48);
+  --color-primary: oklch(59% 0.145 163.225);
   --color-primary-content: oklch(98% 0.031 120.757);
-  --color-secondary: oklch(71% 0.143 215.221);
+  --color-secondary: oklch(52% 0.105 223.128);
   --color-secondary-content: oklch(98% 0.019 200.873);
-  --color-accent: oklch(52% 0.105 223.128);
+  --color-accent: oklch(71% 0.143 215.221);
   --color-accent-content: oklch(98% 0.019 200.873);
   --color-neutral: oklch(86% 0.005 56.366);
   --color-neutral-content: oklch(21% 0.006 56.043);
   --color-info: oklch(90% 0.058 230.902);
   --color-info-content: oklch(39% 0.09 240.876);
   --color-success: oklch(64% 0.2 131.684);
-  --color-success-content: oklch(98% 0.026 102.212);
+  --color-success-content: oklch(98% 0.018 155.826);
   --color-warning: oklch(68% 0.162 75.834);
   --color-warning-content: oklch(98% 0.022 95.277);
   --color-error: oklch(50% 0.213 27.518);
   --color-error-content: oklch(93% 0.032 17.717);
-  --radius-selector: 0.5rem;
-  --radius-field: 0.5rem;
-  --radius-box: 0.5rem;
+  --radius-selector: 2rem;
+  --radius-field: 2rem;
+  --radius-box: 2rem;
   --size-selector: 0.28125rem;
   --size-field: 0.25rem;
   --border: 1.5px;
@@ -40,15 +39,7 @@
   themes: hopeflow --default, dark --prefersdark;
 }
 
-* {
+.flex > * {
   min-width: 0;
   min-height: 0;
-}
-
-body {
-  background: var(--color-base-100);
-  color: var(--color-base-content);
-  font-family: var(--font-hopeflow-sans, sans-serif);
-  font-size: large;
-  font-weight: 100;
 }
