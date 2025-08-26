@@ -43,3 +43,28 @@
   min-width: 0;
   min-height: 0;
 }
+
+svg .draw {
+  stroke-dasharray: 100%;
+  stroke-dashoffset: 100%;
+}
+svg.in_view .draw {
+  animation: svg_draw 1.2s ease-out forwards;
+}
+@keyframes svg_draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+svg .fade {
+  opacity: 0;
+}
+svg.in_view .fade {
+  animation: svg_fade 1.6s ease-in-out forwards;
+}
+@keyframes svg_fade {
+  to {
+    opacity: 1;
+  }
+}

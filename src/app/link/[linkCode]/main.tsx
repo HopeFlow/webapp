@@ -6,6 +6,7 @@ import { Button } from "@/components/button";
 import { Carousel } from "@/components/carousel";
 import { AvatarGroup } from "@/components/user_avatar";
 import { ReadMore } from "@/components/read_more";
+import { ReflowTree } from "@/components/reflow_tree";
 
 export function LinkMain() {
   return (
@@ -39,15 +40,13 @@ export function LinkMain() {
                   userAvatarProps={[
                     {
                       name: "Patric",
-                      imageUrl:
-                        "https://mockmind-api.uifaces.co/content/human/53.jpg",
+                      imageUrl: "/img/avatar5.jpeg",
                       imageWidth: 1024,
                       imageHeight: 1024,
                     },
                     {
                       name: "Ursella",
-                      imageUrl:
-                        "https://mockmind-api.uifaces.co/content/human/83.jpg",
+                      imageUrl: "/img/avatar8.jpeg",
                       imageWidth: 1024,
                       imageHeight: 1024,
                     },
@@ -112,7 +111,7 @@ export function LinkMain() {
             </div>
             <div className="collapse-content text-justify">
               <p>
-                <b>950 credences 💠</b> has been allocated for the quest. If{" "}
+                <i>950 credences</i>💠 has been allocated for the quest. If{" "}
                 <i>you</i> solve it directly, you&apos;ll receive <b>half</b>{" "}
                 which is <b>425 credences</b>.
               </p>
@@ -127,7 +126,10 @@ export function LinkMain() {
           </div>
         </div>
         <div className="flex flex-col md:flex-row gap-4">
-          <ReadMore maxHeight="10rem" className="flex-2 card p-4 bg-base-100">
+          <ReadMore
+            maxHeight="10rem"
+            className="md:flex-2 card p-4 bg-base-100"
+          >
             <p className="mb-2">
               My trek 520 grando was stolen last week. 51cm height. The red
               pusher pedals might help as well. Please let me know if you happen
@@ -150,7 +152,9 @@ export function LinkMain() {
               miles of the commute back from work.
             </p>
           </ReadMore>
-          <div className="flex-1 card p-4 bg-accent-content text-accent border-accent border self-stretch"></div>
+          <div className="md:flex-1 card p-4 bg-accent-content text-accent border-accent border self-stretch justify-center items-center">
+            <ReflowTree />
+          </div>
         </div>
       </div>
     </div>

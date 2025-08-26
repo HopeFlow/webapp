@@ -1,5 +1,5 @@
 import { cn } from "@/helpers/client/tailwind_helpers";
-import { type DetailedHTMLProps, type HTMLAttributes } from "react";
+import { useEffect, type DetailedHTMLProps, type HTMLAttributes } from "react";
 
 export type ReadMoreProps = DetailedHTMLProps<
   HTMLAttributes<HTMLDivElement>,
@@ -22,6 +22,11 @@ export const ReadMore = ({
         "[&:has(input:checked)>.veil]:opacity-0",
         "[&:has(input:checked)_.lboc]:inline [&:has(input:not(:checked))_.lbon]:inline",
       )}
+      ref={(ref) => {
+        if (ref) {
+          ref.style.maxHeight = maxHeight;
+        }
+      }}
       {...restProps}
     >
       {children}
