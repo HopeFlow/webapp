@@ -13,6 +13,7 @@ import { EyeIcon } from "@/components/icons/eye";
 import { ShareIcon } from "@/components/icons/share";
 import { BulbIcon } from "@/components/icons/bulb";
 import { ChatBubbleIcon } from "@/components/icons/chat_bubble";
+import { HopeflowLogo } from "@/components/logos/hopeflow";
 
 const Leaf = ({ className }: { className?: string }) => (
   <svg
@@ -38,10 +39,12 @@ export function LinkMain() {
     <div className="max-w-6xl w-full flex flex-col self-center">
       <MobileHeader />
       <div className="flex flex-col gap-4 md:gap-6 p-6">
-        <div>
+        <div className="w-full flex flex-row items-center justify-center">
           <h1 className="font-normal text-4xl">
             Help Jacob find his stolen bicycle
           </h1>
+          <div className="flex-1"></div>
+          <Image src="/img/wordmark.webp" alt="Home" width={118} height={32} className="h-10 w-auto object-contain" />
         </div>
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
           <div className="md:w-2/3 flex flex-col gap-4">
