@@ -4,6 +4,7 @@ import { useId } from "react";
 
 export type UserAvatarProps = {
   name: string;
+  className?: string;
 } & (
   | {
       imageUrl: string;
@@ -17,14 +18,15 @@ export type UserAvatarProps = {
     }
 );
 
-const AvatarGroupItem = ({
+export const Avatar = ({
   name,
+  className,
   imageUrl,
   imageWidth,
   imageHeight,
 }: UserAvatarProps) => (
   <div className="avatar">
-    <div className="w-12">
+    <div className={cn("w-12", className)}>
       <Image
         src={imageUrl ?? "/img/generic_user_image.webp"}
         alt={name}
@@ -49,7 +51,7 @@ export const AvatarGroup = ({
   return (
     <div className={cn(className, "avatar-group", !expanded && "-space-x-8")}>
       {userAvatarProps.map((props, index) => (
-        <AvatarGroupItem key={`${baseId}_${index}`} {...props} />
+        <Avatar key={`${baseId}_${index}`} {...props} />
       ))}
     </div>
   );

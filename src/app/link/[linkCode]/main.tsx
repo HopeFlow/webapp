@@ -47,14 +47,14 @@ export function LinkMain() {
           <div className="md:w-2/3 flex flex-col gap-4">
             <Carousel className="outline-base-content outline-2">
               <Image
-                src="/img/trek-520-grando-51cm-v0.jpeg"
+                src="https://pub-7027dcead7294deeacde6da1a50ed32f.r2.dev/trek-520-grando-51cm-v0.jpeg"
                 width={403.2}
                 height={302.4}
                 alt="Trek 520 Grando"
                 className="rounded-box"
               />
               <Image
-                src="/img/trek-520-grando-51cm-v0.jpeg"
+                src="https://pub-7027dcead7294deeacde6da1a50ed32f.r2.dev/trek-520-grando-51cm-v0.jpeg"
                 width={4032 / 2}
                 height={3024 / 2}
                 alt="Trek 520 Grando"
