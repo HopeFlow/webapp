@@ -1,5 +1,5 @@
 import { cn } from "@/helpers/client/tailwind_helpers";
-import { useEffect, type DetailedHTMLProps, type HTMLAttributes } from "react";
+import { type DetailedHTMLProps, type HTMLAttributes } from "react";
 
 export type ReadMoreProps = DetailedHTMLProps<
   HTMLAttributes<HTMLDivElement>,
@@ -16,7 +16,7 @@ export const ReadMore = ({
   return (
     <div
       className={cn(
-        "relative",
+        "relative border-neutral-400 [&:not(:has(input:checked))]:border",
         className,
         "overflow-hidden transition-[max-height] duration-1000",
         "[&:has(input:checked)>.veil]:opacity-0",

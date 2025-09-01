@@ -1,6 +1,6 @@
 import { IconProps } from "./types";
 
-export function ArrowRightIcon({ size = 24 }: IconProps) {
+export function ArrowRightIcon({ size = 24, className }: IconProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -10,7 +10,7 @@ export function ArrowRightIcon({ size = 24 }: IconProps) {
       viewBox="0 0 24 24"
       strokeWidth={1.5}
       stroke="currentColor"
-      className="size-6"
+    className={className}
     >
       <path
         strokeLinecap="round"

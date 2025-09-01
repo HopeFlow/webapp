@@ -1,3 +1,4 @@
+import { cn } from "@/helpers/client/tailwind_helpers";
 import Image from "next/image";
 import { useId } from "react";
 
@@ -37,12 +38,16 @@ const AvatarGroupItem = ({
 
 export const AvatarGroup = ({
   userAvatarProps,
+  className,
+  expanded,
 }: {
   userAvatarProps: UserAvatarProps[];
+  className?: string;
+  expanded?: boolean;
 }) => {
   const baseId = useId();
   return (
-    <div className="avatar-group -space-x-8">
+    <div className={cn(className, "avatar-group", !expanded && "-space-x-8")}>
       {userAvatarProps.map((props, index) => (
         <AvatarGroupItem key={`${baseId}_${index}`} {...props} />
       ))}

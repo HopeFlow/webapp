@@ -1,6 +1,12 @@
-import { useId, type PropsWithChildren, type ReactNode } from "react";
+import {
+  useId,
+  type DetailedHTMLProps,
+  type HTMLAttributes,
+  type ReactNode,
+} from "react";
 import { ArrowLeftIcon } from "./icons/arrow_left";
 import { ArrowRightIcon } from "./icons/arrow_right";
+import { cn } from "@/helpers/client/tailwind_helpers";
 
 const CarouselItem = ({
   content,
@@ -36,10 +42,27 @@ const CarouselItem = ({
   </div>
 );
 
-export const Carousel = ({ children }: PropsWithChildren) => {
+export type CarouselProps = DetailedHTMLProps<
+  HTMLAttributes<HTMLDivElement>,
+  HTMLDivElement
+>;
+
+export const Carousel = ({
+  children,
+  className,
+  ...restProps
+}: CarouselProps) => {
   const baseId = useId();
   return (
-    <div className="carousel w-full bg-base-content text-base-100 border-2 md:border-4 border-base-300 rounded-box">
+    <div
+      className={cn(
+        className,
+        "carousel",
+        "bg-base-content text-base-100 border-base-300",
+        "rounded-box overflow-hidden",
+      )}
+      {...restProps}
+    >
       {children &&
         (Array.isArray(children) ? children : [children]).map(
           (child, index, children) => (

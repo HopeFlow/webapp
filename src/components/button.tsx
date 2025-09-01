@@ -3,6 +3,7 @@ import type { ButtonHTMLAttributes } from "react";
 
 // Color Variants
 export const colorButtonVariants = {
+  base: "btn-base-content",
   neutral: "btn-neutral",
   primary: "btn-primary",
   secondary: "btn-secondary",
