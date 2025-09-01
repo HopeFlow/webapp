@@ -1,7 +1,6 @@
 import { Button } from "@/components/button";
 import { Carousel } from "@/components/carousel";
 import { ArrowRightIcon } from "@/components/icons/arrow_right";
-import { PlusIcon } from "@/components/icons/plus";
 import { ShareIcon } from "@/components/icons/share";
 import { MobileDock } from "@/components/mobile_dock";
 import { MobileHeader } from "@/components/mobile_header";
@@ -96,11 +95,11 @@ export default function HomeMain() {
       <div className="flex-1 bg-base-200 relative">
         <div className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
           <MobileHeader />
-          <div className="w-full h-full p-4 md:p-8 gap-4 md:gap-8 flex-1 grid grid-cols-1 md:grid-cols-2 items-center justify-center relative overflow-y-scroll">
+          <div className="w-full h-full p-4 md:p-8 gap-4 md:gap-8 flex-1 grid grid-cols-1 items-center justify-center relative overflow-y-scroll">
             {new Array(7).fill(null).map((_, i) => (
               <div
                 key={`quest-${i}`}
-                className="flex-1 h-auto flex flex-row gap-2 py-4 border-b"
+                className="max-w-4xl flex-1 h-auto flex flex-row gap-2 py-4 border-b"
               >
                 <QuestNodes
                   avatars={[
