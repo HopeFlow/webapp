@@ -13,6 +13,7 @@ import { ShareIcon } from "@/components/icons/share";
 import { BulbIcon } from "@/components/icons/bulb";
 import { ChatBubbleIcon } from "@/components/icons/chat_bubble";
 import { Leaf } from "@/components/leaf";
+import { Modal } from "@/components/modal";
 
 export function LinkMain() {
   return (
@@ -113,7 +114,41 @@ export function LinkMain() {
             <div className="flex flex-col md:flex-col justify-between gap-4 font-normal">
               <div className="flex w-full flex-col gap-2 items-stretch justify-between">
                 <p>If you have seen this bike or a similar one</p>
-                <Button buttonType="primary">Login and inform Jacob</Button>
+                <Button
+                  buttonType="primary"
+                  onClick={() =>
+                    (
+                      document.getElementById(
+                        "inform-jacob-modal",
+                      ) as HTMLDialogElement
+                    ).showModal()
+                  }
+                >
+                  Login and inform Jacob
+                </Button>
+                <Modal
+                  id="inform-jacob-modal"
+                  defaultButton={{
+                    children: <>Inform Jacob <EyeIcon /></>,
+                    onClick: (close) => close(),
+                  }}
+                  cancelButton={{
+                    children: "Cancel",
+                    onClick: (close) => close(),
+                  }}
+                >
+                  <h1>This is a test</h1>
+                  <p>
+                    To really test a modal, I have to add some content here, and
+                    maybe some more content here To really test a modal, I have
+                    to add some content here, and maybe some more content here
+                    To really test a modal, I have to add some content here, and
+                    maybe some more content here To really test a modal, I have
+                    to add some content here, and maybe some more content here
+                    To really test a modal, I have to add some content here, and
+                    maybe some more content here
+                  </p>
+                </Modal>
               </div>
               <div className="flex w-full flex-col gap-2 items-stretch justify-between">
                 <p>If you know a friend that might</p>

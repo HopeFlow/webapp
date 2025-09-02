@@ -39,6 +39,15 @@
   themes: hopeflow --default, dark --prefersdark;
 }
 
+:root {
+  @media (width < 48rem /* 768px */) {
+    /* --modal-tl: 0;
+    --modal-tr: 0;
+    --modal-bl: 0;
+    --modal-br: 0; */
+  }
+}
+
 * {
   box-sizing: border-box;
 }
