@@ -13,7 +13,7 @@ import { EyeIcon } from "@/components/icons/eye";
 import { ShareIcon } from "@/components/icons/share";
 import { BulbIcon } from "@/components/icons/bulb";
 import { ChatBubbleIcon } from "@/components/icons/chat_bubble";
-import { HopeflowLogo } from "@/components/logos/hopeflow";
+import { UserIcon } from "@/components/icons/user";
 
 const Leaf = ({ className }: { className?: string }) => (
   <svg
@@ -39,12 +39,13 @@ export function LinkMain() {
     <div className="max-w-6xl w-full flex flex-col self-center">
       <MobileHeader />
       <div className="flex flex-col gap-4 md:gap-6 p-6">
-        <div className="w-full flex flex-row items-center justify-center">
-          <h1 className="font-normal text-4xl">
+        <div className="w-full flex flex-row items-center justify-start gap-6">
+          <h1 className="md:w-2/3 font-normal text-4xl">
             Help Jacob find his stolen bicycle
           </h1>
-          <div className="flex-1"></div>
-          <Image src="/img/wordmark.webp" alt="Home" width={118} height={32} className="h-10 w-auto object-contain" />
+          <div className="flex-1 hidden md:flex items-center justify-center">
+            <MobileHeader inverseRole />
+          </div>
         </div>
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
           <div className="md:w-2/3 flex flex-col gap-4">
@@ -132,19 +133,19 @@ export function LinkMain() {
             <div className="flex flex-col md:flex-col justify-between gap-4 font-normal">
               <div className="flex w-full flex-col gap-2 items-stretch justify-between">
                 <p>If you have seen this bike or a similar one</p>
-                <Button buttonType="primary">
-                  Connect and chat with Jacob
-                </Button>
+                <Button buttonType="primary">Login and inform Jacob</Button>
               </div>
               <div className="flex w-full flex-col gap-2 items-stretch justify-between">
                 <p>If you know a friend that might</p>
-                <Button buttonType="secondary">Reflow the quest to them</Button>
+                <Button buttonType="secondary">
+                  Login and Reflow the quest
+                </Button>
               </div>
             </div>
           </div>
         </div>
-        <div className="flex flex-col md:flex-row gap-4 items-start">
-          <div className="collapse collapse-plus bg-warning-content text-warning border border-warning">
+        <div className="flex flex-col md:flex-row gap-6 items-start">
+          <div className="md:w-2/3 collapse collapse-plus bg-warning-content text-warning border border-warning">
             <input type="checkbox" />
             <div className="collapse-title font-normal flex flex-row justify-between">
               🌺 Your action may be crucial
@@ -163,7 +164,7 @@ export function LinkMain() {
               </p>
             </div>
           </div>
-          <div className="collapse collapse-plus bg-success-content text-success border border-success">
+          <div className="flex-1 collapse collapse-plus bg-success-content text-success border border-success">
             <input type="checkbox" />
             <div className="collapse-title font-normal flex flex-row justify-between">
               🕊️ Recompense (💠 425 max.)

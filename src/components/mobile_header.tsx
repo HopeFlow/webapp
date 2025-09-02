@@ -1,8 +1,14 @@
 import Image from "next/image";
 import { UserAvatarAndMenu } from "./useravatar_menu";
+import { cn } from "@/helpers/client/tailwind_helpers";
 
-export const MobileHeader = () => (
-  <div className="w-full h-16 p-4 bg-base-100 flex flex-row gap-4 items-center justify-between md:hidden">
+export const MobileHeader = ({ inverseRole }: { inverseRole?: boolean }) => (
+  <div
+    className={cn(
+      "w-full h-16 p-4 bg-base-100 flex-row gap-4 items-center justify-between",
+      inverseRole ? "hidden md:flex rounded-box" : "flex md:hidden",
+    )}
+  >
     <Image
       src="/img/wordmark.webp"
       alt="Home"

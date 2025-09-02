@@ -2,7 +2,13 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    domains: ["pub-7027dcead7294deeacde6da1a50ed32f.r2.dev"],
+    unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "pub-7027dcead7294deeacde6da1a50ed32f.r2.dev",
+      },
+    ],
   },
 };
 

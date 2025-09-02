@@ -39,7 +39,7 @@ function QuestNodes({
   }>;
 }) {
   return (
-    <div className="relative w-10 flex flex-col self-stretch items-center justify-between">
+    <div className="relative flex flex-col self-stretch items-center justify-between">
       <div className="flex flex-col items-center gap-1 text-neutral-500">
         <ShareIcon />
         <h2>{avatars.length - 1}</h2>
@@ -51,7 +51,7 @@ function QuestNodes({
             10 min
           </div>
           <Avatar
-            className="w-8 border-3 border-primary rounded-full"
+            className="w-8 md:w-12 border-3 border-primary rounded-full"
             {...avatars[avatars.length - 1]}
           />
         </>
@@ -68,7 +68,7 @@ function QuestNodes({
             {avatars.slice(-4, -1).map((avatar, i) => (
               <Avatar
                 key={`avatar-${i + 1}`}
-                className="w-6 border-3 border-primary rounded-full"
+                className="w-6 md:w-9 border-3 border-primary rounded-full"
                 {...avatar}
               />
             ))}
@@ -77,7 +77,7 @@ function QuestNodes({
         </>
       )}
       <Avatar
-        className="w-8 border-3 border-primary rounded-full"
+        className="w-8 md:w-12 border-3 border-primary rounded-full"
         {...avatars[0]}
       />
       <div className="absolute -bottom-1 left-[calc(100%+0.5rem)] w-auto text-sm">
@@ -95,7 +95,7 @@ export default function HomeMain() {
       <div className="flex-1 bg-base-200 relative">
         <div className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
           <MobileHeader />
-          <div className="w-full h-full p-4 md:p-8 gap-4 md:gap-8 flex-1 grid grid-cols-1 items-center justify-center relative overflow-y-scroll">
+          <div className="w-full h-full p-4 md:p-8 gap-4 md:gap-8 flex-1 grid grid-cols-1 md:grid-cols-1 items-center justify-center relative overflow-y-scroll">
             {new Array(7).fill(null).map((_, i) => (
               <div
                 key={`quest-${i}`}
