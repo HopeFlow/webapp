@@ -72,7 +72,7 @@ function computeTreeNodeWithPositions(root: PlacedReFlowNode) {
 
   treeLayers[0][0].coords = [
     0.5 * widthOf(maxLayerSize),
-    heightOf(vertTotalSize) + treeLayers.length * 2 * NODE_RADIUS - NODE_RADIUS,
+    NODE_RADIUS,
   ];
 
   const populateNodePositions = (
@@ -80,7 +80,7 @@ function computeTreeNodeWithPositions(root: PlacedReFlowNode) {
     nodes: PlacedReFlowNode[],
   ) => {
     let x = parent.coords[0] - 0.5 * widthOf(parent.size);
-    const y = parent.coords[1] - heightOf(parent.vertSize) - 2 * NODE_RADIUS;
+    const y = parent.coords[1] + heightOf(parent.vertSize) + 2 * NODE_RADIUS;
     nodes.forEach((node) => {
       node.coords = [x + 0.5 * widthOf(node.size), y];
       x += widthOf(node.size) + NODE_SEPARATION;
@@ -121,10 +121,10 @@ const createEdgePath = (start: Point, end: Point): string => {
     x0 < x1 ? [x0, x1, edgeCurveRadius] : [x1, x0, -edgeCurveRadius];
 
   return `M ${x0} ${y0}
-          L ${x0} ${midY + edgeCurveRadius}
+          L ${x0} ${midY - edgeCurveRadius}
           S ${x0} ${midY} ${x0 + curveX} ${midY}
           L ${x1 - curveX} ${midY}
-          S ${x1} ${midY} ${x1} ${midY - edgeCurveRadius}
+          S ${x1} ${midY} ${x1} ${midY + edgeCurveRadius}
           L ${x1} ${y1}`;
 };
 
