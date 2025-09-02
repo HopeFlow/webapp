@@ -79,7 +79,7 @@ export const ContributorQuestCardNodes = ({
     {nodes.length > 1 && <hr className="flex-1 w-0 border-primary border-2" />}
     {nodes.length > 2 && (
       <>
-        <hr className="flex-1 w-0 border-primary border-2 border-dotted" />
+        <hr className="flex-4 w-0 border-primary border-2 border-dashed" />
         <hr className="flex-1 w-0 border-primary border-2" />
       </>
     )}
