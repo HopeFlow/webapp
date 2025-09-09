@@ -9,11 +9,13 @@ import { ReadMore } from "@/components/read_more";
 import { ReflowTree } from "@/components/reflow_tree";
 import { Timeline } from "@/components/timeline";
 import { EyeIcon } from "@/components/icons/eye";
-import { ShareIcon } from "@/components/icons/share";
 import { BulbIcon } from "@/components/icons/bulb";
 import { ChatBubbleIcon } from "@/components/icons/chat_bubble";
 import { Leaf } from "@/components/leaf";
-import { Modal } from "@/components/modal";
+import { ReflowIcon } from "@/components/icons/reflow";
+import { BookmarkIcon } from "@/components/icons/bookmark";
+import { MediatorsIcon } from "@/components/icons/mediators";
+import { ReflowModal, showReflowModal } from "@/modals/reflow_modal";
 
 export function LinkMain() {
   return (
@@ -73,8 +75,8 @@ export function LinkMain() {
               </p>
             </div>
           </div>
-          <div className="card flex-1 p-4 font-light bg-info text-info-content flex-col gap-4 flex">
-            <div className="flex gap-4 flex-col items-start md:flex">
+          <div className="card flex-1 p-2 md:p-4 font-light bg-info text-info-content flex-col gap-4 flex">
+            <div className="flex p-2 md:p-0 gap-4 flex-col items-start md:flex">
               <div className="flex-grow-0 flex-shink-0 flex flex-row gap-2 items-center hover:[&>.avatar-group]:space-x-2 hover:[&>.avatar-group-desc]:opacity-0  active:[&>.avatar-group]:space-x-2 active:[&>.avatar-group-desc]:opacity-0 select-none">
                 <AvatarGroup
                   className="[&_*]:select-none [&>.avatar]:transition-all [&>.avatar]:duration-1000"
@@ -111,49 +113,22 @@ export function LinkMain() {
               </p>
             </div>
             <div className="hidden flex-1 md:block"></div>
-            <div className="flex flex-col md:flex-col justify-between gap-4 font-normal">
-              <div className="flex w-full flex-col gap-2 items-stretch justify-between">
-                <p>If you have seen this bike or a similar one</p>
-                <Button
-                  buttonType="primary"
-                  onClick={() =>
-                    (
-                      document.getElementById(
-                        "inform-jacob-modal",
-                      ) as HTMLDialogElement
-                    ).showModal()
-                  }
-                >
-                  Login and inform Jacob
+            <div className="flex flex-col justify-between gap-4 font-normal">
+              <Button buttonType="primary" onClick={() => showReflowModal()}>
+                <ReflowIcon size={18} /> I know someone ...
+              </Button>
+              <ReflowModal />
+              <div className="flex w-full flex-row gap-2 items-stretch justify-between">
+                <Button buttonType="secondary" className="flex-1">
+                  <BulbIcon size={18} /> I've seen it
                 </Button>
-                <Modal
-                  id="inform-jacob-modal"
-                  defaultButton={{
-                    children: <>Inform Jacob <EyeIcon /></>,
-                    onClick: (close) => close(),
-                  }}
-                  cancelButton={{
-                    children: "Cancel",
-                    onClick: (close) => close(),
-                  }}
+                <Button
+                  buttonType="neutral"
+                  buttonStyle="soft"
+                  className="flex-1"
                 >
-                  <h1>This is a test</h1>
-                  <p>
-                    To really test a modal, I have to add some content here, and
-                    maybe some more content here To really test a modal, I have
-                    to add some content here, and maybe some more content here
-                    To really test a modal, I have to add some content here, and
-                    maybe some more content here To really test a modal, I have
-                    to add some content here, and maybe some more content here
-                    To really test a modal, I have to add some content here, and
-                    maybe some more content here
-                  </p>
-                </Modal>
-              </div>
-              <div className="flex w-full flex-col gap-2 items-stretch justify-between">
-                <p>If you know a friend that might</p>
-                <Button buttonType="secondary">
-                  Login and Reflow the quest
+                  <BookmarkIcon size={18} />
+                  I'll see later
                 </Button>
               </div>
             </div>
@@ -282,7 +257,7 @@ export function LinkMain() {
                 <EyeIcon /> 150 people have seen this quest
               </div>
               <div className="flex flex-row gap-4">
-                <ShareIcon /> 10 people shared this quest
+                <MediatorsIcon /> 10 people shared this quest
               </div>
               <div className="flex flex-row gap-4">
                 <BulbIcon /> No one submitted any leads

@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import { GhostButton } from "./button";
 import { BellIcon } from "./icons/bell";
@@ -7,6 +9,10 @@ import { PlusIcon } from "./icons/plus";
 import { TrophyIcon } from "./icons/trophy";
 import { UserIcon } from "./icons/user";
 import { UserAvatarAndMenu } from "./useravatar_menu";
+import {
+  CreateQuestModal,
+  showCreateQuestModal,
+} from "@/modals/create_quest_modal";
 
 export const Sidebar = () => (
   <div className="w-60 h-auto p-6 hidden md:flex flex-col items-center border-r-2 bg-base-100 border-base-300">
@@ -34,9 +40,13 @@ export const Sidebar = () => (
       <GhostButton className="font-thin flex flex-row gap-2 justify-start">
         <UserIcon /> Profile
       </GhostButton>
-      <GhostButton className="font-thin flex flex-row gap-2 justify-start">
+      <GhostButton
+        className="font-thin flex flex-row gap-2 justify-start"
+        onClick={() => showCreateQuestModal()}
+      >
         <PlusIcon /> Create a quest
       </GhostButton>
+      <CreateQuestModal />
     </div>
     <div className="w-full flex-1"></div>
     <div className="w-full flex flex-col gap-4 [&>*]:w-full">

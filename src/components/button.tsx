@@ -91,11 +91,12 @@ export function GhostButton({
   );
 }
 
-export function CloseButton(
-  props: Exclude<ButtonHTMLAttributes<HTMLButtonElement>, "children">,
-) {
+export function CloseButton({
+  className,
+  ...restProps
+}: Exclude<ButtonHTMLAttributes<HTMLButtonElement>, "children">) {
   return (
-    <GhostButton {...props}>
+    <GhostButton className={cn(className, "p-0")} {...restProps}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
