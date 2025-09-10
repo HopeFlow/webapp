@@ -49,15 +49,18 @@ export function StarterQuestCard({
       <div className="flex-1 flex flex-col gap-2 items-start">
         <h1>{title}</h1>
         <Carousel className="w-full h-48 md:h-96 flex flex-col items-center justify-center rounded-box overflow-hidden bg-base-content">
-          {coverMedia.map(({ imageUrl, alt, imageWidth, imageHeight }) => (
-            <Image
-              src={imageUrl}
-              alt={alt ?? title}
-              width={imageWidth}
-              height={imageHeight}
-              className="max-h-full w-auto object-contain"
-            />
-          ))}
+          {coverMedia.map(
+            ({ imageUrl, alt, imageWidth, imageHeight }, index) => (
+              <Image
+                key={`cover-${index}`}
+                src={imageUrl}
+                alt={alt ?? title}
+                width={imageWidth}
+                height={imageHeight}
+                className="max-h-full w-auto object-contain"
+              />
+            ),
+          )}
         </Carousel>
         <div className="w-full flex flex-row">
           <span className="h-full inline-flex flex-row items-center gap-2">
@@ -97,7 +100,12 @@ export function StarterQuestCard({
           {numberOfLeads === 0 ? "No leads yet" : `${numberOfLeads} leads`}
         </div>
         <div className="w-full h-10 flex flex-row items-end justify-end">
-          <Button buttonSize="sm" buttonType="base" buttonStyle="outline" className="w-28">
+          <Button
+            buttonSize="sm"
+            buttonType="base"
+            buttonStyle="outline"
+            className="w-28"
+          >
             Manage <ArrowRightIcon />
           </Button>
         </div>
@@ -150,15 +158,18 @@ export function ContributorQuestCard({
         <div className="flex-1 flex flex-col gap-2 items-start">
           <h1>{title}</h1>
           <Carousel className="w-full h-48 md:h-96 flex flex-col items-center justify-center rounded-box overflow-hidden bg-base-content">
-            {coverMedia.map(({ imageUrl, alt, imageWidth, imageHeight }) => (
-              <Image
-                src={imageUrl}
-                alt={alt ?? title}
-                width={imageWidth}
-                height={imageHeight}
-                className="max-h-full w-auto object-contain"
-              />
-            ))}
+            {coverMedia.map(
+              ({ imageUrl, alt, imageWidth, imageHeight }, index) => (
+                <Image
+                  key={`cover-${index}`}
+                  src={imageUrl}
+                  alt={alt ?? title}
+                  width={imageWidth}
+                  height={imageHeight}
+                  className="max-h-full w-auto object-contain"
+                />
+              ),
+            )}
           </Carousel>
         </div>
       </div>
@@ -203,7 +214,12 @@ export function ContributorQuestCard({
             {numberOfLeads === 0 ? "No leads yet" : `${numberOfLeads} leads`}
           </div>
           <div className="w-full h-10 flex flex-row items-end justify-end">
-            <Button buttonSize="sm" buttonType="base" buttonStyle="outline" className="w-28">
+            <Button
+              buttonSize="sm"
+              buttonType="base"
+              buttonStyle="outline"
+              className="w-28"
+            >
               View <ArrowRightIcon />
             </Button>
           </div>

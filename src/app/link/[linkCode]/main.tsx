@@ -120,7 +120,7 @@ export function LinkMain() {
               <ReflowModal />
               <div className="flex w-full flex-row gap-2 items-stretch justify-between">
                 <Button buttonType="secondary" className="flex-1">
-                  <BulbIcon size={18} /> I've seen it
+                  <BulbIcon size={18} /> I&apos;ve seen it
                 </Button>
                 <Button
                   buttonType="neutral"
@@ -128,7 +128,7 @@ export function LinkMain() {
                   className="flex-1"
                 >
                   <BookmarkIcon size={18} />
-                  I'll see later
+                  I&apos;ll see later
                 </Button>
               </div>
             </div>

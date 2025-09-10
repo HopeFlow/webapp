@@ -40,7 +40,7 @@ export const Modal = ({
 }) => {
   const close = useCallback(
     () => (document.getElementById(id) as HTMLDialogElement).close(),
-    [],
+    [id],
   );
   return (
     <dialog id={id} onClose={onClose} className="modal">

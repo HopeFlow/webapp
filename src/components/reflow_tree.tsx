@@ -61,9 +61,9 @@ function computeTreeNodeWithPositions(root: PlacedReFlowNode) {
     ...treeLayers.map((layer) => layer.reduce((sum, n) => sum + n.size, 0)),
   );
 
-  const vertTotalSize = treeLayers
-    .slice(0, -1)
-    .reduce((sum, n) => sum + n[0].vertSize, 0);
+  // const vertTotalSize = treeLayers
+  //   .slice(0, -1)
+  //   .reduce((sum, n) => sum + n[0].vertSize, 0);
 
   const widthOf = (size: number) =>
     size * (2 * NODE_RADIUS + NODE_SEPARATION) - NODE_SEPARATION;

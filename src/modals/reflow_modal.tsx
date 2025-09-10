@@ -7,6 +7,7 @@ import { ExclamationCircleIcon } from "@/components/icons/exclamation_circle";
 import Image from "next/image";
 import { Steps } from "@/components/steps";
 import { ArrowRightIcon } from "@/components/icons/arrow_right";
+import { AnyArgs } from "@/helpers/client/type_helpers";
 
 export const showReflowModal = () => {
   showModal("global-modal-reflow");
@@ -147,7 +148,10 @@ const Step3 = () => {
       <label>How well do you know Margaret?</label>
       {connectionStrengthTitleAndDescriptions.map(
         ({ title, description }, index) => (
-          <div key={title} className="flex flex-col gap-1 md:flex-row md:items-center">
+          <div
+            key={title}
+            className="flex flex-col gap-1 md:flex-row md:items-center"
+          >
             <label className="radio-label label cursor-pointer md:w-48">
               <input
                 type="radio"
@@ -207,12 +211,20 @@ const Step4 = () => {
   );
 };
 
-type CreateLinkParams = {
-  type: "targeted" | "broadcast";
-  name?: string;
-  relationship?: string;
-  endorsementNote?: string;
-};
+// type CreateLinkParams = {
+//   type: "targeted" | "broadcast";
+//   name?: string;
+//   relationship?: string;
+//   endorsementNote?: string;
+// };
+
+function debounce<P extends AnyArgs>(f: (...args: P) => void, delay: number) {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  return (...args: P) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => f(...args), delay);
+  };
+}
 
 export const ReflowModal = () => {
   const [stepIndex, setStepIndex] = useState(0);
@@ -245,14 +257,36 @@ export const ReflowModal = () => {
       }}
       cancelButton={{ children: "Cancel" }}
     >
-      <div className="w-full h-full carousel carousel-horizontal carousel-center">
+      <div
+        className="w-full h-full carousel carousel-horizontal carousel-center"
+        onScroll={(e) => {
+          const carousel = e.currentTarget;
+          debounce(() => {
+            const { scrollLeft, clientWidth } = carousel;
+            const index = Math.round(scrollLeft / clientWidth);
+            setStepIndex(index);
+          }, 500)();
+        }}
+      >
         {steps.map((node, index) => (
           <div
             key={`step-${index}`}
+            data-index={index}
             className="flex flex-col gap-4 w-full h-full p-2 carousel-item items-stretch justify-start [&>label:not(.radio-label)]:text-2xl [&>label.radio-label]:text-sm"
             ref={(stepContainer) => {
               if (!stepContainer) return;
               if (stepIndex === index) {
+                const x00 = stepContainer.offsetLeft;
+                const x01 =
+                  stepContainer.offsetLeft + stepContainer.clientWidth;
+                const x10 = stepContainer.parentElement!.scrollLeft;
+                const x11 =
+                  stepContainer.parentElement!.scrollLeft +
+                  stepContainer.parentElement!.clientWidth;
+                const overlap =
+                  Math.max(0, Math.min(x11, x01) - Math.max(x00, x10)) /
+                  (x01 - x00);
+                if (overlap > 0.5) return;
                 stepContainer.scrollIntoView({ behavior: "smooth" });
               }
             }}
