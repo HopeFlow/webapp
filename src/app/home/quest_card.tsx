@@ -64,7 +64,7 @@ export function StarterQuestCard({
         </Carousel>
         <div className="w-full flex flex-row">
           <span className="h-full inline-flex flex-row items-center gap-2">
-            💠 +{Math.max(0, bounty)}
+            $ +{Math.max(0, bounty)}
           </span>
           <span className="flex-1"></span>
           <span
@@ -178,7 +178,7 @@ export function ContributorQuestCard({
         <div className="flex-1 flex flex-col gap-2">
           <div className="w-full flex flex-row">
             <span className="h-full inline-flex flex-row items-center gap-2">
-              💠 +{Math.max(0, bounty)}
+              $ +{Math.max(0, bounty)}
             </span>
             <span className="flex-1"></span>
             <span

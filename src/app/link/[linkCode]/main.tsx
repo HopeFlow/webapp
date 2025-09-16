@@ -157,21 +157,21 @@ export function LinkMain() {
           <div className="flex-1 collapse collapse-plus bg-success-content text-success border border-success">
             <input type="checkbox" />
             <div className="collapse-title font-normal flex flex-row justify-between">
-              🕊️ Recompense (💠 425 max.)
+              🕊️ Recompense ($425 max.)
             </div>
             <div className="collapse-content text-justify">
               <p>
-                <i>950 credences</i>💠 has been allocated for the quest. If{" "}
+                <i>$950</i> has been allocated for the quest. If{" "}
                 <i>you</i> solve it directly, you&apos;ll receive <b>half</b>{" "}
-                which is <b>425 credences</b>.
+                which is <b>$425</b>.
               </p>
               <p>
                 If your pass the word on, rewards then flow through a{" "}
                 <b>recursive split 🌀</b>. The solver gets <b>½</b>; the
                 referrer <b>¼</b>, the one before <b>⅛</b>... each step halving.
                 Say you pass to your friend, whose aquintance provides the
-                answer, you&apos;ll earn <b>⅛ = 106.25 credences 💠</b>.
-              </p>{" "}
+                answer, you&apos;ll earn <b>⅛ = $106.25</b>.
+              </p>
             </div>
           </div>
         </div>

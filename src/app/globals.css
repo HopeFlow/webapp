@@ -48,9 +48,9 @@
   }
 }
 
-* {
+/* * {
   box-sizing: border-box;
-}
+} */
 
 .flex > * {
   min-width: 0;
@@ -80,4 +80,8 @@ svg.in_view .fade {
   to {
     opacity: 1;
   }
+}
+
+.steps .step {
+  min-width: 3rem;
 }
