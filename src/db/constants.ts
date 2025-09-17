@@ -1,10 +1,25 @@
 export const questStatusDef = [
   "draft",
   "active",
-  "finished",
+  "solved",
   "terminated",
+  "expired",
 ] as const;
-export const defaultShareLinkType = ["targeted", "broadcast"] as const;
+export const questTypeDef = ["restricted", "unrestricted"] as const;
+export const linkTypeDef = ["targeted", "broadcast"] as const;
+
+export const updateTypeDef = [
+  "reflow",
+  "answerProposed",
+  "answerAccepted",
+  "answerRejected",
+  "terminated",
+  "expired",
+  "questEdited",
+  "nodeJoined",
+  "commentAdded",
+] as const;
+
 export const reflowTargetRelationDef = [
   "close_family",
   "longtime_friend",
@@ -12,13 +27,18 @@ export const reflowTargetRelationDef = [
   "acquintance",
   "neighbour",
 ] as const;
+
 export const nodeStatusDef = [
-  "contributed",
-  "answered",
-  "accepted",
-  "rejected",
+  "started",
+  "askedQuestion",
+  "reacted",
+  "commented",
+  "mediated",
+  "proposedAnswer",
+  "isAccepted",
+  "isRejected",
 ] as const;
-export const chatMessageSentByDef = ["bot", "starter", "contributor"] as const;
+
 export const messageStatusDef = ["sent", "delivered", "read"] as const;
 export const socialMediaNames = [
   "facebook",
