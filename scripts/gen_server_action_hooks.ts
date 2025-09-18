@@ -20,6 +20,20 @@ import {
   upperCaseFirstLetter,
 } from "./ts_morph_utilities";
 
+const PRIMITIVE_TYPE_NAMES = [
+  "string",
+  "number",
+  "boolean",
+  "any",
+  "unknown",
+  "void",
+  "never",
+  "null",
+  "undefined",
+  "true",
+  "false",
+];
+
 type ServerActionType =
   | "serverAction"
   | "crudServerAction"
@@ -257,44 +271,47 @@ const getTemplateHookVariableStatement = (
 };
 
 const collectTypes = (type: Type | undefined, collected: Set<Symbol>) => {
-    if (!type) return;
+  if (!type) return;
 
-    if (type.getAliasSymbol()) {
-        type.getAliasTypeArguments().forEach(t => collectTypes(t, collected));
+  if (type.getAliasSymbol()) {
+    type.getAliasTypeArguments().forEach((t) => collectTypes(t, collected));
+  }
+
+  if (type.isArray()) {
+    collectTypes(type.getArrayElementTypeOrThrow(), collected);
+    return;
+  }
+  if (type.isTuple()) {
+    type.getTupleElements().forEach((t) => collectTypes(t, collected));
+    return;
+  }
+
+  if (type.isUnion()) {
+    type.getUnionTypes().forEach((t) => collectTypes(t, collected));
+    return;
+  }
+  if (type.isIntersection()) {
+    type.getIntersectionTypes().forEach((t) => collectTypes(t, collected));
+    return;
+  }
+
+  const symbol = type.getSymbol();
+  if (symbol) {
+    if (
+      symbol.getName().startsWith("__") ||
+      PRIMITIVE_TYPE_NAMES.includes(symbol.getName())
+    ) {
+      return;
     }
 
-    if (type.isArray()) {
-        collectTypes(type.getArrayElementTypeOrThrow(), collected);
-        return;
+    const declarations = symbol.getDeclarations();
+    if (declarations.length > 0) {
+      const sourceFile = declarations[0].getSourceFile();
+      if (!sourceFile.getFilePath().includes("/node_modules/")) {
+        collected.add(symbol);
+      }
     }
-    if (type.isTuple()) {
-        type.getTupleElements().forEach(t => collectTypes(t, collected));
-        return;
-    }
-
-    if (type.isUnion()) {
-        type.getUnionTypes().forEach(t => collectTypes(t, collected));
-        return;
-    }
-    if (type.isIntersection()) {
-        type.getIntersectionTypes().forEach(t => collectTypes(t, collected));
-        return;
-    }
-
-    const symbol = type.getSymbol();
-    if (symbol) {
-        if (symbol.getName().startsWith("__") || ["string", "number", "boolean", "any", "unknown", "void", "never", "null", "undefined", "true", "false"].includes(symbol.getName())) {
-            return;
-        }
-
-        const declarations = symbol.getDeclarations();
-        if (declarations.length > 0) {
-            const sourceFile = declarations[0].getSourceFile();
-            if (!sourceFile.getFilePath().includes("/node_modules/")) {
-                collected.add(symbol);
-            }
-        }
-    }
+  }
 };
 
 const addHookVariableStatement = (
@@ -354,7 +371,7 @@ const addHookVariableStatement = (
             },
           ]
         : [];
-      const callSignature = 
+      const callSignature =
         symbol === actionSymbol
           ? getActionSymbolType(symbol)
               .getCallSignatures()
@@ -377,7 +394,7 @@ const addHookVariableStatement = (
                     p,
                     p.getValueDeclarationOrThrow(),
                   ),
-                  sourceFile
+                  sourceFile,
                 ),
               },
             ],
@@ -390,14 +407,14 @@ const addHookVariableStatement = (
               .getReturnTypeOfSignature(callSignature)
               .getTypeArguments()
               .at(0)!,
-              sourceFile
+            sourceFile,
           )}>` +
           (symbol === actionSymbol && actionInfo.mutations
             ? `& { ${actionInfo.mutations.map(
                 (mutation) =>
                   `${mutation}: UseMutationResult<boolean, Error, ${getResolvedTypeText(
                     mutationDataTypeMap!.get(mutation)!,
-                    sourceFile
+                    sourceFile,
                   )}>`,
               )}
  }`
@@ -414,7 +431,7 @@ const addHookVariableStatement = (
     .addVariableStatement(templateStatement.getStructure())
     .setIsExported(true)
     .getDeclarations()
-    .at(0)! 
+    .at(0)!
     .asKind(SyntaxKind.VariableDeclaration)!;
   hookDeclaration.rename(`use${upperCaseFirstLetter(actionInfo.id)}`);
   const functionDeclaration = hookDeclaration.getInitializerIfKindOrThrow(
@@ -438,7 +455,10 @@ const addHookVariableStatement = (
       .getParameterOrThrow("args")
       .setType(
         argsTypes.size === 1
-          ? getResolvedTypeText(Array.from(argsTypes.values()).at(0)![0], sourceFile)
+          ? getResolvedTypeText(
+              Array.from(argsTypes.values()).at(0)![0],
+              sourceFile,
+            )
           : "unknown[]",
       );
   return [
@@ -463,7 +483,7 @@ const setQueryKey = (
   functionDeclaration
     .getVariableDeclaration("queryKey")
     ?.setInitializer(
-      `[${ 
+      `[${
         useRawExpression ? idOrRawExpression : JSON.stringify(idOrRawExpression)
       }${isArgsEmpty ? "" : ", ...args"}]`,
     );
@@ -509,7 +529,10 @@ const rectifyServerActionCalls = (
           .filter((arg) => arg.getText() === "args")
           .forEach((arg) =>
             arg.replaceWithText(
-              `${arg.getText()} as ${getResolvedTypeText(argsType, functionDeclaration)}`,
+              `${arg.getText()} as ${getResolvedTypeText(
+                argsType,
+                functionDeclaration,
+              )}`,
             ),
           );
     });
@@ -599,7 +622,7 @@ const addCrudMutations = (
     mutationStatement.getDeclarations().at(0)!.rename(mutation);
     const mutationFnAssignment = mutationStatement
       .getDeclarations()
-      .at(0)! 
+      .at(0)!
       .getInitializer()!
       .getDescendantsOfKind(SyntaxKind.PropertyAssignment)
       .find(
@@ -612,7 +635,9 @@ const addCrudMutations = (
     const parameter = mutationFnAssignment.getFirstDescendantByKindOrThrow(
       SyntaxKind.Parameter,
     );
-    parameter.setType(getResolvedTypeText(mutationDataTypeMap.get(mutation)!, block));
+    parameter.setType(
+      getResolvedTypeText(mutationDataTypeMap.get(mutation)!, block),
+    );
     const serverActionCall = mutationFnAssignment
       .getDescendantsOfKind(SyntaxKind.CallExpression)
       .find((call) => call.getExpression().getText() === "crudServerAction");
@@ -620,7 +645,7 @@ const addCrudMutations = (
       throw new Error("Could not find serverAction call in mutation statement");
     serverActionCall
       .getArguments()
-      .at(0)! 
+      .at(0)!
       .replaceWithText(JSON.stringify(mutation));
   });
 };
@@ -706,7 +731,7 @@ const buildCrudServerActionHook = (
     if (actionInfo.variants) {
       const ifNotVariantName = body
         .addStatements(`if (!variantName) {}`)
-        .at(0)! 
+        .at(0)!
         .asKindOrThrow(SyntaxKind.IfStatement);
       ifNotVariantName
         .getThenStatement()!
@@ -745,14 +770,19 @@ const buildCrudServerActionHook = (
       `(
         ${Array.from(actionInfo.variants)
           .map(([variantSymbol, variantInfo]) => {
-            const [variantArgsType, variantArgsEmpty] = 
+            const [variantArgsType, variantArgsEmpty] =
               argsTypes.get(variantSymbol)!;
             return `variantName === ${JSON.stringify(
               variantInfo.variantName,
             )} ? ${variantSymbol.getName()}(
-              ${variantArgsEmpty
-                ? ""
-                : `...args as ${getResolvedTypeText(variantArgsType, functionDeclaration)}`}
+              ${
+                variantArgsEmpty
+                  ? ""
+                  : `...args as ${getResolvedTypeText(
+                      variantArgsType,
+                      functionDeclaration,
+                    )}`
+              }
             ) : `;
           })
           .join("")}
@@ -765,7 +795,7 @@ const buildCrudServerActionHook = (
 
 const main = () => {
   const [projectRootPath, project] = createProject();
-  const getShortestModuleSpecifier = 
+  const getShortestModuleSpecifier =
     createShortestModuleSpecifierGetter(projectRootPath);
 
   const actionSymbols = analyseProject(project);
@@ -794,7 +824,9 @@ const main = () => {
         console.log(`  Variant: ${variantSymbol.getName()}`);
       }
     }
-    const targetPath = `src/server_actions/client/${actionInfo.scope}/${actionSymbol.getName()}.ts`;
+    const targetPath = `src/server_actions/client/${
+      actionInfo.scope
+    }/${actionSymbol.getName()}.ts`;
     const hookSourceFile = project.createSourceFile(targetPath, "", {
       overwrite: true,
     });
@@ -802,44 +834,55 @@ const main = () => {
     const typesToImport = new Set<Symbol>();
 
     const actionParams = getActionSymbolTypeParams(actionSymbol);
-    actionParams.forEach(t => collectTypes(t, typesToImport));
+    actionParams.forEach((t) => collectTypes(t, typesToImport));
 
     if (actionInfo.variants) {
-        for (const variantSymbol of Array.from(actionInfo.variants.keys())) {
-            const variantParams = getActionSymbolTypeParams(variantSymbol);
-            variantParams.forEach(t => collectTypes(t, typesToImport));
-        }
+      for (const variantSymbol of Array.from(actionInfo.variants.keys())) {
+        const variantParams = getActionSymbolTypeParams(variantSymbol);
+        variantParams.forEach((t) => collectTypes(t, typesToImport));
+      }
     }
 
     const importsToAdd = new Map<string, Set<string>>();
 
     for (const typeSymbol of typesToImport) {
-        const declaration = typeSymbol.getDeclarations()[0];
-        if (!declaration) continue;
+      const declaration = typeSymbol.getDeclarations()[0];
+      if (!declaration) continue;
 
-        if (actionSymbols.has(typeSymbol)) continue;
-        if (typeSymbol.getName() === actionSymbol.getName()) continue;
-        if (actionInfo.variants && Array.from(actionInfo.variants.keys()).some(s => s.getName() === typeSymbol.getName())) continue;
+      if (actionSymbols.has(typeSymbol)) continue;
+      if (typeSymbol.getName() === actionSymbol.getName()) continue;
+      if (
+        actionInfo.variants &&
+        Array.from(actionInfo.variants.keys()).some(
+          (s) => s.getName() === typeSymbol.getName(),
+        )
+      )
+        continue;
 
-
-        if (!typeSymbol.getDeclarations().some(d => {
-            if (Node.isExportable(d)) {
-                return d.isExported();
-            }
-            return false;
-        })) {
-            throw new Error(`Type '${typeSymbol.getName()}' is used by action '${actionSymbol.getName()}' but is not exported from its module '${declaration.getSourceFile().getFilePath()}'. Please export the type.`);
-        }
-
-        const moduleSpecifier = getShortestModuleSpecifier(
-            declaration.getSourceFile().getFilePath(),
-            targetPath,
+      if (
+        !typeSymbol.getDeclarations().some((d) => {
+          if (Node.isExportable(d)) {
+            return d.isExported();
+          }
+          return false;
+        })
+      ) {
+        throw new Error(
+          `Type '${typeSymbol.getName()}' is used by action '${actionSymbol.getName()}' but is not exported from its module '${declaration
+            .getSourceFile()
+            .getFilePath()}'. Please export the type.`,
         );
-        
-        if (!importsToAdd.has(moduleSpecifier)) {
-            importsToAdd.set(moduleSpecifier, new Set());
-        }
-        importsToAdd.get(moduleSpecifier)!.add(typeSymbol.getName());
+      }
+
+      const moduleSpecifier = getShortestModuleSpecifier(
+        declaration.getSourceFile().getFilePath(),
+        targetPath,
+      );
+
+      if (!importsToAdd.has(moduleSpecifier)) {
+        importsToAdd.set(moduleSpecifier, new Set());
+      }
+      importsToAdd.get(moduleSpecifier)!.add(typeSymbol.getName());
     }
 
     hookSourceFile.addImportDeclaration({
@@ -861,7 +904,7 @@ const main = () => {
           moduleSpecifier: getShortestModuleSpecifier(
             variantSymbol
               .getDeclarations()
-              .at(0)! 
+              .at(0)!
               .getSourceFile()
               .getFilePath(),
             targetPath,
@@ -872,19 +915,25 @@ const main = () => {
     }
 
     for (const [moduleSpecifier, namedImports] of importsToAdd) {
-        const existingImport = hookSourceFile.getImportDeclaration(d => d.getModuleSpecifierValue() === moduleSpecifier);
-        if (existingImport) {
-            const existingNamed = existingImport.getNamedImports().map(ni => ni.getName());
-            const newImports = Array.from(namedImports).filter(ni => !existingNamed.includes(ni));
-            if (newImports.length > 0) {
-                existingImport.addNamedImports(newImports);
-            }
-        } else {
-            hookSourceFile.addImportDeclaration({
-                moduleSpecifier,
-                namedImports: Array.from(namedImports),
-            });
+      const existingImport = hookSourceFile.getImportDeclaration(
+        (d) => d.getModuleSpecifierValue() === moduleSpecifier,
+      );
+      if (existingImport) {
+        const existingNamed = existingImport
+          .getNamedImports()
+          .map((ni) => ni.getName());
+        const newImports = Array.from(namedImports).filter(
+          (ni) => !existingNamed.includes(ni),
+        );
+        if (newImports.length > 0) {
+          existingImport.addNamedImports(newImports);
         }
+      } else {
+        hookSourceFile.addImportDeclaration({
+          moduleSpecifier,
+          namedImports: Array.from(namedImports),
+        });
+      }
     }
 
     hookSourceFile.addImportDeclaration({
@@ -925,11 +974,15 @@ const main = () => {
       );
     } else throw new Error(`Invalid action type: ${actionInfo.type}`);
 
-    const hookDeclaration = hookSourceFile.getVariableDeclaration(`use${upperCaseFirstLetter(actionInfo.id)}`);
+    const hookDeclaration = hookSourceFile.getVariableDeclaration(
+      `use${upperCaseFirstLetter(actionInfo.id)}`,
+    );
     if (hookDeclaration) {
-        hookDeclaration.set({
-            trailingTrivia: `use${upperCaseFirstLetter(actionInfo.id)}.scope = "${actionInfo.scope}";`
-        });
+      hookDeclaration.set({
+        trailingTrivia: `use${upperCaseFirstLetter(actionInfo.id)}.scope = "${
+          actionInfo.scope
+        }";`,
+      });
     }
 
     hookSourceFile.insertStatements(0, [
