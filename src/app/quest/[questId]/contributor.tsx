@@ -75,6 +75,16 @@ export function QuestContributorView() {
             </div>
           </div>
           <div className="flex-1 font-light text-base-content flex-col gap-4 flex">
+            <div className="card bg-info p-4 flex flex-col justify-end gap-4 font-normal">
+              <p>Invite more people, get more possible leads</p>
+              <Button buttonType="primary" onClick={() => showReflowModal()}>
+                <ReflowIcon size={18} /> ReFlow to more people
+              </Button>
+              <Button buttonType="secondary" onClick={() => showReflowModal()}>
+                <BulbIcon size={18} /> Propose a lead
+              </Button>
+              <ReflowModal />
+            </div>
             <div className="card p-2 md:p-4 flex flex-col gap-2 text-base-content/95 bg-base-100">
               <h1 className="font-bold text-lg text-success">Recompense</h1>
               <div className="flex flex-row gap-2 items-center justify-between">
@@ -111,16 +121,6 @@ export function QuestContributorView() {
                   </div>
                 ))}
               </div>
-            </div>
-            <div className="card bg-info p-4 flex flex-col justify-end gap-4 font-normal">
-              <p>Invite more people, get more possible leads</p>
-              <Button buttonType="primary" onClick={() => showReflowModal()}>
-                <ReflowIcon size={18} /> ReFlow to more people
-              </Button>
-              <Button buttonType="secondary" onClick={() => showReflowModal()}>
-                <BulbIcon size={18} /> Propose a lead
-              </Button>
-              <ReflowModal />
             </div>
           </div>
         </div>
