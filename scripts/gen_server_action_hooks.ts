@@ -8,6 +8,7 @@ import {
   Type,
   Block,
   InterfaceDeclaration,
+  Node,
 } from "ts-morph";
 import fs from "node:fs";
 import {
@@ -55,8 +56,10 @@ const analyseSourceFile = (
         if (callee.isKind(SyntaxKind.Identifier)) {
           if (callee.getText() === "createServerAction") {
             const serverActionArguments = call.getArguments();
-            if (serverActionArguments.length !== 1)
-              throw new Error("Expected 1 argument for createServerAction");
+            if (serverActionArguments.length < 2)
+              throw new Error(
+                "Expected at least 2 arguments for createServerAction",
+              );
             actionSymbols.set(candidateServerActionSymbol, {
               id: serverActionArguments[0]
                 .asKindOrThrow(SyntaxKind.StringLiteral)
@@ -177,8 +180,7 @@ const rectifyActionSymbols = (
   dependants: Map<Symbol, Set<Symbol>>,
 ) => {
   return new Map<Symbol, ActionInfo>(
-    actionSymbols
-      .entries()
+    Array.from(actionSymbols.entries())
       .filter(([, action]) => action.type !== "crudServerActionVariant")
       .map(([symbol, { parent: _, ...action }]) => [
         symbol,
@@ -238,6 +240,47 @@ const getTemplateHookVariableStatement = (
   return result;
 };
 
+const collectTypes = (type: Type | undefined, collected: Set<Symbol>) => {
+    if (!type) return;
+
+    if (type.getAliasSymbol()) {
+        type.getAliasTypeArguments().forEach(t => collectTypes(t, collected));
+    }
+
+    if (type.isArray()) {
+        collectTypes(type.getArrayElementTypeOrThrow(), collected);
+        return;
+    }
+    if (type.isTuple()) {
+        type.getTupleElements().forEach(t => collectTypes(t, collected));
+        return;
+    }
+
+    if (type.isUnion()) {
+        type.getUnionTypes().forEach(t => collectTypes(t, collected));
+        return;
+    }
+    if (type.isIntersection()) {
+        type.getIntersectionTypes().forEach(t => collectTypes(t, collected));
+        return;
+    }
+
+    const symbol = type.getSymbol();
+    if (symbol) {
+        if (symbol.getName().startsWith("__") || ["string", "number", "boolean", "any", "unknown", "void", "never", "null", "undefined", "true", "false"].includes(symbol.getName())) {
+            return;
+        }
+
+        const declarations = symbol.getDeclarations();
+        if (declarations.length > 0) {
+            const sourceFile = declarations[0].getSourceFile();
+            if (!sourceFile.getFilePath().includes("/node_modules/")) {
+                collected.add(symbol);
+            }
+        }
+    }
+};
+
 const addHookVariableStatement = (
   templateHookName: string,
   actionSymbol: Symbol,
@@ -295,7 +338,7 @@ const addHookVariableStatement = (
             },
           ]
         : [];
-      const callSignature =
+      const callSignature = 
         symbol === actionSymbol
           ? getActionSymbolType(symbol)
               .getCallSignatures()
@@ -318,6 +361,7 @@ const addHookVariableStatement = (
                     p,
                     p.getValueDeclarationOrThrow(),
                   ),
+                  sourceFile
                 ),
               },
             ],
@@ -330,14 +374,17 @@ const addHookVariableStatement = (
               .getReturnTypeOfSignature(callSignature)
               .getTypeArguments()
               .at(0)!,
+              sourceFile
           )}>` +
           (symbol === actionSymbol && actionInfo.mutations
             ? `& { ${actionInfo.mutations.map(
                 (mutation) =>
                   `${mutation}: UseMutationResult<boolean, Error, ${getResolvedTypeText(
                     mutationDataTypeMap!.get(mutation)!,
+                    sourceFile
                   )}>`,
-              )} }`
+              )}
+ }`
             : ""),
       };
     });
@@ -351,7 +398,7 @@ const addHookVariableStatement = (
     .addVariableStatement(templateStatement.getStructure())
     .setIsExported(true)
     .getDeclarations()
-    .at(0)!
+    .at(0)! 
     .asKind(SyntaxKind.VariableDeclaration)!;
   hookDeclaration.rename(`use${upperCaseFirstLetter(actionInfo.id)}`);
   const functionDeclaration = hookDeclaration.getInitializerIfKindOrThrow(
@@ -375,7 +422,7 @@ const addHookVariableStatement = (
       .getParameterOrThrow("args")
       .setType(
         argsTypes.size === 1
-          ? getResolvedTypeText(Array.from(argsTypes.values()).at(0)![0])
+          ? getResolvedTypeText(Array.from(argsTypes.values()).at(0)![0], sourceFile)
           : "unknown[]",
       );
   return [
@@ -400,7 +447,7 @@ const setQueryKey = (
   functionDeclaration
     .getVariableDeclaration("queryKey")
     ?.setInitializer(
-      `[${
+      `[${ 
         useRawExpression ? idOrRawExpression : JSON.stringify(idOrRawExpression)
       }${isArgsEmpty ? "" : ", ...args"}]`,
     );
@@ -446,7 +493,7 @@ const rectifyServerActionCalls = (
           .filter((arg) => arg.getText() === "args")
           .forEach((arg) =>
             arg.replaceWithText(
-              `${arg.getText()} as ${getResolvedTypeText(argsType)}`,
+              `${arg.getText()} as ${getResolvedTypeText(argsType, functionDeclaration)}`,
             ),
           );
     });
@@ -536,7 +583,7 @@ const addCrudMutations = (
     mutationStatement.getDeclarations().at(0)!.rename(mutation);
     const mutationFnAssignment = mutationStatement
       .getDeclarations()
-      .at(0)!
+      .at(0)! 
       .getInitializer()!
       .getDescendantsOfKind(SyntaxKind.PropertyAssignment)
       .find(
@@ -549,7 +596,7 @@ const addCrudMutations = (
     const parameter = mutationFnAssignment.getFirstDescendantByKindOrThrow(
       SyntaxKind.Parameter,
     );
-    parameter.setType(getResolvedTypeText(mutationDataTypeMap.get(mutation)!));
+    parameter.setType(getResolvedTypeText(mutationDataTypeMap.get(mutation)!, block));
     const serverActionCall = mutationFnAssignment
       .getDescendantsOfKind(SyntaxKind.CallExpression)
       .find((call) => call.getExpression().getText() === "crudServerAction");
@@ -557,7 +604,7 @@ const addCrudMutations = (
       throw new Error("Could not find serverAction call in mutation statement");
     serverActionCall
       .getArguments()
-      .at(0)!
+      .at(0)! 
       .replaceWithText(JSON.stringify(mutation));
   });
 };
@@ -643,7 +690,7 @@ const buildCrudServerActionHook = (
     if (actionInfo.variants) {
       const ifNotVariantName = body
         .addStatements(`if (!variantName) {}`)
-        .at(0)!
+        .at(0)! 
         .asKindOrThrow(SyntaxKind.IfStatement);
       ifNotVariantName
         .getThenStatement()!
@@ -679,22 +726,22 @@ const buildCrudServerActionHook = (
       .getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
 
     actionCallExpression.replaceWithText(
-      "(" +
-        Array.from(actionInfo.variants)
+      `(
+        ${Array.from(actionInfo.variants)
           .map(([variantSymbol, variantInfo]) => {
-            const [variantArgsType, variantArgsEmpty] =
+            const [variantArgsType, variantArgsEmpty] = 
               argsTypes.get(variantSymbol)!;
             return `variantName === ${JSON.stringify(
               variantInfo.variantName,
-            )} ? ${variantSymbol.getName()}(${
-              variantArgsEmpty
+            )} ? ${variantSymbol.getName()}(
+              ${variantArgsEmpty
                 ? ""
-                : `...args as ${getResolvedTypeText(variantArgsType)}`
-            }) : `;
+                : `...args as ${getResolvedTypeText(variantArgsType, functionDeclaration)}`}
+            ) : `;
           })
-          .join("") +
-        actionCallExpression.getText() +
-        ")",
+          .join("")}
+        ${actionCallExpression.getText()}
+      )`,
     );
   }
   return hasAnyType;
@@ -702,7 +749,7 @@ const buildCrudServerActionHook = (
 
 const main = () => {
   const [projectRootPath, project] = createProject();
-  const getShortestModuleSpecifier =
+  const getShortestModuleSpecifier = 
     createShortestModuleSpecifierGetter(projectRootPath);
 
   const actionSymbols = analyseProject(project);
@@ -736,6 +783,49 @@ const main = () => {
       overwrite: true,
     });
 
+    const typesToImport = new Set<Symbol>();
+
+    const actionParams = getActionSymbolTypeParams(actionSymbol);
+    actionParams.forEach(t => collectTypes(t, typesToImport));
+
+    if (actionInfo.variants) {
+        for (const variantSymbol of Array.from(actionInfo.variants.keys())) {
+            const variantParams = getActionSymbolTypeParams(variantSymbol);
+            variantParams.forEach(t => collectTypes(t, typesToImport));
+        }
+    }
+
+    const importsToAdd = new Map<string, Set<string>>();
+
+    for (const typeSymbol of typesToImport) {
+        const declaration = typeSymbol.getDeclarations()[0];
+        if (!declaration) continue;
+
+        if (actionSymbols.has(typeSymbol)) continue;
+        if (typeSymbol.getName() === actionSymbol.getName()) continue;
+        if (actionInfo.variants && Array.from(actionInfo.variants.keys()).some(s => s.getName() === typeSymbol.getName())) continue;
+
+
+        if (!typeSymbol.getDeclarations().some(d => {
+            if (Node.isExportable(d)) {
+                return d.isExported();
+            }
+            return false;
+        })) {
+            throw new Error(`Type '${typeSymbol.getName()}' is used by action '${actionSymbol.getName()}' but is not exported from its module '${declaration.getSourceFile().getFilePath()}'. Please export the type.`);
+        }
+
+        const moduleSpecifier = getShortestModuleSpecifier(
+            declaration.getSourceFile().getFilePath(),
+            targetPath,
+        );
+        
+        if (!importsToAdd.has(moduleSpecifier)) {
+            importsToAdd.set(moduleSpecifier, new Set());
+        }
+        importsToAdd.get(moduleSpecifier)!.add(typeSymbol.getName());
+    }
+
     hookSourceFile.addImportDeclaration({
       moduleSpecifier: getShortestModuleSpecifier(
         actionSymbol.getDeclarations().at(0)!.getSourceFile().getFilePath(),
@@ -745,16 +835,17 @@ const main = () => {
       leadingTrivia: `// This file is auto-generated by ${path.relative(
         projectRootPath,
         __filename,
-      )}\n`,
+      )}
+`,
     });
 
     if (actionInfo.variants) {
-      actionInfo.variants.keys().forEach((variantSymbol) => {
+      Array.from(actionInfo.variants.keys()).forEach((variantSymbol) => {
         hookSourceFile.addImportDeclaration({
           moduleSpecifier: getShortestModuleSpecifier(
             variantSymbol
               .getDeclarations()
-              .at(0)!
+              .at(0)! 
               .getSourceFile()
               .getFilePath(),
             targetPath,
@@ -763,6 +854,23 @@ const main = () => {
         });
       });
     }
+
+    for (const [moduleSpecifier, namedImports] of importsToAdd) {
+        const existingImport = hookSourceFile.getImportDeclaration(d => d.getModuleSpecifierValue() === moduleSpecifier);
+        if (existingImport) {
+            const existingNamed = existingImport.getNamedImports().map(ni => ni.getName());
+            const newImports = Array.from(namedImports).filter(ni => !existingNamed.includes(ni));
+            if (newImports.length > 0) {
+                existingImport.addNamedImports(newImports);
+            }
+        } else {
+            hookSourceFile.addImportDeclaration({
+                moduleSpecifier,
+                namedImports: Array.from(namedImports),
+            });
+        }
+    }
+
     hookSourceFile.addImportDeclaration({
       moduleSpecifier: "@tanstack/react-query",
       namedImports: [
