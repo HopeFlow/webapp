@@ -5,13 +5,14 @@ import {
 } from "@/helpers/server/create_server_action";
 
 // Example 1: A simple server action using createServerAction
-export const simpleAction = createServerAction(
-  "simpleAction",
-  async (message: string) => {
+export const simpleAction = createServerAction({
+  id: "simpleAction",
+  scope: "sample",
+  execute: async (message: string) => {
     console.log(`Message from simpleAction: ${message}`);
     return `Server received: ${message}`;
   },
-);
+});
 
 // Example 2: A CRUD server action for managing 'items'
 export interface Item {
@@ -28,6 +29,7 @@ const items: Item[] = [
 
 export const manageItems = createCrudServerAction({
   id: "manageItems",
+  scope: "sample",
   // Read all items
   read: async () => {
     return items;

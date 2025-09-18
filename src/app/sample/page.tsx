@@ -1,6 +1,6 @@
 "use client";
-import { useManageItems } from "@/server_actions/client/manageItems";
-import { useSimpleAction } from "@/server_actions/client/simpleAction";
+import { useManageItems } from "@/server_actions/client/sample/manageItems";
+import { useSimpleAction } from "@/server_actions/client/sample/simpleAction";
 import { useState } from "react";
 
 export default function SamplePage() {

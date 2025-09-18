@@ -28,6 +28,7 @@ type ServerActionType =
 type ActionInfo = {
   type: ServerActionType;
   id: string;
+  scope: string;
   variantName?: string;
   mutations?: string[];
   parent?: Symbol;
@@ -56,13 +57,21 @@ const analyseSourceFile = (
         if (callee.isKind(SyntaxKind.Identifier)) {
           if (callee.getText() === "createServerAction") {
             const serverActionArguments = call.getArguments();
-            if (serverActionArguments.length < 2)
-              throw new Error(
-                "Expected at least 2 arguments for createServerAction",
-              );
+            if (serverActionArguments.length !== 1)
+              throw new Error("Expected 1 argument for createServerAction");
+            const argument = serverActionArguments[0].asKindOrThrow(
+              SyntaxKind.ObjectLiteralExpression,
+            );
             actionSymbols.set(candidateServerActionSymbol, {
-              id: serverActionArguments[0]
-                .asKindOrThrow(SyntaxKind.StringLiteral)
+              id: argument
+                .getPropertyOrThrow("id")
+                .asKindOrThrow(SyntaxKind.PropertyAssignment)
+                .getInitializerIfKindOrThrow(SyntaxKind.StringLiteral)
+                .getLiteralValue(),
+              scope: argument
+                .getPropertyOrThrow("scope")
+                .asKindOrThrow(SyntaxKind.PropertyAssignment)
+                .getInitializerIfKindOrThrow(SyntaxKind.StringLiteral)
                 .getLiteralValue(),
               type: "serverAction",
             });
@@ -90,6 +99,11 @@ const analyseSourceFile = (
                 .asKindOrThrow(SyntaxKind.PropertyAssignment)
                 .getInitializerIfKindOrThrow(SyntaxKind.StringLiteral)
                 .getLiteralValue(),
+              scope: argument
+                .getPropertyOrThrow("scope")
+                .asKindOrThrow(SyntaxKind.PropertyAssignment)
+                .getInitializerIfKindOrThrow(SyntaxKind.StringLiteral)
+                .getLiteralValue(),
               type: "crudServerAction",
               mutations: ["create", "update", "remove"].filter((mutation) =>
                 isMutationProvided(mutation),
@@ -103,6 +117,7 @@ const analyseSourceFile = (
           );
           if (parent && callee.getName() === "createVariant") {
             const parentAction = actionSymbols.get(parent);
+            if (!parentAction) continue;
             const createVariantArguments = call.getArguments();
             if (createVariantArguments.length < 1)
               throw new Error("Expected at least 1 argument for createVariant");
@@ -111,6 +126,7 @@ const analyseSourceFile = (
               .getLiteralValue();
             actionSymbols.set(candidateServerActionSymbol, {
               id: `${parentAction!.id}.${variantName}`,
+              scope: parentAction.scope,
               variantName,
               type: "crudServerActionVariant",
               parent,
@@ -778,7 +794,7 @@ const main = () => {
         console.log(`  Variant: ${variantSymbol.getName()}`);
       }
     }
-    const targetPath = `src/server_actions/client/${actionSymbol.getName()}.ts`;
+    const targetPath = `src/server_actions/client/${actionInfo.scope}/${actionSymbol.getName()}.ts`;
     const hookSourceFile = project.createSourceFile(targetPath, "", {
       overwrite: true,
     });
@@ -908,6 +924,13 @@ const main = () => {
         hookSourceFile,
       );
     } else throw new Error(`Invalid action type: ${actionInfo.type}`);
+
+    const hookDeclaration = hookSourceFile.getVariableDeclaration(`use${upperCaseFirstLetter(actionInfo.id)}`);
+    if (hookDeclaration) {
+        hookDeclaration.set({
+            trailingTrivia: `use${upperCaseFirstLetter(actionInfo.id)}.scope = "${actionInfo.scope}";`
+        });
+    }
 
     hookSourceFile.insertStatements(0, [
       "/* eslint-disable @typescript-eslint/no-explicit-any */",
