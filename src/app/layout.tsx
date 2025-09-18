@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
+import Providers from "./providers";
 
 const geistSans = Geist({
   variable: "--font-hopeflow-sans",
@@ -38,7 +39,9 @@ export default function RootLayout({
       <body
         className={`w-full min-h-full flex flex-col ${geistSans.variable} ${geistMono.variable} antialiased bg-base-200 text-base-content text-lg font-light`}
       >
-        <Suspense fallback={<SplashScreen />}>{children}</Suspense>
+        <Providers>
+          <Suspense fallback={<SplashScreen />}>{children}</Suspense>
+        </Providers>
       </body>
     </html>
   );
