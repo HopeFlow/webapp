@@ -36,6 +36,7 @@ export const manageItems = createCrudServerAction({
   },
   // Create a new item
   create: async (newItem: Omit<Item, "id">) => {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     const item = { ...newItem, id: String(items.length + 1) };
     items.push(item);
     console.log("Created new item:", item);
@@ -43,6 +44,7 @@ export const manageItems = createCrudServerAction({
   },
   // Update an existing item
   update: async (itemToUpdate: Item) => {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     const index = items.findIndex((item) => item.id === itemToUpdate.id);
     if (index !== -1) {
       items[index] = { ...items[index], ...itemToUpdate };
@@ -53,6 +55,7 @@ export const manageItems = createCrudServerAction({
   },
   // Remove an item
   remove: async (itemToRemove: { id: string }) => {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
     const index = items.findIndex((item) => item.id === itemToRemove.id);
     if (index !== -1) {
       items.splice(index, 1);

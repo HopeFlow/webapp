@@ -602,6 +602,13 @@ const addCrudMutations = (
   mutationDataTypeMap: Map<string, Type>,
   block: Block,
   templateSourceFile: SourceFile,
+  options?: {
+    actionInfo?: ActionInfo;
+    actionSymbol?: Symbol;
+    argsTypeForAction?: Type;
+    variantNameToKeyMap?: Record<string, string> | null;
+    optimisticSymbolName?: string | null;
+  },
 ) => {
   const mutationStatementTemplate = templateSourceFile
     .getVariableStatement("useCrudServerActionMutation")!
@@ -647,6 +654,113 @@ const addCrudMutations = (
       .getArguments()
       .at(0)!
       .replaceWithText(JSON.stringify(mutation));
+
+    // --- inject optimistic handlers if an optimistic config exists ---
+    const onMutateAssignment = mutationStatement
+      .getDescendantsOfKind(SyntaxKind.PropertyAssignment)
+      .find((p) => p.getName() === "onMutate");
+    const onErrorAssignment = mutationStatement
+      .getDescendantsOfKind(SyntaxKind.PropertyAssignment)
+      .find((p) => p.getName() === "onError");
+
+    if (onMutateAssignment) {
+      const parameter = onMutateAssignment.getFirstDescendantByKindOrThrow(
+        SyntaxKind.Parameter,
+      );
+      parameter.setType(
+        getResolvedTypeText(mutationDataTypeMap.get(mutation)!, block),
+      );
+    }
+
+    if (
+      onMutateAssignment &&
+      options?.optimisticSymbolName &&
+      options.actionInfo
+    ) {
+      const {
+        actionInfo,
+        argsTypeForAction,
+        variantNameToKeyMap,
+        optimisticSymbolName,
+      } = options;
+      const idExpr = actionInfo.variants
+        ? `variantName ? (${JSON.stringify(
+            variantNameToKeyMap,
+          )})[variantName] : ${JSON.stringify(actionInfo.id)}`
+        : JSON.stringify(actionInfo.id);
+
+      // Build apply helpers + per-action optimistic wiring
+      const applyBlock = `
+        const snapshots: Array<{ key: unknown[]; prev: unknown }> = [];
+        const save = (key: unknown[]) => {
+          const prev = queryClient.getQueryData(key);
+          snapshots.push({ key, prev });
+          return prev;
+        };
+        const set = (key: unknown[], next: unknown) => {
+          queryClient.setQueryData(key, next);
+        };
+        const cfgRoot = ${optimisticSymbolName}?.${mutation};
+        const baseCtx = { data: data as any, args: (args as ${getResolvedTypeText(
+          argsTypeForAction!,
+          block,
+        )}) as any };
+        // main read
+        if (cfgRoot?.read) {
+          const key = [${idExpr}, ...(args as any[])];
+          const prev = save(key) as any;
+          const next = (cfgRoot.read as any)(prev, baseCtx);
+          set(key, next);
+        }
+        // variants
+        if (cfgRoot?.variants) {
+          ${
+            actionInfo.variants
+              ? Array.from(actionInfo.variants.values())
+                  .map(
+                    (v) => `
+          if (cfgRoot.variants[${JSON.stringify(v.variantName!)}]) {
+            const buildArgs = ${optimisticSymbolName}?.${mutation}?.buildVariantArgs?.[${JSON.stringify(
+                      v.variantName!,
+                    )}];
+            if (buildArgs) {
+              const vArgs = (buildArgs as any)(baseCtx);
+              const vKey = [${JSON.stringify(v.id)}, ...vArgs];
+              const vPrev = save(vKey) as any;
+              const vNext = (cfgRoot.variants[${JSON.stringify(
+                v.variantName!,
+              )}] as any)(vPrev, { data: data as any, args: vArgs });
+              set(vKey, vNext);
+            }
+          }`,
+                  )
+                  .join("\n")
+              : ""
+          }
+        }
+        return { snapshots };
+      `;
+
+      // Replace placeholder region
+      const fn = onMutateAssignment
+        .getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction)
+        .getBody()
+        .asKindOrThrow(SyntaxKind.Block);
+      const placeholder = fn.getFullText();
+      const start = placeholder.indexOf("// __OPTIMISTIC_START__");
+      const end = placeholder.indexOf("// __OPTIMISTIC_END__");
+      if (start >= 0 && end > start) {
+        const newText =
+          placeholder.slice(0, start) +
+          "// __OPTIMISTIC_START__\n" +
+          applyBlock +
+          "\n// __OPTIMISTIC_END__" +
+          placeholder.slice(end + "// __OPTIMISTIC_END__".length);
+        fn.replaceWithText(newText);
+      } else {
+        fn.addStatements(applyBlock);
+      }
+    }
   });
 };
 
@@ -655,6 +769,7 @@ const buildCrudServerActionHook = (
   actionInfo: ActionInfo,
   templateSourceFile: SourceFile,
   sourceFile: SourceFile,
+  projectRootPath: string,
 ) => {
   const [C, , U, D, P] = getActionSymbolTypeParams(actionSymbol);
   const mutationDataTypeMap = new Map([
@@ -718,11 +833,51 @@ const buildCrudServerActionHook = (
     const returnStatement = body.getStatementByKindOrThrow(
       SyntaxKind.ReturnStatement,
     )!;
+    // Try to detect an optimistic config exported alongside the action module.
+    // Convention: same module path with ".optimistic" suffix and export "<actionName>Optimistic".
+    let optimisticSymbolName: string | null = null;
+    try {
+      const actionDeclSf = actionSymbol
+        .getDeclarations()
+        .at(0)!
+        .getSourceFile();
+      const actionPath = actionDeclSf.getFilePath();
+      const optimisticPath = actionPath.replace(/\.tsx?$/, ".optimistic.ts");
+      if (fs.existsSync(optimisticPath)) {
+        const targetPath = sourceFile.getFilePath();
+        const moduleSpecifier = createShortestModuleSpecifierGetter(
+          projectRootPath,
+        )(optimisticPath, targetPath);
+        const optimisticExport = `${actionSymbol.getName()}Optimistic`;
+        sourceFile.addImportDeclaration({
+          moduleSpecifier,
+          namedImports: [optimisticExport],
+        });
+        optimisticSymbolName = optimisticExport;
+      }
+    } catch {
+      // ignore if not present
+    }
+
     addCrudMutations(
       actionInfo.mutations,
       mutationDataTypeMap,
       body,
       templateSourceFile,
+      {
+        actionInfo,
+        actionSymbol,
+        argsTypeForAction: P,
+        variantNameToKeyMap: actionInfo.variants
+          ? Object.fromEntries(
+              Array.from(actionInfo.variants.values()).map((vi) => [
+                vi.variantName!,
+                vi.id,
+              ]),
+            )
+          : null,
+        optimisticSymbolName,
+      },
     );
     const returnStatementExpression = returnStatement
       .getExpression()!
@@ -971,6 +1126,7 @@ const main = () => {
         actionInfo,
         templateSourceFile,
         hookSourceFile,
+        projectRootPath,
       );
     } else throw new Error(`Invalid action type: ${actionInfo.type}`);
 
