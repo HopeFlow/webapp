@@ -35,6 +35,24 @@ export const useGetQuests: UseGetQuests = (variantName: "getQuestDetails" | null
         );
         return await getQuests("create", data);
       },
+      // --- optimistic (codegen may inject logic here) ---
+      onMutate: async () => {
+        // __OPTIMISTIC_START__
+        // The generator will replace this block when an optimistic config is present.
+        // It must return an object that can be read by onError for rollback.
+        return { snapshots: [] as Array<{ key: unknown[]; prev: unknown }> };
+        // __OPTIMISTIC_END__
+      },
+      onError: (_err, _vars, ctx) => {
+        // __ROLLBACK_START__
+        // The generator will keep this rollback logic; it works with the snapshots returned by onMutate.
+        if (ctx?.snapshots) {
+          for (const { key, prev } of ctx.snapshots) {
+            queryClient.setQueryData(key, prev);
+          }
+        }
+        // __ROLLBACK_END__
+      },
       onSettled: () => {
         dependantQueryKeys.forEach((queryKey) =>
           queryClient.invalidateQueries({ queryKey }),

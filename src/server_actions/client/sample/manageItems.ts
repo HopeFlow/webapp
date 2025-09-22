@@ -3,6 +3,7 @@
 import { manageItems, Item } from "../../sample_actions";
 import { getItemById } from "../../sample_actions";
 import { useMutation, useQuery, useQueryClient, type UseQueryResult, type UseMutationResult } from "@tanstack/react-query";
+import { manageItemsOptimistic } from "../../sample_actions.optimistic";
 
 export interface UseManageItems {
   (variantName: "getItemById", ...args: [string]): UseQueryResult<undefined | Item>;
@@ -35,6 +36,56 @@ export const useManageItems: UseManageItems = (variantName: "getItemById" | null
         );
         return await manageItems("create", data);
       },
+      // --- optimistic (codegen may inject logic here) ---
+      onMutate: async (data: Omit<Item, "id">) => {
+        // __OPTIMISTIC_START__
+
+        const snapshots: Array<{ key: unknown[]; prev: unknown }> = [];
+        const save = (key: unknown[]) => {
+          const prev = queryClient.getQueryData(key);
+          snapshots.push({ key, prev });
+          return prev;
+        };
+        const set = (key: unknown[], next: unknown) => {
+          queryClient.setQueryData(key, next);
+        };
+        const cfgRoot = manageItemsOptimistic?.create;
+        const baseCtx = { data: data as any, args: (args as []) as any };
+        // main read
+        if (cfgRoot?.read) {
+          const key = [variantName ? ({ "getItemById": "manageItems.getItemById" })[variantName] : "manageItems", ...(args as any[])];
+          const prev = save(key) as any;
+          const next = (cfgRoot.read as any)(prev, baseCtx);
+          set(key, next);
+        }
+        // variants
+        if (cfgRoot?.variants) {
+
+          if (cfgRoot.variants["getItemById"]) {
+            const buildArgs = manageItemsOptimistic?.create?.buildVariantArgs?.["getItemById"];
+            if (buildArgs) {
+              const vArgs = (buildArgs as any)(baseCtx);
+              const vKey = ["manageItems.getItemById", ...vArgs];
+              const vPrev = save(vKey) as any;
+              const vNext = (cfgRoot.variants["getItemById"] as any)(vPrev, { data: data as any, args: vArgs });
+              set(vKey, vNext);
+            }
+          }
+        }
+        return { snapshots };
+
+        // __OPTIMISTIC_END__
+      },
+      onError: (_err, _vars, ctx) => {
+        // __ROLLBACK_START__
+        // The generator will keep this rollback logic; it works with the snapshots returned by onMutate.
+        if (ctx?.snapshots) {
+          for (const { key, prev } of ctx.snapshots) {
+            queryClient.setQueryData(key, prev);
+          }
+        }
+        // __ROLLBACK_END__
+      },
       onSettled: () => {
         dependantQueryKeys.forEach((queryKey) =>
           queryClient.invalidateQueries({ queryKey }),
@@ -51,6 +102,56 @@ export const useManageItems: UseManageItems = (variantName: "getItemById" | null
         );
         return await manageItems("update", data);
       },
+      // --- optimistic (codegen may inject logic here) ---
+      onMutate: async (data: Item) => {
+        // __OPTIMISTIC_START__
+
+        const snapshots: Array<{ key: unknown[]; prev: unknown }> = [];
+        const save = (key: unknown[]) => {
+          const prev = queryClient.getQueryData(key);
+          snapshots.push({ key, prev });
+          return prev;
+        };
+        const set = (key: unknown[], next: unknown) => {
+          queryClient.setQueryData(key, next);
+        };
+        const cfgRoot = manageItemsOptimistic?.update;
+        const baseCtx = { data: data as any, args: (args as []) as any };
+        // main read
+        if (cfgRoot?.read) {
+          const key = [variantName ? ({ "getItemById": "manageItems.getItemById" })[variantName] : "manageItems", ...(args as any[])];
+          const prev = save(key) as any;
+          const next = (cfgRoot.read as any)(prev, baseCtx);
+          set(key, next);
+        }
+        // variants
+        if (cfgRoot?.variants) {
+
+          if (cfgRoot.variants["getItemById"]) {
+            const buildArgs = manageItemsOptimistic?.update?.buildVariantArgs?.["getItemById"];
+            if (buildArgs) {
+              const vArgs = (buildArgs as any)(baseCtx);
+              const vKey = ["manageItems.getItemById", ...vArgs];
+              const vPrev = save(vKey) as any;
+              const vNext = (cfgRoot.variants["getItemById"] as any)(vPrev, { data: data as any, args: vArgs });
+              set(vKey, vNext);
+            }
+          }
+        }
+        return { snapshots };
+
+        // __OPTIMISTIC_END__
+      },
+      onError: (_err, _vars, ctx) => {
+        // __ROLLBACK_START__
+        // The generator will keep this rollback logic; it works with the snapshots returned by onMutate.
+        if (ctx?.snapshots) {
+          for (const { key, prev } of ctx.snapshots) {
+            queryClient.setQueryData(key, prev);
+          }
+        }
+        // __ROLLBACK_END__
+      },
       onSettled: () => {
         dependantQueryKeys.forEach((queryKey) =>
           queryClient.invalidateQueries({ queryKey }),
@@ -66,6 +167,56 @@ export const useManageItems: UseManageItems = (variantName: "getItemById" | null
           queryClient.cancelQueries({ queryKey }),
         );
         return await manageItems("remove", data);
+      },
+      // --- optimistic (codegen may inject logic here) ---
+      onMutate: async (data: { id: string; }) => {
+        // __OPTIMISTIC_START__
+
+        const snapshots: Array<{ key: unknown[]; prev: unknown }> = [];
+        const save = (key: unknown[]) => {
+          const prev = queryClient.getQueryData(key);
+          snapshots.push({ key, prev });
+          return prev;
+        };
+        const set = (key: unknown[], next: unknown) => {
+          queryClient.setQueryData(key, next);
+        };
+        const cfgRoot = manageItemsOptimistic?.remove;
+        const baseCtx = { data: data as any, args: (args as []) as any };
+        // main read
+        if (cfgRoot?.read) {
+          const key = [variantName ? ({ "getItemById": "manageItems.getItemById" })[variantName] : "manageItems", ...(args as any[])];
+          const prev = save(key) as any;
+          const next = (cfgRoot.read as any)(prev, baseCtx);
+          set(key, next);
+        }
+        // variants
+        if (cfgRoot?.variants) {
+
+          if (cfgRoot.variants["getItemById"]) {
+            const buildArgs = manageItemsOptimistic?.remove?.buildVariantArgs?.["getItemById"];
+            if (buildArgs) {
+              const vArgs = (buildArgs as any)(baseCtx);
+              const vKey = ["manageItems.getItemById", ...vArgs];
+              const vPrev = save(vKey) as any;
+              const vNext = (cfgRoot.variants["getItemById"] as any)(vPrev, { data: data as any, args: vArgs });
+              set(vKey, vNext);
+            }
+          }
+        }
+        return { snapshots };
+
+        // __OPTIMISTIC_END__
+      },
+      onError: (_err, _vars, ctx) => {
+        // __ROLLBACK_START__
+        // The generator will keep this rollback logic; it works with the snapshots returned by onMutate.
+        if (ctx?.snapshots) {
+          for (const { key, prev } of ctx.snapshots) {
+            queryClient.setQueryData(key, prev);
+          }
+        }
+        // __ROLLBACK_END__
       },
       onSettled: () => {
         dependantQueryKeys.forEach((queryKey) =>

@@ -395,3 +395,96 @@ export default function SamplePage() {
   );
 }
 ```
+
+### 5. Optimistic Updates
+
+To enhance user experience, the generated hooks support optimistic updates out
+of the box. This allows the UI to update instantly when a mutation is performed,
+without waiting for the server to respond. The system automatically handles
+rolling back the changes if the server action fails.
+
+#### How to Enable Optimistic Updates
+
+To enable optimistic updates for a `createCrudServerAction`, you simply need to
+create a corresponding configuration file next to your server action file.
+
+1.  **Create a configuration file:** If your server action is defined in
+    `myAction.ts`, create a new file named `myAction.optimistic.ts` in the same
+    directory.
+
+2.  **Define the optimistic configuration:** Inside the `.optimistic.ts` file,
+    export a configuration object that matches the `CrudOptimisticConfig` type.
+    This object specifies how to update the `react-query` cache for `create`,
+    `update`, and `remove` mutations.
+
+#### Configuration Structure
+
+The configuration object allows you to define updaters for the main `read` query
+and any of its `variants`.
+
+- `read`: A function that receives the previous cache data for the main `read`
+  operation and returns the new, updated data.
+- `variants`: An object where you can define updaters for each variant of your
+  CRUD action.
+- `buildVariantArgs`: An object that helps in constructing query keys for
+  variants, especially when the arguments depend on the data from a `create`
+  mutation (e.g., when you don't have an ID yet).
+
+#### Example: `src/server_actions/sample_actions.optimistic.ts`
+
+Here is the optimistic configuration for the `manageItems` server action. It
+defines how to optimistically update the cache for creating, updating, and
+removing items.
+
+```typescript
+// src/server_actions/sample_actions.optimistic.ts
+import type { CrudOptimisticConfig } from "@/helpers/client/type_helpers";
+import type { Item } from "./sample_actions";
+
+// Define a map for variants to get strong typing
+type VMap = {
+  getItemById: { result: Item | undefined; args: [string] };
+};
+
+export const manageItemsOptimistic: CrudOptimisticConfig<
+  Omit<Item, "id">, // Create data type
+  Item[], // Read return type
+  Item, // Update data type
+  { id: string }, // Delete data type
+  [], // Extra parameters for the action (none in this case)
+  VMap // Variant map
+> = {
+  create: {
+    // Optimistically add the new item to the main list
+    read: (prev, { data }) => [...(prev ?? []), { ...data, id: "__temp__" }],
+  },
+  update: {
+    // Optimistically update an item in the main list
+    read: (prev, { data }) =>
+      (prev ?? []).map((i) => (i.id === data.id ? { ...i, ...data } : i)),
+    // Optimistically update the cache for the 'getItemById' variant
+    variants: {
+      getItemById: (prev, { data }) =>
+        prev && prev.id === data.id ? { ...prev, ...data } : prev,
+    },
+  },
+  remove: {
+    // Optimistically remove an item from the main list
+    read: (prev, { data }) => (prev ?? []).filter((i) => i.id !== data.id),
+    // Optimistically clear the cache for the 'getItemById' variant if the removed item is being viewed
+    variants: {
+      getItemById: (prev, { data }) => {
+        if (prev && prev.id === data.id) {
+          return undefined; // The item was deleted
+        }
+        return prev;
+      },
+    },
+  },
+};
+```
+
+Once this file is in place, run the hook generator (`pnpm gen-hooks`). The
+generated `useManageItems` hook will automatically include the optimistic update
+logic. No changes are needed in the client component other than using the
+`mutate` function returned by the hook.
