@@ -4,7 +4,7 @@ import Image from "next/image";
 import { MobileHeader } from "@/components/mobile_header";
 import { Button, GhostButton } from "@/components/button";
 import { Carousel } from "@/components/carousel";
-import { AvatarGroup } from "@/components/user_avatar";
+import { Avatar, AvatarGroup } from "@/components/user_avatar";
 import { ReadMore } from "@/components/read_more";
 import { ReflowTree } from "@/components/reflow_tree";
 import { Timeline } from "@/components/timeline";
@@ -17,6 +17,7 @@ import { BookmarkIcon } from "@/components/icons/bookmark";
 import { MediatorsIcon } from "@/components/icons/mediators";
 import { ReflowModal, showReflowModal } from "@/modals/reflow_modal";
 import { PencilSquareIcon } from "@/components/icons/pencil_square";
+import { ArrowRightIcon } from "@/components/icons/arrow_right";
 
 export function QuestStarterView() {
   return (
@@ -131,6 +132,107 @@ export function QuestStarterView() {
               </Button>
               <ReflowModal />
             </div>
+          </div>
+        </div>
+        <div className="flex flex-col-reverse md:flex-row gap-4 md:gap-6">
+          <div className="md:w-2/3 card p-4 bg-base-100 self-stretch">
+            <div className="mb-4 flex flex-row justify-between items-center">
+              <h1 className="font-bold text-2xl text-primary">
+                Contributors say ...
+              </h1>
+            </div>
+            <ul>
+              {[
+                {
+                  name: "Jacob",
+                  imageUrl: "/img/avatar2.jpeg",
+                  imageWidth: 64,
+                  imageHeight: 64,
+                  message:
+                    "I have seen a similar bike listed on Craigslist recently. I will send you the link.",
+                },
+                {
+                  name: "Behrooz",
+                  imageUrl: "/img/behrooz.jpeg",
+                  imageWidth: 64,
+                  imageHeight: 64,
+                  message: "How can I identify your bike among similar models?",
+                },
+                {
+                  name: "Martha",
+                  imageUrl: "/img/avatar4.jpeg",
+                  imageWidth: 64,
+                  imageHeight: 64,
+                  message: "When and where was it stolen?",
+                },
+              ].map((user, index) => (
+                <li
+                  key={index}
+                  className="py-1 flex flex-row items-center gap-2"
+                >
+                  <Avatar className="rounded-full w-8 md:w-8" {...user} />
+                  <span className="hidden md:inline font-bold">
+                    {user.name}
+                  </span>
+                  <span className="hidden md:inline"> says</span>
+                  <span className="italic text-ellipsis overflow-hidden flex-1 whitespace-nowrap">
+                    {user.message}
+                  </span>
+                  <Button buttonType="primary" buttonSize="sm" className="px-2">
+                    <ChatBubbleIcon />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="flex-1 card p-4 bg-secondary-content text-secondary border-secondary border self-stretch justify-center items-center">
+            <div className="w-full mb-4 flex flex-row justify-between items-center">
+              <h1 className="font-bold text-2xl">
+                Leads
+              </h1>
+            </div>
+            <ul className="w-full">
+              {[
+                {
+                  name: "Sora",
+                  imageUrl: "/img/avatar4.jpeg",
+                  imageWidth: 64,
+                  imageHeight: 64,
+                  score: 70,
+                },
+                {
+                  name: "Johan",
+                  imageUrl: "/img/avatar5.jpeg",
+                  imageWidth: 64,
+                  imageHeight: 64,
+                  score: 40,
+                },
+                {
+                  name: "Martha",
+                  imageUrl: "/img/avatar9.jpeg",
+                  imageWidth: 64,
+                  imageHeight: 64,
+                  score: 95,
+                },
+              ].map((user, index) => (
+                <li
+                  key={index}
+                  className="w-full py-1 flex flex-row items-center gap-2"
+                >
+                  <Avatar className="rounded-full w-8 md:w-8" {...user} />
+                  <div className="italic text-ellipsis overflow-hidden flex-1 whitespace-nowrap">
+                    <progress
+                      className="progress progress-secondary w-full"
+                      value={user.score}
+                      max="100"
+                    ></progress>
+                  </div>
+                  <Button buttonType="secondary" buttonSize="sm" className="px-2">
+                    <ArrowRightIcon />
+                  </Button>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
