@@ -11,20 +11,27 @@ import type { AnyArgs } from "../client/type_helpers";
 export interface ServerAction<P extends AnyArgs, R> {
   (...args: P): Promise<R>;
   id: string;
+  scope: string;
   addInvalidation<S extends AnyArgs>(
     action: ServerAction<S, unknown>,
     buildArgs?: (...args: [R, ...P]) => S,
   ): void;
 }
 
-export const createServerAction = <P extends AnyArgs, R>(
-  id: string,
-  execute: (...args: P) => Promise<R>,
+export const createServerAction = <P extends AnyArgs, R>({
+  id,
+  scope,
+  execute,
+  addInvalidation,
+}: {
+  id: string;
+  scope: string;
+  execute: (...args: P) => Promise<R>;
   addInvalidation?: <S extends AnyArgs>(
     action: ServerAction<S, unknown>,
     buildArgs?: (...args: [R, ...P]) => S,
-  ) => void,
-): ServerAction<P, R> => {
+  ) => void;
+}): ServerAction<P, R> => {
   const action = (...args: P): Promise<R> => {
     return execute(...args);
   };
@@ -37,6 +44,7 @@ export const createServerAction = <P extends AnyArgs, R>(
   };
   return Object.assign(action, {
     id,
+    scope,
     addInvalidation: addInvalidation ?? noOpInvalidation,
   }) as ServerAction<P, R>;
 };
@@ -60,19 +68,26 @@ const createVariant = function <P extends AnyArgs, R, V extends AnyArgs, W>(
   variantName: string,
   read: (...args: V) => Promise<W>,
 ) {
-  return createServerAction<V, W>(`${this.id}.${variantName}`, read, () => {
-    throw new Error("Invalidation not supported for variants");
+  return createServerAction<V, W>({
+    id: `${this.id}.${variantName}`,
+    scope: this.scope,
+    execute: read,
+    addInvalidation: () => {
+      throw new Error("Invalidation not supported for variants");
+    },
   });
 };
 
 export const createCrudServerAction = <C, R, U, D, P extends AnyArgs>({
   id,
+  scope,
   read,
   create,
   update,
   remove,
 }: {
   id: string;
+  scope: string;
   read?: (...args: P) => Promise<R>;
   create?: (data: C, ...args: P) => Promise<boolean>;
   update?: (data: U, ...args: P) => Promise<boolean>;
@@ -107,7 +122,11 @@ export const createCrudServerAction = <C, R, U, D, P extends AnyArgs>({
         throw new Error(`Unknown action: ${crudAction}`);
     }
   };
-  const action = createServerAction(id, execute);
+  const action = createServerAction({
+    id,
+    scope,
+    execute,
+  });
   return Object.assign(action, {
     createVariant,
   }) as CrudServerAction<C, R, U, D, P>;

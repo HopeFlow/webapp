@@ -25,23 +25,23 @@ export const getRealSymbol = (node: Node | undefined) => {
   return symbol?.getAliasedSymbol() ?? symbol;
 };
 
-export const getResolvedTypeText = (type: Type): string => {
+export const getResolvedTypeText = (type: Type, enclosingNode?: Node): string => {
   // If it's a type alias, try to resolve
   if (type.isTypeParameter()) {
     const constraint = type.getConstraint();
-    if (constraint) return getResolvedTypeText(constraint);
+    if (constraint) return getResolvedTypeText(constraint, enclosingNode);
   }
   if (type.isUnion()) {
     // For unions, join the text of constituent types
-    return type.getUnionTypes().map(getResolvedTypeText).join(" | ");
+    return type.getUnionTypes().map(t => getResolvedTypeText(t, enclosingNode)).join(" | ");
   }
   if (type.isTuple()) {
     return (
-      "[" + type.getTupleElements().map(getResolvedTypeText).join(", ") + "]"
+      "[" + type.getTupleElements().map(t => getResolvedTypeText(t, enclosingNode)).join(", ") + "]"
     );
   }
   if (type.isLiteral()) {
-    return type.getText();
+    return type.getText(enclosingNode);
   }
 
   const nodes = type
@@ -53,10 +53,10 @@ export const getResolvedTypeText = (type: Type): string => {
     .map((declaration) => declaration.getTypeNode());
   const node = nodes && nodes[0];
   if (node && type.getTypeArguments().length === 0)
-    return getResolvedTypeText(node.getType());
+    return getResolvedTypeText(node.getType(), enclosingNode);
 
   // Fallback: just return the text
-  return type.getText();
+  return type.getText(enclosingNode);
 };
 
 export const doesResolveToObject = (type: Type) => {
@@ -75,7 +75,7 @@ export const createShortestModuleSpecifierGetter =
     let result = null;
     for (const candidate of [
       path.relative(projectRootPath, moduleSpecifier),
-      path.relative(importerModulePath, moduleSpecifier),
+      path.relative(path.dirname(importerModulePath), moduleSpecifier),
       path.join(
         "@",
         path.relative(path.join(projectRootPath, "src"), moduleSpecifier),
