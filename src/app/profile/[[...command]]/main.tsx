@@ -1,4 +1,5 @@
 import { Button } from "@/components/button";
+import { MobileDock } from "@/components/mobile_dock";
 import { MobileHeader } from "@/components/mobile_header";
 import { Sidebar } from "@/components/sidebar";
 
@@ -11,9 +12,10 @@ export function ProfileMain({
 }) {
   return (
     <div className="flex-1 w-full flex flex-row items-stretch">
-      <Sidebar />
+      {command !== "create" && <Sidebar />}
       <div className="flex-1 relative">
         <div className="absolute top-0 left-0 w-full h-full bg-base-200 flex flex-col">
+          {command === "create" && <MobileHeader inverseRole />}
           <MobileHeader />
           <div className="relative max-w-3xl w-full flex-1 overflow-auto p-8">
             <div className="flex flex-col gap-4 md:gap-12 items-start justify-start">
@@ -75,11 +77,12 @@ export function ProfileMain({
               </div>
             </div>
           </div>
-          <div className="p-4 flex flex-row justify-end bg-base-100 md:bg-transparent">
+          <div className="p-4 flex flex-row justify-end">
             <Button buttonType="primary" buttonSize="lg">
               {command === "create" ? "Save and continue" : "Update"}
             </Button>
           </div>
+          {command !== "create" && <MobileDock />}
         </div>
       </div>
     </div>
