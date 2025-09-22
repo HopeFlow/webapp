@@ -45,3 +45,6 @@ next-env.d.ts
 !.dev.vars.example
 .env*
 !.env.example
+
+# clerk configuration (can include secrets)
+/.clerk/
