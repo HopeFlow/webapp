@@ -1,13 +1,21 @@
 import { z } from "zod";
 
+export function isStringLikeSchema(schema: z.ZodTypeAny): boolean {
+  return (
+    schema instanceof z.ZodString ||
+    schema instanceof z.ZodEnum ||
+    schema instanceof z.ZodNativeEnum ||
+    (schema instanceof z.ZodLiteral && typeof schema.value === "string")
+  );
+}
+
 export function parseFromString<T extends z.ZodTypeAny>(
   value: string,
   typeDef: T,
 ): z.infer<T> {
   const unwrapedTypeDef =
     typeDef instanceof z.ZodOptional ? typeDef.unwrap() : typeDef;
-  if (unwrapedTypeDef instanceof z.ZodString)
-    return unwrapedTypeDef.parse(value);
+  if (isStringLikeSchema(unwrapedTypeDef)) return unwrapedTypeDef.parse(value);
   const jsonParsed = JSON.parse(value);
   return unwrapedTypeDef.parse(jsonParsed);
 }
