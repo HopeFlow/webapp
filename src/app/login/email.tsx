@@ -8,7 +8,7 @@ import { useGotoIndex } from "@/helpers/client/routes";
 import { useState } from "react";
 import { cn } from "@/helpers/client/tailwind_helpers";
 
-export default function LoginEmail({}: { url?: string }) {
+export function LoginEmail({}: { url?: string }) {
   const [verifying, setVerifying] = useState(false);
   const gotoIndex = useGotoIndex();
   return (

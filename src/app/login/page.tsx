@@ -1,11 +1,10 @@
 import { withParams } from "@/helpers/server/with_params";
 import { z } from "zod";
-import Main from "./main";
-import Email from "./email";
+import { LoginMain } from "./main";
 
 export default withParams(
   async function LoginPage({ url }) {
-    return <Email url={url} />;
+    return <LoginMain url={url} />;
   },
   {
     searchParamsTypeDef: z.object({
