@@ -1,7 +1,6 @@
 import { Button } from "@/components/button";
 import { MobileHeader } from "@/components/mobile_header";
 import { Sidebar } from "@/components/sidebar";
-import Image from "next/image";
 
 export function ProfileMain({
   command,
@@ -19,7 +18,7 @@ export function ProfileMain({
           <div className="relative max-w-3xl w-full flex-1 overflow-auto p-8">
             <div className="flex flex-col gap-4 md:gap-12 items-start justify-start">
               <h1 className="font-normal text-2xl md:text-5xl">
-                Complete your profile ...
+                {command === "create" ? "Complete your profile ..." : "Profile"}
               </h1>
               <div className="w-full flex flex-col gap-4 md:flex-row md:gap-12">
                 <div className="flex flex-col md:items-center gap-4">
@@ -78,7 +77,7 @@ export function ProfileMain({
           </div>
           <div className="p-4 flex flex-row justify-end bg-base-100 md:bg-transparent">
             <Button buttonType="primary" buttonSize="lg">
-              Save and continue
+              {command === "create" ? "Save and continue" : "Update"}
             </Button>
           </div>
         </div>

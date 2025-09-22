@@ -35,10 +35,9 @@ export function parseFromRequestRecord<T extends z.AnyZodObject>(
       continue;
     }
     if (memberTypeDef instanceof z.ZodArray) {
-      if (!Array.isArray(value[key]))
-        throw new Error(`Array value expected for ${key}`);
+      const finalValue = Array.isArray(value[key]) ? value[key] : [value[key]];
       const elementTypeDef = memberTypeDef.element;
-      convertedParams[key] = value[key].map((v) =>
+      convertedParams[key] = finalValue.map((v) =>
         parseFromString(v, elementTypeDef),
       );
     } else {
