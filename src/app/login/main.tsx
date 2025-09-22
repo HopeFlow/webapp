@@ -6,9 +6,14 @@ import { GoogleLogo } from "@/components/logos/google";
 import { FacebookLogo } from "@/components/logos/facebook";
 import { EmailLogo } from "@/components/logos/email";
 import { ArrowRightIcon } from "@/components/icons/arrow_right";
-import { useGotoIndex } from "@/helpers/client/routes";
 import { LoginEmail } from "./email";
 import { useState } from "react";
+
+const LogoContainer = ({ children }: { children: React.ReactNode }) => (
+  <span className="border border-base-300 p-0.5 rounded-full bg-gray-50">
+    {children}
+  </span>
+);
 
 function LoginOAth({ setUsingEmail }: { setUsingEmail: () => void }) {
   return (
@@ -19,18 +24,23 @@ function LoginOAth({ setUsingEmail }: { setUsingEmail: () => void }) {
           <h1 className="font-normal text-4xl">Login or Signup</h1>
         </div>
         <Button buttonType="primary">
-          <GoogleLogo /> Login/Signup with Google
+          <LogoContainer>
+            <GoogleLogo />
+          </LogoContainer>
+          Login/Signup with Google
         </Button>
         <Button buttonType="secondary">
-          <FacebookLogo /> Login/Signup with Facebook
+          <LogoContainer>
+            <FacebookLogo />
+          </LogoContainer>
+          Login/Signup with Facebook
         </Button>
         <div className="divider">Or</div>
-        <Button
-          buttonType="neutral"
-          buttonStyle="soft"
-          onClick={() => setUsingEmail()}
-        >
-          <EmailLogo /> Login/Signup with Email <ArrowRightIcon />
+        <Button buttonType="neutral" onClick={() => setUsingEmail()}>
+          <LogoContainer>
+            <EmailLogo />
+          </LogoContainer>
+          Login/Signup with Email <ArrowRightIcon />
         </Button>
       </div>
     </div>
