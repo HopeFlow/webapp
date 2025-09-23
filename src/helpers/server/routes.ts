@@ -33,6 +33,18 @@ const toSearchParams = <T extends { [key: string]: unknown }>(
   return `?${result.join("&")}`;
 };
 
+// ---- matching helpers (generated) ----
+const __isAbsoluteUrl = (s: string) => /^https?:\/\//i.test(s);
+
+function __parseRelativeUrl(raw: string): URL | null {
+  if (!raw || __isAbsoluteUrl(raw)) return null;
+  try { return new URL(raw, "http://local/"); } catch { return null; }
+}
+
+function __stripTrailingSlash(p: string) {
+  return p === "/" ? "/" : p.replace(/\/+$/, "");
+}
+
 // Corresponding to src/app/(root)/page.tsx
 export const redirectToIndex = (): never => redirect("/");
 
@@ -40,7 +52,7 @@ export const redirectToIndex = (): never => redirect("/");
 export const redirectToHome = (): never => redirect("/home");
 
 // Corresponding to src/app/login/page.tsx
-export const redirectToLogin = (props: { url?: string | undefined; }): never =>
+export const redirectToLogin = (props: { url?: string | string[] }): never =>
   redirect(
     [
       "",
@@ -48,8 +60,11 @@ export const redirectToLogin = (props: { url?: string | undefined; }): never =>
     ].join("/") + toSearchParams(props, ["url"]),
   );
 
+// Corresponding to src/app/sample/page.tsx
+export const redirectToSample = (): never => redirect("/sample");
+
 // Corresponding to src/app/link/[linkCode]/page.tsx
-export const redirectToLink = (props: { linkCode: string; }): never =>
+export const redirectToLink = (props: { linkCode: string }): never =>
   redirect(
     [
       "",
@@ -57,18 +72,117 @@ export const redirectToLink = (props: { linkCode: string; }): never =>
     ].join("/"),
   );
 
+// Corresponding to src/app/quest/[questId]/page.tsx
+export const redirectToQuest = (props: { questId: string }): never =>
+  redirect(
+    [
+      "",
+      ...toPathParams(props, [{ "part": "quest", "isParam": false }, { "part": "questId", "isParam": true }]),
+    ].join("/"),
+  );
+
 export interface RedirectTo {
   (routeName: "Index"): never;
   (routeName: "Home"): never;
-  (routeName: "Login", props: { url?: string | undefined; }): never;
-  (routeName: "Link", props: { linkCode: string; }): never;
+  (routeName: "Login", props: { url?: string | string[] }): never;
+  (routeName: "Sample"): never;
+  (routeName: "Link", props: { linkCode: string }): never;
+  (routeName: "Quest", props: { questId: string }): never;
 }
 
-export const redirectTo: RedirectTo = (routeName: "Index" | "Home" | "Login" | "Link", props?: any): never => {
+export const redirectTo: RedirectTo = (routeName: "Index" | "Home" | "Login" | "Sample" | "Link" | "Quest", props?: any): never => {
   switch (routeName) {
     case "Index": return redirectToIndex();
     case "Home": return redirectToHome();
     case "Login": return redirectToLogin(props);
+    case "Sample": return redirectToSample();
     case "Link": return redirectToLink(props);
+    case "Quest": return redirectToQuest(props);
   }
 };
+
+export type MatchedRoute =
+  | { name: "Index" }
+  | { name: "Home" }
+  | { name: "Login"; props: { url?: string | string[] } }
+  | { name: "Sample" }
+  | { name: "Link"; props: { linkCode: string } }
+  | { name: "Quest"; props: { questId: string } }
+
+const reIndex = new RegExp("^/$");
+const reHome = new RegExp("^/home$");
+const reLogin = new RegExp("^/login$");
+const reSample = new RegExp("^/sample$");
+const reLink = new RegExp("^/link/(?<linkCode>[^/]+)$");
+const reQuest = new RegExp("^/quest/(?<questId>[^/]+)$");
+
+export function matchRouteFromUrl(raw: string): MatchedRoute | null {
+  const u = __parseRelativeUrl(raw);
+  if (!u) return null;
+  const path = __stripTrailingSlash(u.pathname || "/");
+
+
+  // Index
+  if (reIndex.test(path)) {
+    return { name: "Index" };
+  }
+
+  // Home
+  if (reHome.test(path)) {
+    return { name: "Home" };
+  }
+
+  // Login
+  {
+    const m = path.match(reLogin);
+    if (m) {
+      const sp = u.searchParams;
+      const props = { url: (sp.get("url") ?? undefined) };
+      return props ? { name: "Login", props } : { name: "Login" } as any;
+    }
+  }
+
+  // Sample
+  if (reSample.test(path)) {
+    return { name: "Sample" };
+  }
+
+  // Link
+  {
+    const m = path.match(reLink);
+    if (m) {
+      const props = { linkCode: m.groups!.linkCode as string };
+      return props ? { name: "Link", props } : { name: "Link" } as any;
+    }
+  }
+
+  // Quest
+  {
+    const m = path.match(reQuest);
+    if (m) {
+      const props = { questId: m.groups!.questId as string };
+      return props ? { name: "Quest", props } : { name: "Quest" } as any;
+    }
+  }
+
+  return null;
+}
+
+export function isRedirectUrlAcceptable(raw: string): boolean {
+  return matchRouteFromUrl(raw) !== null;
+}
+
+export function redirectToMatchedUrl(raw: string): never {
+  const m = matchRouteFromUrl(raw);
+  if (!m) return redirectTo("Home");
+  switch (m.name) {
+    case "Index": return redirectTo("Index");
+    case "Home": return redirectTo("Home");
+    case "Login": return redirectTo("Login", (m as any).props);
+    case "Sample": return redirectTo("Sample");
+    case "Link": return redirectTo("Link", (m as any).props);
+    case "Quest": return redirectTo("Quest", (m as any).props);
+  }
+}
+
+
