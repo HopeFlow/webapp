@@ -50,7 +50,7 @@ export const useGotoHome = () => {
 export const useGotoLogin = () => {
   const router = useRouter();
   return useCallback(
-    (props: { url?: string | undefined; }) =>
+    (props: { url?: string | string[] }) =>
       router.push(
         [
           "",
@@ -61,11 +61,17 @@ export const useGotoLogin = () => {
   );
 };
 
+// Corresponding to src/app/sample/page.tsx
+export const useGotoSample = () => {
+  const router = useRouter();
+  return useCallback(() => router.push("/sample"), [router]);
+};
+
 // Corresponding to src/app/link/[linkCode]/page.tsx
 export const useGotoLink = () => {
   const router = useRouter();
   return useCallback(
-    (props: { linkCode: string; }) =>
+    (props: { linkCode: string }) =>
       router.push(
         [
           "",
@@ -76,22 +82,43 @@ export const useGotoLink = () => {
   );
 };
 
+// Corresponding to src/app/quest/[questId]/page.tsx
+export const useGotoQuest = () => {
+  const router = useRouter();
+  return useCallback(
+    (props: { questId: string }) =>
+      router.push(
+        [
+          "",
+          ...toPathParams(props, [{ "part": "quest", "isParam": false }, { "part": "questId", "isParam": true }]),
+        ].join("/"),
+      ),
+    [router],
+  );
+};
+
 export interface UseGoto {
   (routeName: "Index"): () => void;
   (routeName: "Home"): () => void;
-  (routeName: "Login"): (props: { url?: string | undefined; }) => void;
+  (routeName: "Login"): (props: { url?: string | string[] | undefined; }) => void;
+  (routeName: "Sample"): () => void;
   (routeName: "Link"): (props: { linkCode: string; }) => void;
+  (routeName: "Quest"): (props: { questId: string; }) => void;
 }
 
-export const useGoto: UseGoto = (routeName: "Index" | "Home" | "Login" | "Link"): any => {
+export const useGoto: UseGoto = (routeName: "Index" | "Home" | "Login" | "Sample" | "Link" | "Quest"): any => {
   const __route0 = useGotoIndex();
   const __route1 = useGotoHome();
   const __route2 = useGotoLogin();
-  const __route3 = useGotoLink();
+  const __route3 = useGotoSample();
+  const __route4 = useGotoLink();
+  const __route5 = useGotoQuest();
   switch (routeName) {
     case "Index": return __route0;
     case "Home": return __route1;
     case "Login": return __route2;
-    case "Link": return __route3;
+    case "Sample": return __route3;
+    case "Link": return __route4;
+    case "Quest": return __route5;
   }
 };
