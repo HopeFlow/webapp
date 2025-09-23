@@ -111,8 +111,74 @@ const main = () => {
     path: string;
     pathParts: Array<{ part: string; isParam: boolean; isArrayParam: boolean }>;
     propsType: Type | undefined;
+    isPublic: boolean;
   };
   const routes = new Map<string, RouteInfo>();
+
+  function detectIsPublicForFile(
+    sourceFile: import("ts-morph").SourceFile,
+  ): boolean {
+    const def = sourceFile.getDefaultExportSymbol();
+    if (!def) return false;
+    const decl = def.getDeclarations()[0];
+    if (!decl) return false;
+
+    // Get the expression behind `export default ...`
+    let expr: Node | undefined;
+    if (Node.isExportAssignment(decl)) {
+      expr = decl.getExpression();
+    } else if (
+      Node.isFunctionDeclaration(decl) ||
+      Node.isArrowFunction(decl) ||
+      Node.isFunctionExpression(decl)
+    ) {
+      // direct function export — not public by marker unless wrapped elsewhere
+      return false;
+    }
+
+    if (!expr) return false;
+
+    // Walk HOC chains like withParams(withPublic(withUser(Page)))
+    const seen = new Set<Node>();
+    const visit = (n: Node | undefined): boolean => {
+      if (!n || seen.has(n)) return false;
+      seen.add(n);
+
+      if (Node.isCallExpression(n)) {
+        const callee = n.getExpression().getText();
+        if (callee === "withPublic") return true;
+        const firstArg = n.getArguments()[0];
+
+        // Dive into first arg if it's another HOC call
+        if (firstArg && Node.isCallExpression(firstArg)) {
+          if (visit(firstArg)) return true;
+        }
+
+        // If first arg is an identifier, try to resolve & dive
+        if (firstArg && Node.isIdentifier(firstArg)) {
+          const sym = firstArg.getSymbol();
+          const d = sym?.getDeclarations()?.[0];
+          if (d) {
+            if (Node.isVariableDeclaration(d)) {
+              const init = d.getInitializer();
+              if (init && Node.isCallExpression(init) && visit(init))
+                return true;
+            } else if (
+              Node.isFunctionDeclaration(d) ||
+              Node.isArrowFunction(d) ||
+              Node.isFunctionExpression(d)
+            ) {
+              // plain component — nothing to do
+            }
+          }
+        }
+      }
+
+      return false;
+    };
+
+    return visit(expr);
+  }
 
   for (const sourceFile of project.getSourceFiles()) {
     const filePath = path.relative(projectRootPath, sourceFile.getFilePath());
@@ -235,10 +301,12 @@ const main = () => {
       );
     }
 
+    const isPublic = detectIsPublicForFile(sourceFile);
     routes.set(routeName, {
       path: filePath,
       pathParts,
       propsType,
+      isPublic,
     });
   }
 
@@ -399,7 +467,26 @@ const main = () => {
         redirectSignatures.set(routeName, redirectFunction);
       }
 
+      if (routeName === "Login") {
+        serverSourceFile.addStatements(`
+export const hrefToLogin = (props: { url?: string | string[] }): string =>
+  [
+    "",
+    ...toPathParams(props, [{ "part": "login", "isParam": false }]),
+  ].join("/") + toSearchParams(props, ["url"]);
+`);
+      }
+
       clientSourceFile.addStatements(`\n// Corresponding to ${path}`);
+      if (routeName === "Login") {
+        clientSourceFile.addStatements(`
+export const hrefToLogin = (props: { url?: string | string[] }): string =>
+  [
+    "",
+    ...toPathParams(props, [{ "part": "login", "isParam": false }]),
+  ].join("/") + toSearchParams(props, ["url"]);
+`);
+      }
       if (!propsType) {
         const redirectFunction = addClientRedirectHook(
           routeName,
@@ -706,6 +793,22 @@ ${Array.from(routes.entries())
   })
   .join("\n")}
   }
+}
+`);
+
+    const publicNames = Array.from(routes.entries())
+      .filter(([, info]) => info.isPublic)
+      .map(([name]) => JSON.stringify(name))
+      .join(", ");
+
+    serverSourceFile.addStatements(`
+export type RouteName = MatchedRoute["name"];
+
+export const PUBLIC_ROUTE_NAMES: ReadonlySet<RouteName> = new Set([${publicNames}]);
+
+export function isPublicUrl(raw: string): boolean {
+  const m = matchRouteFromUrl(raw);
+  return !!m && PUBLIC_ROUTE_NAMES.has(m.name);
 }
 `);
 

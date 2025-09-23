@@ -60,6 +60,12 @@ export const redirectToLogin = (props: { url?: string | string[] }): never =>
     ].join("/") + toSearchParams(props, ["url"]),
   );
 
+export const hrefToLogin = (props: { url?: string | string[] }): string =>
+  [
+    "",
+    ...toPathParams(props, [{ "part": "login", "isParam": false }]),
+  ].join("/") + toSearchParams(props, ["url"]);
+
 // Corresponding to src/app/sample/page.tsx
 export const redirectToSample = (): never => redirect("/sample");
 
@@ -184,5 +190,15 @@ export function redirectToMatchedUrl(raw: string): never {
     case "Quest": return redirectTo("Quest", (m as any).props);
   }
 }
+
+export type RouteName = MatchedRoute["name"];
+
+export const PUBLIC_ROUTE_NAMES: ReadonlySet<RouteName> = new Set(["Login"]);
+
+export function isPublicUrl(raw: string): boolean {
+  const m = matchRouteFromUrl(raw);
+  return !!m && PUBLIC_ROUTE_NAMES.has(m.name);
+}
+
 
 

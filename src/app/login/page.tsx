@@ -3,9 +3,10 @@ import { z } from "zod";
 import { LoginMain } from "./main";
 import { withUser, PropsWithUser } from "@/helpers/server/with_user";
 import { redirectToHome, redirectToMatchedUrl } from "@/helpers/server/routes";
+import { withPublic } from "@/helpers/server/with_public";
 
-const SearchParams = z.object({ url: z.string().optional() });
-type SearchParams = z.infer<typeof SearchParams>;
+const searchParams = z.object({ url: z.string().optional() });
+type SearchParams = z.infer<typeof searchParams>;
 
 async function LoginPage({
   url,
@@ -33,6 +34,8 @@ async function LoginPage({
   return <LoginMain url={url} />;
 }
 
-export default withParams(withUser(LoginPage, "Login Page"), {
-  searchParamsTypeDef: SearchParams,
-});
+export default withPublic(
+  withParams(withUser(LoginPage, "Login Page"), {
+    searchParamsTypeDef: searchParams,
+  }),
+);

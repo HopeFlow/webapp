@@ -47,6 +47,12 @@ export const useGotoHome = () => {
 };
 
 // Corresponding to src/app/login/page.tsx
+
+export const hrefToLogin = (props: { url?: string | string[] }): string =>
+  [
+    "",
+    ...toPathParams(props, [{ "part": "login", "isParam": false }]),
+  ].join("/") + toSearchParams(props, ["url"]);
 export const useGotoLogin = () => {
   const router = useRouter();
   return useCallback(
