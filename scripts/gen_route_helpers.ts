@@ -157,6 +157,18 @@ const main = () => {
       }));
 
     const defaultExportSymbol = sourceFile.getDefaultExportSymbolOrThrow();
+    const isPublic = defaultExportSymbol
+      .getDeclarations()
+      .some(
+        (d) =>
+          d
+            .getFirstAncestorByKind(SyntaxKind.CallExpression)
+            ?.getExpressionIfKind(SyntaxKind.Identifier)
+            ?.getText() === "publicPage",
+      );
+    defaultExportSymbol.getDeclarations().forEach((d) => {
+      
+    })
 
     const parameters = (function getPageComponentProps(symbol) {
       const declarations = symbol.getDeclarations();
@@ -221,7 +233,9 @@ const main = () => {
       path: filePath,
       pathParts,
       propsType,
-      isPublic: false,
+      paramsTypeDef,
+      searchParamsTypeDef,
+      isPublic,
     });
   }
 

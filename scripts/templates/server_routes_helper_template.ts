@@ -1,4 +1,6 @@
+import { parseFromRequestRecord } from "@/helpers/server/zod_helpers";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 const toStringParam = (v: unknown) =>
   encodeURIComponent(typeof v === "string" ? v : JSON.stringify(v));
@@ -79,9 +81,51 @@ export const redirectToRouteWithParamsSearchParams = (props: {
     ].join("/") + toSearchParams(props, ["param2"]),
   );
 
-interface RedirectTo {}
+const routeSpecs: Map<
+  string,
+  {
+    pathRegExp: RegExp;
+    paramsTypeDef?: z.AnyZodObject;
+    searchParamsTypeDef?: z.AnyZodObject;
+    isPublic: boolean;
+  }
+> = new Map();
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const redirectTo: RedirectTo = (routeName: string, props?: any): never => {
-  redirect("");
+const parseRouteFromUrl = (urlString: string) => {
+  const url = new URL(urlString, "http://localhost");
+  for (const [key, spec] of routeSpecs) {
+    const match = url.pathname.match(spec.pathRegExp);
+    if (!match) continue;
+    if (spec.paramsTypeDef && !match.groups) continue;
+    const params =
+      spec.paramsTypeDef &&
+      parseFromRequestRecord(match.groups!, spec.paramsTypeDef);
+    const getValue = (v: string[]) => (v.length === 1 ? v[0] : v);
+    const rawSearchParams = Object.fromEntries(
+      url.searchParams
+        .keys()
+        .map((k) => [k, getValue(url.searchParams.getAll(k))]),
+    );
+    const searchParams =
+      spec.searchParamsTypeDef &&
+      parseFromRequestRecord(rawSearchParams, spec.searchParamsTypeDef);
+    return { key, spec, params, searchParams };
+  }
+};
+
+export const isValidUrl = (urlString: string): boolean => {
+  const keyAndSpecs = parseRouteFromUrl(urlString);
+  return !!keyAndSpecs;
+};
+
+export const isPublicUrl = (urlString: string): boolean => {
+  const keyAndSpecs = parseRouteFromUrl(urlString);
+  if (!keyAndSpecs) return false;
+  return keyAndSpecs.spec.isPublic;
+};
+
+export const redirectTo = (urlString: string): never => {
+  const keyAndSpecs = parseRouteFromUrl(urlString);
+  if (!keyAndSpecs) throw new Error(`Invalid redirect url: ${urlString}`);
+  return redirect("");
 };
