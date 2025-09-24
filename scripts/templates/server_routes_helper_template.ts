@@ -93,7 +93,7 @@ const routeSpecs: Map<
 
 const parseRouteFromUrl = (urlString: string) => {
   const url = new URL(urlString, "http://localhost");
-  for (const [key, spec] of routeSpecs) {
+  for (const [routeName, spec] of routeSpecs) {
     const match = url.pathname.match(spec.pathRegExp);
     if (!match) continue;
     if (spec.paramsTypeDef && !match.groups) continue;
@@ -109,23 +109,25 @@ const parseRouteFromUrl = (urlString: string) => {
     const searchParams =
       spec.searchParamsTypeDef &&
       parseFromRequestRecord(rawSearchParams, spec.searchParamsTypeDef);
-    return { key, spec, params, searchParams };
+    return { routeName, spec, params, searchParams };
   }
 };
 
 export const isValidUrl = (urlString: string): boolean => {
-  const keyAndSpecs = parseRouteFromUrl(urlString);
-  return !!keyAndSpecs;
+  const routeNameAndSpecs = parseRouteFromUrl(urlString);
+  return !!routeNameAndSpecs;
 };
 
 export const isPublicUrl = (urlString: string): boolean => {
-  const keyAndSpecs = parseRouteFromUrl(urlString);
-  if (!keyAndSpecs) return false;
-  return keyAndSpecs.spec.isPublic;
+  const routeNameAndSpecs = parseRouteFromUrl(urlString);
+  if (!routeNameAndSpecs) return false;
+  return routeNameAndSpecs.spec.isPublic;
 };
 
 export const redirectTo = (urlString: string): never => {
-  const keyAndSpecs = parseRouteFromUrl(urlString);
-  if (!keyAndSpecs) throw new Error(`Invalid redirect url: ${urlString}`);
+  const routeNameAndSpecs = parseRouteFromUrl(urlString);
+  if (!routeNameAndSpecs) throw new Error(`Invalid redirect url: ${urlString}`);
+  const { routeName, params, searchParams } = routeNameAndSpecs;
+  const props = { ...params, ...searchParams };
   return redirect("");
 };

@@ -47,24 +47,24 @@ export const useGotoHome = () => {
 };
 
 // Corresponding to src/app/login/page.tsx
-
-export const hrefToLogin = (props: { url?: string | string[] }): string =>
-  [
-    "",
-    ...toPathParams(props, [{ "part": "login", "isParam": false }]),
-  ].join("/") + toSearchParams(props, ["url"]);
 export const useGotoLogin = () => {
   const router = useRouter();
   return useCallback(
-    (props: { url?: string | string[] }) =>
+    (props: import("/data/Work/HopeFlow/webapp/src/helpers/server/page_component").PageParams) =>
       router.push(
         [
           "",
           ...toPathParams(props, [{ "part": "login", "isParam": false }]),
-        ].join("/") + toSearchParams(props, ["url"]),
+        ].join("/") + toSearchParams(props, ["params", "searchParams"]),
       ),
     [router],
   );
+};
+
+// Corresponding to src/app/notifications/page.tsx
+export const useGotoNotifications = () => {
+  const router = useRouter();
+  return useCallback(() => router.push("/notifications"), [router]);
 };
 
 // Corresponding to src/app/sample/page.tsx
@@ -77,7 +77,7 @@ export const useGotoSample = () => {
 export const useGotoLink = () => {
   const router = useRouter();
   return useCallback(
-    (props: { linkCode: string }) =>
+    (props: { linkCode: any; }) =>
       router.push(
         [
           "",
@@ -92,7 +92,7 @@ export const useGotoLink = () => {
 export const useGotoQuest = () => {
   const router = useRouter();
   return useCallback(
-    (props: { questId: string }) =>
+    (props: { questId: string; }) =>
       router.push(
         [
           "",
@@ -102,29 +102,7 @@ export const useGotoQuest = () => {
     [router],
   );
 };
-
-export interface UseGoto {
-  (routeName: "Index"): () => void;
-  (routeName: "Home"): () => void;
-  (routeName: "Login"): (props: { url?: string | string[] | undefined; }) => void;
-  (routeName: "Sample"): () => void;
-  (routeName: "Link"): (props: { linkCode: string; }) => void;
-  (routeName: "Quest"): (props: { questId: string; }) => void;
-}
-
-export const useGoto: UseGoto = (routeName: "Index" | "Home" | "Login" | "Sample" | "Link" | "Quest"): any => {
-  const __route0 = useGotoIndex();
-  const __route1 = useGotoHome();
-  const __route2 = useGotoLogin();
-  const __route3 = useGotoSample();
-  const __route4 = useGotoLink();
-  const __route5 = useGotoQuest();
-  switch (routeName) {
-    case "Index": return __route0;
-    case "Home": return __route1;
-    case "Login": return __route2;
-    case "Sample": return __route3;
-    case "Link": return __route4;
-    case "Quest": return __route5;
-  }
+export const useGoto = (): any => {
+  const router = useRouter();
+  return useCallback((urlString: string) => router.push(urlString), [router]);
 };
