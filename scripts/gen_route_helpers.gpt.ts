@@ -44,10 +44,6 @@ const main = () => {
       functionDeclarations[0].getInitializerIfKindOrThrow(
         SyntaxKind.ArrowFunction,
       );
-    if (propsType)
-      redirectFunction
-        .getParameterOrThrow("props")
-        .setType(getResolvedTypeText(propsType));
     return redirectFunction;
   };
 
@@ -77,10 +73,7 @@ const main = () => {
       ?.asKind(SyntaxKind.ArrowFunction);
     if (!redirectFunction)
       throw new Error("Could not find redirect template hook");
-    if (propsType)
-      redirectFunction
-        .getParameterOrThrow("props")
-        .setType(getResolvedTypeText(propsType));
+
     return redirectFunction;
   };
 
@@ -122,6 +115,71 @@ const main = () => {
   };
   const routes = new Map<string, RouteInfo>();
 
+  function detectIsPublicForFile(
+    sourceFile: import("ts-morph").SourceFile,
+  ): boolean {
+    const def = sourceFile.getDefaultExportSymbol();
+    if (!def) return false;
+    const decl = def.getDeclarations()[0];
+    if (!decl) return false;
+
+    // Get the expression behind `export default ...`
+    let expr: Node | undefined;
+    if (Node.isExportAssignment(decl)) {
+      expr = decl.getExpression();
+    } else if (
+      Node.isFunctionDeclaration(decl) ||
+      Node.isArrowFunction(decl) ||
+      Node.isFunctionExpression(decl)
+    ) {
+      // direct function export — not public by marker unless wrapped elsewhere
+      return false;
+    }
+
+    if (!expr) return false;
+
+    // Walk HOC chains like withParams(publicPage(withUser(Page)))
+    const seen = new Set<Node>();
+    const visit = (n: Node | undefined): boolean => {
+      if (!n || seen.has(n)) return false;
+      seen.add(n);
+
+      if (Node.isCallExpression(n)) {
+        const callee = n.getExpression().getText();
+        if (callee === "publicPage") return true;
+        const firstArg = n.getArguments()[0];
+
+        // Dive into first arg if it's another HOC call
+        if (firstArg && Node.isCallExpression(firstArg)) {
+          if (visit(firstArg)) return true;
+        }
+
+        // If first arg is an identifier, try to resolve & dive
+        if (firstArg && Node.isIdentifier(firstArg)) {
+          const sym = firstArg.getSymbol();
+          const d = sym?.getDeclarations()?.[0];
+          if (d) {
+            if (Node.isVariableDeclaration(d)) {
+              const init = d.getInitializer();
+              if (init && Node.isCallExpression(init) && visit(init))
+                return true;
+            } else if (
+              Node.isFunctionDeclaration(d) ||
+              Node.isArrowFunction(d) ||
+              Node.isFunctionExpression(d)
+            ) {
+              // plain component — nothing to do
+            }
+          }
+        }
+      }
+
+      return false;
+    };
+
+    return visit(expr);
+  }
+
   for (const sourceFile of project.getSourceFiles()) {
     const filePath = path.relative(projectRootPath, sourceFile.getFilePath());
     if (!filePath.startsWith("src/app") || !filePath.endsWith("page.tsx"))
@@ -156,8 +214,6 @@ const main = () => {
         isParam,
       }));
 
-    const defaultExportSymbol = sourceFile.getDefaultExportSymbolOrThrow();
-
     const parameters = (function getPageComponentProps(symbol) {
       const declarations = symbol.getDeclarations();
       if (declarations.length !== 1)
@@ -174,23 +230,51 @@ const main = () => {
       if (declaration.isKind(SyntaxKind.ArrowFunction))
         return declaration.getSignature().getParameters();
       if (declaration.isKind(SyntaxKind.ExportAssignment)) {
-        let expression = declaration.getExpression();
-        if (expression.isKind(SyntaxKind.CallExpression)) {
-          if (expression.getExpression().getText() === "withParams") {
-            const callArguments = expression.getArguments();
-            if (callArguments.length !== 2)
-              throw new Error("Expected 2 arguments for withParams");
-            const handlerArgumentSymbol = callArguments[0].getSymbolOrThrow();
-            return getPageComponentProps(handlerArgumentSymbol);
+        let expr = declaration.getExpression();
+
+        // Unwrap chains like withParams(withUser(withFoo(Page)))
+        while (expr.isKind(SyntaxKind.CallExpression)) {
+          const args = expr.getArguments();
+          if (args.length === 0) break;
+          const first = args[0];
+
+          // If first arg is another HOC call, keep unwrapping
+          if (first.isKind(SyntaxKind.CallExpression)) {
+            expr = first;
+            continue;
           }
+
+          // If first arg is an inline function, normalize to symbols
+          if (
+            first.isKind(SyntaxKind.ArrowFunction) ||
+            first.isKind(SyntaxKind.FunctionExpression)
+          ) {
+            return first.getParameters().map((p) => p.getSymbolOrThrow());
+          }
+
+          // If first arg is an identifier, resolve its symbol and recurse
+          if (first.isKind(SyntaxKind.Identifier)) {
+            const sym = first.getSymbol();
+            if (!sym)
+              throw new Error(
+                "Could not resolve symbol for page component identifier",
+              );
+            return getPageComponentProps(sym);
+          }
+
+          // Anything else—stop unwrapping
+          break;
         }
-        const signatures = expression.getType().getCallSignatures();
-        if (signatures.length !== 1)
+
+        // Fallback: export default is itself a callable expression/identifier
+        const sigs = expr.getType().getCallSignatures();
+        if (sigs.length !== 1)
           throw new Error("Multiple signatures in search for page component");
-        return signatures[0].getParameters();
+        return sigs[0].getParameters();
       }
+
       throw new Error("Could not find page component parameters");
-    })(defaultExportSymbol);
+    })(sourceFile.getDefaultExportSymbolOrThrow());
 
     if (parameters.length > 1)
       throw new Error("Expected one or zero parameter for page component");
@@ -217,12 +301,31 @@ const main = () => {
       );
     }
 
+    const isPublic = detectIsPublicForFile(sourceFile);
     routes.set(routeName, {
       path: filePath,
       pathParts,
       propsType,
-      isPublic: false,
+      isPublic,
     });
+  }
+
+  function buildUrlPropsTypeText(
+    pathParts: Array<{ part: string; isParam: boolean; isArrayParam: boolean }>,
+    searchPropSyms: Symbol[],
+  ) {
+    const pathFields = pathParts
+      .filter((p) => p.isParam)
+      .map((p) => `${p.part}: ${p.isArrayParam ? "string[]" : "string"}`);
+
+    const searchFields = searchPropSyms.map((sym) => {
+      // Always use URL shapes for search params:
+      // they come from URLSearchParams, not the component’s TS/Zod type.
+      return `${sym.getName()}?: string | string[]`;
+    });
+
+    const all = [...pathFields, ...searchFields];
+    return all.length ? `{ ${all.join("; ")} }` : "undefined";
   }
 
   if (routes.size > 0) {
@@ -250,8 +353,23 @@ const main = () => {
       );
     }
 
+    serverSourceFile.addStatements(`
+      // ---- matching helpers (generated) ----
+      const __isAbsoluteUrl = (s: string) => /^https?:\\/\\//i.test(s);
+
+      function __parseRelativeUrl(raw: string): URL | null {
+        if (!raw || __isAbsoluteUrl(raw)) return null;
+        try { return new URL(raw, "http://local/"); } catch { return null; }
+      }
+
+      function __stripTrailingSlash(p: string) {
+        return p === "/" ? "/" : p.replace(/\\/+$/, "");
+      }
+    `);
+
     const redirectSignatures: Map<string, ArrowFunction> = new Map();
     const hookSignatures: Map<string, ArrowFunction> = new Map();
+    const INJECTED_PROP_NAMES = new Set(["user", "userId"]);
     for (const [routeName, routeInfo] of routes) {
       const { path, pathParts, propsType } = routeInfo;
 
@@ -271,7 +389,9 @@ const main = () => {
       } else if (pathParts) {
         const searchParamProperties = propsType
           .getProperties()
-          .filter((p) => !pathParts.some(({ part }) => p.getName() === part));
+          .filter((p) => !pathParts.some(({ part }) => p.getName() === part))
+          .filter((p) => !INJECTED_PROP_NAMES.has(p.getName()));
+
         if (searchParamProperties.length === 0) {
           const redirectFunction = addServerRedirectFunction(
             routeName,
@@ -287,6 +407,13 @@ const main = () => {
               .at(1),
             pathParts,
           );
+          const urlPropsTypeText = buildUrlPropsTypeText(
+            pathParts,
+            searchParamProperties,
+          );
+          redirectFunction
+            .getParameterOrThrow("props")
+            .setType(urlPropsTypeText);
           redirectSignatures.set(routeName, redirectFunction);
         } else {
           const redirectFunction = addServerRedirectFunction(
@@ -313,6 +440,13 @@ const main = () => {
               .at(1),
             searchParamProperties,
           );
+          const urlPropsTypeText = buildUrlPropsTypeText(
+            pathParts,
+            searchParamProperties,
+          );
+          redirectFunction
+            .getParameterOrThrow("props")
+            .setType(urlPropsTypeText);
           redirectSignatures.set(routeName, redirectFunction);
         }
       } else {
@@ -333,7 +467,26 @@ const main = () => {
         redirectSignatures.set(routeName, redirectFunction);
       }
 
+      if (routeName === "Login") {
+        serverSourceFile.addStatements(`
+export const hrefToLogin = (props: { url?: string | string[] }): string =>
+  [
+    "",
+    ...toPathParams(props, [{ "part": "login", "isParam": false }]),
+  ].join("/") + toSearchParams(props, ["url"]);
+`);
+      }
+
       clientSourceFile.addStatements(`\n// Corresponding to ${path}`);
+      if (routeName === "Login") {
+        clientSourceFile.addStatements(`
+export const hrefToLogin = (props: { url?: string | string[] }): string =>
+  [
+    "",
+    ...toPathParams(props, [{ "part": "login", "isParam": false }]),
+  ].join("/") + toSearchParams(props, ["url"]);
+`);
+      }
       if (!propsType) {
         const redirectFunction = addClientRedirectHook(
           routeName,
@@ -348,7 +501,9 @@ const main = () => {
       } else if (pathParts) {
         const searchParamProperties = propsType
           .getProperties()
-          .filter((p) => !pathParts.some(({ part }) => p.getName() === part));
+          .filter((p) => !pathParts.some(({ part }) => p.getName() === part))
+          .filter((p) => !INJECTED_PROP_NAMES.has(p.getName()));
+
         if (searchParamProperties.length === 0) {
           const redirectFunction = addClientRedirectHook(
             routeName,
@@ -364,6 +519,15 @@ const main = () => {
               .at(1),
             pathParts,
           );
+          {
+            const urlPropsTypeText = buildUrlPropsTypeText(
+              pathParts,
+              searchParamProperties,
+            );
+            redirectFunction
+              .getParameterOrThrow("props")
+              .setType(urlPropsTypeText); // <-- add this
+          }
           hookSignatures.set(routeName, redirectFunction);
         } else {
           const redirectFunction = addClientRedirectHook(
@@ -390,6 +554,15 @@ const main = () => {
               .at(1),
             searchParamProperties,
           );
+          {
+            const urlPropsTypeText = buildUrlPropsTypeText(
+              pathParts,
+              searchParamProperties,
+            );
+            redirectFunction
+              .getParameterOrThrow("props")
+              .setType(urlPropsTypeText); // <-- add this
+          }
           hookSignatures.set(routeName, redirectFunction);
         }
       } else {
@@ -431,6 +604,7 @@ const main = () => {
       .getDeclarations()
       .at(0)
       ?.getInitializerIfKind(SyntaxKind.ArrowFunction);
+
     if (!redirect)
       throw new Error("Could not locate redirectTo template function");
     redirect.getParameterOrThrow("routeName").setType(
@@ -455,6 +629,188 @@ const main = () => {
             .join("\n") +
           "}\n}",
       );
+
+    // === Build MatchedRoute union ===
+    const matchedRouteUnion = Array.from(routes.entries())
+      .map(([routeName, routeInfo]) => {
+        const { pathParts, propsType } = routeInfo;
+
+        if (!propsType) return `| { name: ${JSON.stringify(routeName)} }`;
+
+        const searchParamProperties = propsType
+          .getProperties()
+          .filter((p) => !pathParts.some((pp) => pp.part === p.getName()))
+          .filter((p) => !INJECTED_PROP_NAMES.has(p.getName()));
+
+        const urlPropsTypeText = buildUrlPropsTypeText(
+          pathParts,
+          searchParamProperties,
+        );
+        return urlPropsTypeText === "undefined"
+          ? `| { name: ${JSON.stringify(routeName)} }`
+          : `| { name: ${JSON.stringify(
+              routeName,
+            )}; props: ${urlPropsTypeText} }`;
+      })
+      .join("\n");
+
+    serverSourceFile.addStatements(`
+      export type MatchedRoute =
+      ${matchedRouteUnion}
+    `);
+
+    // === Build matcher body ===
+    const matcherCases = Array.from(routes.entries())
+      .map(([routeName, routeInfo]) => {
+        const { pathParts, propsType } = routeInfo;
+
+        // Build a regex like ^/login$ or ^/link/(?<linkCode>[^/]+)$ or catch-all
+        const regexParts = pathParts.map((pp) => {
+          if (!pp.isParam)
+            return `/${pp.part.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}`;
+          if (pp.isArrayParam) return `/(?<${pp.part}>(?:[^/]+)(?:/[^/]+)*)`;
+          return `/(?<${pp.part}>[^/]+)`; // [slug]
+        });
+        const regexSrc = regexParts.length ? `^${regexParts.join("")}$` : "^/$";
+        const pathParamNames = pathParts
+          .filter((p) => p.isParam)
+          .map((p) => p.part);
+
+        // Compute search param names
+        const searchPropNames = propsType
+          ? propsType
+              .getProperties()
+              .map((p) => p.getName())
+              .filter((n) => !pathParts.some((pp) => pp.part === n))
+              .filter((n) => !INJECTED_PROP_NAMES.has(n))
+          : [];
+
+        // Build props extraction
+        const buildProps = () => {
+          const lines: string[] = [];
+          // path params
+          for (const name of pathParamNames) {
+            const pp = pathParts.find((p) => p.part === name)!;
+            if (pp.isArrayParam) {
+              lines.push(`${name}: (m.groups!.${name} as string).split("/")`);
+            } else {
+              lines.push(`${name}: m.groups!.${name} as string`);
+            }
+          }
+          // search params
+          for (const name of searchPropNames) {
+            lines.push(
+              `${name}: (sp.get(${JSON.stringify(name)}) ?? undefined)`,
+            );
+          }
+          if (lines.length === 0) return "undefined";
+          return `{ ${lines.join(", ")} }`;
+        };
+
+        const propsExtraction = buildProps();
+
+        // Return arm
+        if (!propsType) {
+          return `
+  // ${routeName}
+  if (re${routeName}.test(path)) {
+    return { name: ${JSON.stringify(routeName)} };
+  }`;
+        } else {
+          return `
+  // ${routeName}
+  {
+    const m = path.match(re${routeName});
+    if (m) {
+      const sp = u.searchParams;
+      const props = ${propsExtraction};
+      return props ? { name: ${JSON.stringify(
+        routeName,
+      )}, props } : { name: ${JSON.stringify(routeName)} } as any;
+    }
+  }`;
+        }
+      })
+      .join("\n");
+
+    // Emit the regex declarations and the matcher + shim
+    const regexDecls = Array.from(routes.keys())
+      .map((routeName) => {
+        const { pathParts } = routes.get(routeName)!;
+        const regexParts = pathParts.map((pp) => {
+          if (!pp.isParam)
+            return `/${pp.part.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}`;
+          if (pp.isArrayParam) return `/(?<${pp.part}>(?:[^/]+)(?:/[^/]+)*)`;
+          return `/(?<${pp.part}>[^/]+)`;
+        });
+        const regexSrc = regexParts.length ? `^${regexParts.join("")}$` : "^/$";
+        return `const re${routeName} = new RegExp(${JSON.stringify(
+          regexSrc,
+        )});`;
+      })
+      .join("\n");
+
+    serverSourceFile.addStatements(`
+${regexDecls}
+
+export function matchRouteFromUrl(raw: string): MatchedRoute | null {
+  const u = __parseRelativeUrl(raw);
+  if (!u) return null;
+  const path = __stripTrailingSlash(u.pathname || "/");
+
+${matcherCases}
+
+  return null;
+}
+
+export function isRedirectUrlAcceptable(raw: string): boolean {
+  return matchRouteFromUrl(raw) !== null;
+}
+
+export function redirectToMatchedUrl(raw: string): never {
+  const m = matchRouteFromUrl(raw);
+  if (!m) return redirectTo("Home");
+  switch (m.name) {
+${Array.from(routes.entries())
+  .map(([routeName, routeInfo]) => {
+    const { pathParts, propsType } = routeInfo;
+    const hasPathParams = pathParts.some((p) => p.isParam);
+    const hasSearchParams = propsType
+      ? propsType
+          .getProperties()
+          .some(
+            (p) =>
+              !pathParts.some((pp) => pp.part === p.getName()) &&
+              !INJECTED_PROP_NAMES.has(p.getName()),
+          )
+      : false;
+    const hasUrlProps = hasPathParams || hasSearchParams;
+    return `    case ${JSON.stringify(
+      routeName,
+    )}: return redirectTo(${JSON.stringify(routeName)}${
+      hasUrlProps ? ", (m as any).props" : ""
+    });`;
+  })
+  .join("\n")}
+  }
+}
+`);
+
+    const publicNames = Array.from(routes.entries())
+      .filter(([, info]) => info.isPublic)
+      .map(([name]) => JSON.stringify(name))
+      .join(", ");
+
+    serverSourceFile.addStatements(`
+export type RouteName = MatchedRoute["name"];
+
+export const PUBLIC_ROUTE_NAMES: ReadonlySet<RouteName> = new Set([${publicNames}]);
+
+export function isPublicUrl(raw: string): boolean {
+  const m = matchRouteFromUrl(raw);
+  return !!m && PUBLIC_ROUTE_NAMES.has(m.name);
+}
+`);
 
     const useGotoInterface = clientSourceFile.addInterface({
       name: "UseGoto",
