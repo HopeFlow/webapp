@@ -92,9 +92,7 @@ export const useRouteToWithParamsSearchParams = () => {
   );
 };
 
-interface UseGoto {}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const useGoto: UseGoto = (routeName: string): any => {
-  return () => {};
+export const useGoto = (): any => {
+  const router = useRouter();
+  return useCallback((urlString: string) => router.push(urlString), [router]);
 };
