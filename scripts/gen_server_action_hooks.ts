@@ -948,6 +948,15 @@ const buildCrudServerActionHook = (
   return hasAnyType;
 };
 
+const isServerOnlyModule = (sf: SourceFile) => {
+  const p = sf.getFilePath();
+  const fileBased = /(\.server\.(t|j)sx?$)/.test(p);
+  const importBased = sf
+    .getImportDeclarations()
+    .some((d) => d.getModuleSpecifierValue() === "server-only");
+  return fileBased || importBased;
+};
+
 const main = () => {
   const [projectRootPath, project] = createProject();
   const getShortestModuleSpecifier =
@@ -982,6 +991,15 @@ const main = () => {
     const targetPath = `src/server_actions/client/${
       actionInfo.scope
     }/${actionSymbol.getName()}.ts`;
+
+    const actionDeclSf = actionSymbol.getDeclarations().at(0)!.getSourceFile();
+    if (isServerOnlyModule(actionDeclSf)) {
+      console.log(
+        `Skipping client hook for ${actionSymbol.getName()} (server-only module: ${actionDeclSf.getBaseName()})`,
+      );
+      continue;
+    }
+
     const hookSourceFile = project.createSourceFile(targetPath, "", {
       overwrite: true,
     });
