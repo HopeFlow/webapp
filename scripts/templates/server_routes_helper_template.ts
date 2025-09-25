@@ -1,4 +1,6 @@
+import { parseFromRequestRecord } from "@/helpers/server/zod_helpers";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 const toStringParam = (v: unknown) =>
   encodeURIComponent(typeof v === "string" ? v : JSON.stringify(v));
@@ -79,9 +81,53 @@ export const redirectToRouteWithParamsSearchParams = (props: {
     ].join("/") + toSearchParams(props, ["param2"]),
   );
 
-interface RedirectTo {}
+const routeSpecs: Map<
+  string,
+  {
+    pathRegExp: RegExp;
+    paramsTypeDef?: z.AnyZodObject;
+    searchParamsTypeDef?: z.AnyZodObject;
+    isPublic: boolean;
+  }
+> = new Map();
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const redirectTo: RedirectTo = (routeName: string, props?: any): never => {
-  redirect("");
+const parseRouteFromUrl = (urlString: string) => {
+  const url = new URL(urlString, "http://localhost");
+  for (const [routeName, spec] of routeSpecs) {
+    const match = url.pathname.match(spec.pathRegExp);
+    if (!match) continue;
+    if (spec.paramsTypeDef && !match.groups) continue;
+    const params =
+      spec.paramsTypeDef &&
+      parseFromRequestRecord(match.groups!, spec.paramsTypeDef);
+    const getValue = (v: string[]) => (v.length === 1 ? v[0] : v);
+    const rawSearchParams = Object.fromEntries(
+      url.searchParams
+        .keys()
+        .map((k) => [k, getValue(url.searchParams.getAll(k))]),
+    );
+    const searchParams =
+      spec.searchParamsTypeDef &&
+      parseFromRequestRecord(rawSearchParams, spec.searchParamsTypeDef);
+    return { routeName, spec, params, searchParams };
+  }
+};
+
+export const isValidUrl = (urlString: string): boolean => {
+  const routeNameAndSpecs = parseRouteFromUrl(urlString);
+  return !!routeNameAndSpecs;
+};
+
+export const isPublicUrl = (urlString: string): boolean => {
+  const routeNameAndSpecs = parseRouteFromUrl(urlString);
+  if (!routeNameAndSpecs) return false;
+  return routeNameAndSpecs.spec.isPublic;
+};
+
+export const redirectTo = (urlString: string): never => {
+  const routeNameAndSpecs = parseRouteFromUrl(urlString);
+  if (!routeNameAndSpecs) throw new Error(`Invalid redirect url: ${urlString}`);
+  const { routeName, params, searchParams } = routeNameAndSpecs;
+  const props = { ...params, ...searchParams };
+  return redirect("");
 };
