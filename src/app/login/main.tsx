@@ -53,7 +53,9 @@ function LoginOAuth({
           <h1 className="font-normal text-4xl">Login or Signup</h1>
         </div>
         <Button
-          buttonType="primary"
+          buttonType="neutral"
+          buttonStyle="outline"
+          className="text-base-content hover:bg-base-300"
           onClick={() => handleSigninWith("oauth_google")}
         >
           <ButtonRow
@@ -66,7 +68,9 @@ function LoginOAuth({
           />
         </Button>
         <Button
-          buttonType="primary"
+          buttonType="neutral"
+          buttonStyle="outline"
+          className="text-base-content hover:bg-base-300"
           onClick={() => handleSigninWith("oauth_facebook")}
         >
           <ButtonRow
