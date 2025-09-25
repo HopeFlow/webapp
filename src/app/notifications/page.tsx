@@ -25,8 +25,8 @@ export default function Notifications() {
                     <Image
                       src="https://pub-7027dcead7294deeacde6da1a50ed32f.r2.dev/trek-520-grando-51cm-v0.jpeg"
                       alt="Row Boat"
-                      width={2016}
-                      height={1512}
+                      width={201.6}
+                      height={151.2}
                       className="max-w-full h-auto md:w-auto md:max-h-full object-contain rounded-box"
                     />
                   </div>
