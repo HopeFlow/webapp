@@ -4,6 +4,7 @@ import { PlusIcon } from "@/components/icons/plus";
 import { MobileDock } from "@/components/mobile_dock";
 import { MobileHeader } from "@/components/mobile_header";
 import { Sidebar } from "@/components/sidebar";
+import { Avatar } from "@/components/user_avatar";
 import Image from "next/image";
 
 export default function Notifications() {
@@ -14,7 +15,7 @@ export default function Notifications() {
         <div className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
           <MobileHeader />
           <div className="w-full p-8 flex-1 min-h-full overflow-auto">
-            <div className="flex flex-col gap-12 items-center justify-center">
+            <div className="flex flex-col gap-4 items-center justify-center">
               {new Array(7).fill(null).map((_, i) => (
                 <div
                   key={`n-${i}`}
@@ -38,8 +39,8 @@ export default function Notifications() {
                     <p>I think what you found is actually my bicycle</p>
                   </div>
                   <div>
-                    <Button buttonType="neutral" buttonStyle="soft">
-                      See the chat <ArrowRightIcon />
+                    <Button buttonType="neutral" buttonStyle="soft" className="pl-1">
+                      <Avatar name="Jacob" imageUrl="/img/avatar8.jpeg" imageWidth={64} imageHeight={64} className="w-8 h-8 rounded-full" />See the chat <ArrowRightIcon />
                     </Button>
                   </div>
                 </div>

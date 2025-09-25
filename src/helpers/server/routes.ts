@@ -65,6 +65,9 @@ export const redirectToLink = (props: { linkCode: any; }): never =>
     ].join("/"),
   );
 
+// Corresponding to src/app/profile/create/page.tsx
+export const redirectToProfileCreate = (): never => redirect("/profile/create");
+
 // Corresponding to src/app/quest/[questId]/page.tsx
 export const redirectToQuest = (props: { questId: string; }): never =>
   redirect(
@@ -73,8 +76,9 @@ export const redirectToQuest = (props: { questId: string; }): never =>
       ...toPathParams(props, [{ "part": "quest", "isParam": false }, { "part": "questId", "isParam": true }]),
     ].join("/"),
   );
+
 const routeSpecs: Map<
-  "Index" | "Home" | "Login" | "Notifications" | "Sample" | "Link" | "Quest",
+  "Index" | "Home" | "Login" | "Notifications" | "Sample" | "Link" | "ProfileCreate" | "Quest",
   {
     pathRegExp: RegExp;
     paramsTypeDef?: z.AnyZodObject;
@@ -82,14 +86,16 @@ const routeSpecs: Map<
     isPublic: boolean;
   }
 > = new Map([
-  ["Index", { pathRegExp: /^$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
-  ["Home", { pathRegExp: /^$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
-  ["Login", { pathRegExp: /^$/, paramsTypeDef: undefined, searchParamsTypeDef: z.object({ url: z.string().optional() }), isPublic: false }],
-  ["Notifications", { pathRegExp: /^$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
-  ["Sample", { pathRegExp: /^$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
-  ["Link", { pathRegExp: /^$/, paramsTypeDef: z.object({ linkCode: z.string() }), searchParamsTypeDef: undefined, isPublic: false }],
-  ["Quest", { pathRegExp: /^$/, paramsTypeDef: z.object({ questId: z.string() }), searchParamsTypeDef: undefined, isPublic: false }],
+  ["Index", { pathRegExp: /^\/$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
+  ["Home", { pathRegExp: /^\/home$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
+  ["Login", { pathRegExp: /^\/login$/, paramsTypeDef: undefined, searchParamsTypeDef: z.object({ url: z.string().optional() }), isPublic: true }],
+  ["Notifications", { pathRegExp: /^\/notifications$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
+  ["Sample", { pathRegExp: /^\/sample$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
+  ["Link", { pathRegExp: /^\/link\/(?<linkCode>[^/]+)$/, paramsTypeDef: z.object({ linkCode: z.string() }), searchParamsTypeDef: undefined, isPublic: false }],
+  ["ProfileCreate", { pathRegExp: /^\/profile\/create$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
+  ["Quest", { pathRegExp: /^\/quest\/(?<questId>[^/]+)$/, paramsTypeDef: z.object({ questId: z.string() }), searchParamsTypeDef: undefined, isPublic: false }],
 ]);
+
 const parseRouteFromUrl = (urlString: string) => {
   const url = new URL(urlString, "http://localhost");
   for (const [routeName, spec] of routeSpecs) {
@@ -111,15 +117,18 @@ const parseRouteFromUrl = (urlString: string) => {
     return { routeName, spec, params, searchParams };
   }
 };
+
 export const isValidUrl = (urlString: string): boolean => {
   const routeNameAndSpecs = parseRouteFromUrl(urlString);
   return !!routeNameAndSpecs;
 };
+
 export const isPublicUrl = (urlString: string): boolean => {
   const routeNameAndSpecs = parseRouteFromUrl(urlString);
   if (!routeNameAndSpecs) return false;
   return routeNameAndSpecs.spec.isPublic;
 };
+
 export const redirectTo = (urlString: string): never => {
   const routeNameAndSpecs = parseRouteFromUrl(urlString);
   if (!routeNameAndSpecs) throw new Error(`Invalid redirect url: ${urlString}`);
@@ -132,6 +141,7 @@ export const redirectTo = (urlString: string): never => {
     case "Notifications": return redirectToNotifications();
     case "Sample": return redirectToSample();
     case "Link": return redirectToLink(props as any);
+    case "ProfileCreate": return redirectToProfileCreate();
     case "Quest": return redirectToQuest(props as any);
   }
 };

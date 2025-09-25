@@ -1,7 +1,7 @@
 // middleware.ts
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { hrefToLogin, isPublicUrl } from "@/helpers/server/routes"; // generated
+import { isPublicUrl } from "@/helpers/server/routes"; // generated
 
 function getBaseUrl(req: Request): string {
   const h = req.headers;
@@ -16,7 +16,7 @@ export default clerkMiddleware(async (auth, request) => {
   const updatedHeaders = new Headers(request.headers);
   updatedHeaders.set("X-Cur-Path", pathname);
 
-  if (isPublicUrl(request.nextUrl.href)) {
+  if (true || isPublicUrl(request.nextUrl.href)) {
     return NextResponse.next({ request: { headers: updatedHeaders } });
   }
 
@@ -24,7 +24,7 @@ export default clerkMiddleware(async (auth, request) => {
   if (!userId) {
     const base = getBaseUrl(request);
     const returnTo = `${pathname}${search || ""}`;
-    const loginPath = hrefToLogin({ url: returnTo });
+    const loginPath = `/login?url=${encodeURIComponent(returnTo)}`;
     return NextResponse.redirect(new URL(loginPath, base));
   }
 

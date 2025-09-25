@@ -88,6 +88,12 @@ export const useGotoLink = () => {
   );
 };
 
+// Corresponding to src/app/profile/create/page.tsx
+export const useGotoProfileCreate = () => {
+  const router = useRouter();
+  return useCallback(() => router.push("/profile/create"), [router]);
+};
+
 // Corresponding to src/app/quest/[questId]/page.tsx
 export const useGotoQuest = () => {
   const router = useRouter();
@@ -102,6 +108,7 @@ export const useGotoQuest = () => {
     [router],
   );
 };
+
 export const useGoto = (): any => {
   const router = useRouter();
   return useCallback((urlString: string) => router.push(urlString), [router]);

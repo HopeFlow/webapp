@@ -9,7 +9,7 @@ const TimelineItemMiddle = ({ imageUrl }: { imageUrl?: string }) => (
     <div className="avatar ">
       <div className="w-8 rounded-full">
         <Image
-          src={imageUrl ?? "/img/generic_user_image.webp"} // TODO: Find all instances of generic_user_image.webp and refactor
+          src={imageUrl ?? "/img/generic_user_image.webp"}
           width={32}
           height={32}
           alt="Jacob"
