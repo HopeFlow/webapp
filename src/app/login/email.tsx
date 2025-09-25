@@ -48,16 +48,26 @@ export function LoginEmail({ url }: { url?: string }) {
   const [otp, setOtp] = useState(new Array(6).fill(""));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [isPreparing, setIsPreparing] = useState(false);
+  const [isVerifyingBtn, setIsVerifyingBtn] = useState(false);
   const goto = useGoto();
 
   useEffect(() => {
-    if (!verifying) return;
-    const t = setInterval(
-      () => setResendCooldown((c) => (c > 0 ? c - 1 : c)),
-      1000,
-    );
-    return () => clearInterval(t);
+    if (verifying) {
+      setOtp(new Array(6).fill(""));
+      // focus first box
+      requestAnimationFrame(() => inputRefs.current[0]?.focus());
+    }
   }, [verifying]);
+
+  useEffect(() => {
+    if (!verifying) return;
+    const code = otp.join("");
+    // only run when exactly 6 digits and we're not already verifying
+    if (/^\d{6}$/.test(code) && !isVerifyingBtn) {
+      verify();
+    }
+  }, [otp, verifying, isVerifyingBtn]);
 
   const handleClerkError = (e: unknown) => {
     if (isClerkAPIResponseError(e)) {
@@ -76,51 +86,56 @@ export function LoginEmail({ url }: { url?: string }) {
       return;
     }
 
-    // Try sign-in
-    let shouldSignUp = false;
+    setIsPreparing(true);
     try {
-      const { supportedFirstFactors } = await signIn.create({
-        identifier: email,
-      });
-
-      const isEmailCodeFactor = (f: SignInFirstFactor): f is EmailCodeFactor =>
-        f.strategy === "email_code";
-      const emailCodeFactor = supportedFirstFactors?.find(isEmailCodeFactor);
-
-      if (emailCodeFactor) {
-        await signIn.prepareFirstFactor({
-          strategy: "email_code",
-          emailAddressId: emailCodeFactor.emailAddressId,
-        });
-        setStage("verify_login_token");
-        setVerifying(true);
-        setResendCooldown(30);
-        return;
-      }
-      // If no email_code factor is available, fallback to signup.
-      shouldSignUp = true;
-    } catch (e) {
-      if (
-        isClerkAPIResponseError(e) &&
-        e.errors?.[0]?.code === "form_identifier_not_found"
-      ) {
-        shouldSignUp = true;
-      } else {
-        handleClerkError(e);
-        return;
-      }
-    }
-
-    if (shouldSignUp) {
+      // Try sign-in
+      let shouldSignUp = false;
       try {
-        const r = await signUp.create({ emailAddress: email });
-        await r.prepareEmailAddressVerification();
-        setStage("verify_signup_token");
-        setVerifying(true);
-        setResendCooldown(30);
+        const { supportedFirstFactors } = await signIn.create({
+          identifier: email,
+        });
+
+        const isEmailCodeFactor = (
+          f: SignInFirstFactor,
+        ): f is EmailCodeFactor => f.strategy === "email_code";
+        const emailCodeFactor = supportedFirstFactors?.find(isEmailCodeFactor);
+
+        if (emailCodeFactor) {
+          await signIn.prepareFirstFactor({
+            strategy: "email_code",
+            emailAddressId: emailCodeFactor.emailAddressId,
+          });
+          setStage("verify_login_token");
+          setVerifying(true);
+          setResendCooldown(30);
+          return;
+        }
+        shouldSignUp = true;
       } catch (e) {
-        handleClerkError(e);
+        if (
+          isClerkAPIResponseError(e) &&
+          e.errors?.[0]?.code === "form_identifier_not_found"
+        ) {
+          shouldSignUp = true;
+        } else {
+          handleClerkError(e);
+          return;
+        }
       }
+
+      if (shouldSignUp) {
+        try {
+          const r = await signUp.create({ emailAddress: email });
+          await r.prepareEmailAddressVerification();
+          setStage("verify_signup_token");
+          setVerifying(true);
+          setResendCooldown(30);
+        } catch (e) {
+          handleClerkError(e);
+        }
+      }
+    } finally {
+      setIsPreparing(false);
     }
   };
 
@@ -130,6 +145,8 @@ export function LoginEmail({ url }: { url?: string }) {
       toast("Please enter the 6-digit code.");
       return;
     }
+
+    setIsVerifyingBtn(true);
     try {
       if (stage === "verify_login_token") {
         const attempt = await signIn!.attemptFirstFactor({
@@ -155,6 +172,8 @@ export function LoginEmail({ url }: { url?: string }) {
       }
     } catch (e) {
       handleClerkError(e);
+    } finally {
+      setIsVerifyingBtn(false);
     }
   };
 
@@ -228,6 +247,9 @@ export function LoginEmail({ url }: { url?: string }) {
             className="w-full"
             buttonType="primary"
             onClick={startEmailFlow}
+            withSpinner={isPreparing}
+            disabled={isPreparing}
+            aria-busy={isPreparing}
           >
             Next <ArrowRightIcon />
           </Button>
@@ -278,7 +300,14 @@ export function LoginEmail({ url }: { url?: string }) {
           </div>
 
           <div className="flex-1"></div>
-          <Button className="w-full" buttonType="primary" onClick={verify}>
+          <Button
+            className="w-full"
+            buttonType="primary"
+            onClick={verify}
+            withSpinner={isVerifyingBtn}
+            disabled={isVerifyingBtn}
+            aria-busy={isVerifyingBtn}
+          >
             Verify <ArrowRightIcon />
           </Button>
         </div>

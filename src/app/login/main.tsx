@@ -10,16 +10,31 @@ import { LoginEmail } from "./email";
 import { useState, useEffect } from "react";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { useSignIn, useSignUp } from "@clerk/nextjs";
-import type {
-  OAuthStrategy,
-  SignInFirstFactor,
-  EmailCodeFactor,
-} from "@clerk/types";
+import type { OAuthStrategy } from "@clerk/types";
 import { useGoto } from "@/helpers/client/routes";
 
 const LogoContainer = ({ children }: { children: React.ReactNode }) => (
-  <span className="border border-base-300 p-0.5 rounded-full bg-gray-50">
-    {children}
+  <span className="flex items-center justify-center w-6 h-6 rounded-full border border-base-300 bg-gray-50">
+    <span className="w-5 h-5 flex items-center justify-center">{children}</span>
+  </span>
+);
+
+const ButtonRow = ({
+  leading,
+  label,
+  trailing,
+}: {
+  leading: React.ReactNode;
+  label: React.ReactNode;
+  trailing?: React.ReactNode;
+}) => (
+  <span className="grid grid-cols-[1.5rem_1fr_1.5rem] items-center gap-3 w-full">
+    <span className="justify-self-start">{leading}</span>
+    <span className="justify-self-center">{label}</span>
+    {/* Reserve space even if there is no trailing icon to keep alignment */}
+    <span className="justify-self-end">
+      {trailing ?? <span className="w-6 h-6" />}
+    </span>
   </span>
 );
 
@@ -41,26 +56,39 @@ function LoginOAuth({
           buttonType="primary"
           onClick={() => handleSigninWith("oauth_google")}
         >
-          <LogoContainer>
-            <GoogleLogo />
-          </LogoContainer>
-          Login/Signup with Google
+          <ButtonRow
+            leading={
+              <LogoContainer>
+                <GoogleLogo />
+              </LogoContainer>
+            }
+            label="Login/Signup with Google"
+          />
         </Button>
         <Button
-          buttonType="secondary"
+          buttonType="primary"
           onClick={() => handleSigninWith("oauth_facebook")}
         >
-          <LogoContainer>
-            <FacebookLogo />
-          </LogoContainer>
-          Login/Signup with Facebook
+          <ButtonRow
+            leading={
+              <LogoContainer>
+                <FacebookLogo />
+              </LogoContainer>
+            }
+            label="Login/Signup with Facebook"
+          />
         </Button>
         <div className="divider">Or</div>
         <Button buttonType="neutral" onClick={() => onEmail()}>
-          <LogoContainer>
-            <EmailLogo />
-          </LogoContainer>
-          Login/Signup with Email <ArrowRightIcon />
+          <ButtonRow
+            leading={
+              <LogoContainer>
+                <EmailLogo />
+              </LogoContainer>
+            }
+            label="Login/Signup with Email"
+            trailing={<ArrowRightIcon className="w-4 h-4" />}
+          />
         </Button>
       </div>
     </div>
