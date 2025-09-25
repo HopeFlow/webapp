@@ -67,6 +67,7 @@ export function Button({
       className={cn(
         className,
         "btn",
+        withSpinner && "gap-2",
         colorButtonVariants[buttonType],
         buttonStyle && styleButtonVariants[buttonStyle],
         buttonSize && sizeButtonVariants[buttonSize],

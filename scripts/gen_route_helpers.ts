@@ -5,7 +5,15 @@ import {
   getResolvedTypeText,
   upperCaseFirstLetter,
 } from "./ts_morph_utilities";
-import { ArrowFunction, Node, Symbol, SyntaxKind, Type } from "ts-morph";
+import {
+  ArrowFunction,
+  CallExpression,
+  Node,
+  ObjectLiteralExpression,
+  Symbol,
+  SyntaxKind,
+  Type,
+} from "ts-morph";
 
 const main = () => {
   const [projectRootPath, project] = createProject();
@@ -118,6 +126,9 @@ const main = () => {
     path: string;
     pathParts: Array<{ part: string; isParam: boolean; isArrayParam: boolean }>;
     propsType: Type | undefined;
+    paramsTypeDef: CallExpression | undefined;
+    searchParamsTypeDef: CallExpression | undefined;
+    isPublic: boolean;
   };
   const routes = new Map<string, RouteInfo>();
 
@@ -155,6 +166,69 @@ const main = () => {
         isParam,
       }));
 
+    console.log(`Processing ${filePath} (${routeName}) ...`);
+
+    const defaultExportSymbol = sourceFile.getDefaultExportSymbolOrThrow();
+    const isPublic = defaultExportSymbol
+      .getDeclarations()
+      .some(
+        (d) =>
+          d
+            .getFirstDescendantByKind(SyntaxKind.CallExpression)
+            ?.getExpressionIfKind(SyntaxKind.Identifier)
+            ?.getText() === "publicPage",
+      );
+
+    let paramsTypeDef: CallExpression | undefined;
+    let searchParamsTypeDef: CallExpression | undefined;
+    const getPropertyFromPropertyAssignment = (
+      expr: ObjectLiteralExpression,
+      name: string,
+    ) => {
+      const property = expr.getProperty(name);
+      if (!property) return;
+      if (!property.isKind(SyntaxKind.PropertyAssignment))
+        throw new Error(
+          `Property ${name} in ${expr.getText()} is not PropertyAssignment`,
+        );
+      return property.getInitializerIfKindOrThrow(SyntaxKind.CallExpression);
+    };
+    defaultExportSymbol.getDeclarations().forEach((d) => {
+      if (d.isKind(SyntaxKind.ExportAssignment)) {
+        d.forEachDescendant((n) => {
+          if (n.isKind(SyntaxKind.CallExpression)) {
+            if (
+              ["withParams", "withParamsAndUser"].includes(
+                n.getExpression().getText(),
+              )
+            ) {
+              const typeDefArgument = n.getArguments().at(1);
+              if (!typeDefArgument)
+                throw new Error(
+                  `Expected type def argument for ${n
+                    .getExpression()
+                    .getText()}`,
+                );
+              if (!typeDefArgument.isKind(SyntaxKind.ObjectLiteralExpression))
+                throw new Error(
+                  `Expected type def argument for ${n
+                    .getExpression()
+                    .getText()} to be ObjectLiteralExpression`,
+                );
+              paramsTypeDef = getPropertyFromPropertyAssignment(
+                typeDefArgument,
+                "paramsTypeDef",
+              );
+              searchParamsTypeDef = getPropertyFromPropertyAssignment(
+                typeDefArgument,
+                "searchParamsTypeDef",
+              );
+            }
+          }
+        });
+      }
+    });
+
     const parameters = (function getPageComponentProps(symbol) {
       const declarations = symbol.getDeclarations();
       if (declarations.length !== 1)
@@ -187,7 +261,7 @@ const main = () => {
         return signatures[0].getParameters();
       }
       throw new Error("Could not find page component parameters");
-    })(sourceFile.getDefaultExportSymbolOrThrow());
+    })(defaultExportSymbol);
 
     if (parameters.length > 1)
       throw new Error("Expected one or zero parameter for page component");
@@ -201,7 +275,6 @@ const main = () => {
         `Expected object type for page component parameter (props) but got ${propsType.getText()}`,
       );
 
-    console.log(`Processing ${filePath} (${routeName}) ...`);
     const missingPathParams = pathParts.filter(
       ({ part, isParam }) =>
         isParam && !(propsType && propsType.getProperty(part)),
@@ -218,6 +291,9 @@ const main = () => {
       path: filePath,
       pathParts,
       propsType,
+      paramsTypeDef,
+      searchParamsTypeDef,
+      isPublic,
     });
   }
 
@@ -407,94 +483,90 @@ const main = () => {
       }
     }
 
-    const redirectInterface = serverSourceFile.addInterface({
-      name: "RedirectTo",
-      isExported: true,
-    });
-    redirectSignatures.forEach((redirectFunction, routeName) => {
-      redirectInterface.addCallSignature({
-        parameters: [
-          { name: "routeName", type: JSON.stringify(routeName) },
-          ...redirectFunction.getParameters().map((p) => p.getStructure()),
-        ],
-        returnType: "never",
-      });
-    });
-    const redirectStatement = serverSourceFile.addVariableStatement(
-      serverTemplate.getVariableStatementOrThrow("redirectTo").getStructure(),
+    const routeSpecsMapVarStatement = serverSourceFile.addVariableStatement(
+      serverTemplate.getVariableStatementOrThrow("routeSpecs").getStructure(),
     );
-    const redirect = redirectStatement
-      .getDeclarations()
+    const routeSpecsMap = routeSpecsMapVarStatement.getDeclarations().at(0);
+    if (!routeSpecsMap) throw new Error("Could not find routeSpecs variable");
+    routeSpecsMapVarStatement.prependWhitespace("\n");
+
+    routeSpecsMap
+      .getTypeNodeOrThrow()
+      .asKindOrThrow(SyntaxKind.TypeReference)
+      .getTypeArguments()
       .at(0)
-      ?.getInitializerIfKind(SyntaxKind.ArrowFunction);
-    if (!redirect)
-      throw new Error("Could not locate redirectTo template function");
-    redirect.getParameterOrThrow("routeName").setType(
-      Array.from(hookSignatures.keys())
-        .map((k) => JSON.stringify(k))
-        .join(" | "),
-    );
-    redirect
-      .getBody()
-      .asKindOrThrow(SyntaxKind.Block)
-      .replaceWithText(
-        "{\nswitch(routeName) {\n" +
-          Array.from(hookSignatures.entries())
-            .map(
-              ([routeName, redirectFunction]) =>
-                `case ${JSON.stringify(
-                  routeName,
-                )}: return redirectTo${routeName}(${
-                  redirectFunction.getParameters().length === 0 ? "" : "props"
-                });`,
-            )
-            .join("\n") +
-          "}\n}",
+      ?.replaceWithText(
+        Array.from(hookSignatures.keys())
+          .map((k) => JSON.stringify(k))
+          .join(" | "),
+      );
+    const escapeRegExp = (v: string) =>
+      v.replace(/[.*+?^${}()|[\]\\\/]/g, "\\$&");
+    const getRouteSpecStr = (v: RouteInfo) =>
+      `{ pathRegExp: /^\\/${v.pathParts
+        .map(({ part, isParam, isArrayParam }) =>
+          !isParam
+            ? escapeRegExp(part)
+            : !isArrayParam
+            ? `(?<${part}>[^/]+)`
+            : `(?<${part}>.+)`,
+        )
+        .join(
+          "\\/",
+        )}$/, paramsTypeDef: ${v.paramsTypeDef?.getText()}, searchParamsTypeDef: ${v.searchParamsTypeDef?.getText()}, isPublic: ${
+        v.isPublic
+      } }`;
+    routeSpecsMap
+      .getInitializerIfKindOrThrow(SyntaxKind.NewExpression)
+      .addArgument(
+        [
+          "[",
+          ...Array.from(routes.entries()).map(
+            ([k, v]) => `[${JSON.stringify(k)}, ${getRouteSpecStr(v)}],`,
+          ),
+          "]",
+        ].join("\n"),
       );
 
-    const useGotoInterface = clientSourceFile.addInterface({
-      name: "UseGoto",
-      isExported: true,
-    });
-    hookSignatures.forEach((redirectFunction, routeName) => {
-      useGotoInterface.addCallSignature({
-        parameters: [{ name: "routeName", type: JSON.stringify(routeName) }],
-        returnType: redirectFunction.getType().getText(),
-      });
-    });
-    const useGotoHookStatement = clientSourceFile.addVariableStatement(
-      clientTemplate.getVariableStatementOrThrow("useGoto").getStructure(),
+    for (const funcName of ["parseRouteFromUrl", "isValidUrl", "isPublicUrl"]) {
+      serverSourceFile
+        .addVariableStatement(
+          serverTemplate.getVariableStatementOrThrow(funcName).getStructure(),
+        )
+        .prependWhitespace("\n");
+    }
+
+    const redirectToVarStatement = serverSourceFile.addVariableStatement(
+      serverTemplate.getVariableStatementOrThrow("redirectTo").getStructure(),
     );
-    const useGotoHook = useGotoHookStatement
-      .getDeclarations()
-      .at(0)
-      ?.getInitializerIfKind(SyntaxKind.ArrowFunction);
-    if (!useGotoHook) throw new Error("Could not locate useGoto template hook");
-    useGotoHook.getParameterOrThrow("routeName").setType(
-      Array.from(hookSignatures.keys())
-        .map((k) => JSON.stringify(k))
-        .join(" | "),
-    );
-    useGotoHook
-      .getBody()
-      .asKindOrThrow(SyntaxKind.Block)
-      .replaceWithText(
-        "{\n" +
-          Array.from(hookSignatures.keys())
-            .map(
-              (routeName, index) =>
-                `const __route${index} = useGoto${routeName}();`,
-            )
-            .join("\n") +
-          "\nswitch(routeName) {\n" +
-          Array.from(hookSignatures.keys())
-            .map(
-              (routeName, index) =>
-                `case ${JSON.stringify(routeName)}: return __route${index};`,
-            )
-            .join("\n") +
-          "}\n}",
+    const redirectToReturn =
+      redirectToVarStatement.getFirstDescendantByKindOrThrow(
+        SyntaxKind.ReturnStatement,
       );
+    redirectToVarStatement.prependWhitespace("\n");
+
+    redirectToReturn.replaceWithText(
+      "switch(routeName) {\n" +
+        Array.from(hookSignatures.entries())
+          .map(
+            ([routeName, redirectFunction]) =>
+              `case ${JSON.stringify(
+                routeName,
+              )}: return redirectTo${routeName}(${
+                redirectFunction.getParameters().length === 0
+                  ? ""
+                  : "props as any"
+              });`,
+          )
+          .join("\n") +
+        "}",
+    );
+
+    clientSourceFile
+      .addVariableStatement(
+        clientTemplate.getVariableStatementOrThrow("useGoto").getStructure(),
+      )
+      .prependWhitespace("\n");
 
     serverSourceFile.insertStatements(0, [
       `// This file is auto-generated by ${path.relative(

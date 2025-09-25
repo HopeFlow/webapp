@@ -1,8 +1,14 @@
 import { Sidebar } from "@/components/sidebar";
 import { QuestStarterView } from "./starter";
+<<<<<<< HEAD
 import { QuestContributorView } from "./contributor";
+=======
+import { MobileHeader } from "@/components/mobile_header";
+import { withParams } from "@/helpers/server/with_params";
+import z from "zod";
+>>>>>>> 55-task-login-page---ui
 
-export default async function QuestPage() {
+async function QuestPage({ questId }: { questId: string }) {
   return (
     <div className="flex-1 w-full flex flex-row items-stretch">
       <Sidebar />
@@ -14,3 +20,7 @@ export default async function QuestPage() {
     </div>
   );
 }
+
+export default withParams(QuestPage, {
+  paramsTypeDef: z.object({ questId: z.string() }),
+});

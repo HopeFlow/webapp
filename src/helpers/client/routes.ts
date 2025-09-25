@@ -50,22 +50,34 @@ export const useGotoHome = () => {
 export const useGotoLogin = () => {
   const router = useRouter();
   return useCallback(
-    (props: { url?: string | undefined; }) =>
+    (props: import("/Users/saeed/Projects/webapp/src/helpers/server/page_component").PageParams) =>
       router.push(
         [
           "",
           ...toPathParams(props, [{ "part": "login", "isParam": false }]),
-        ].join("/") + toSearchParams(props, ["url"]),
+        ].join("/") + toSearchParams(props, ["params", "searchParams"]),
       ),
     [router],
   );
+};
+
+// Corresponding to src/app/notifications/page.tsx
+export const useGotoNotifications = () => {
+  const router = useRouter();
+  return useCallback(() => router.push("/notifications"), [router]);
+};
+
+// Corresponding to src/app/sample/page.tsx
+export const useGotoSample = () => {
+  const router = useRouter();
+  return useCallback(() => router.push("/sample"), [router]);
 };
 
 // Corresponding to src/app/link/[linkCode]/page.tsx
 export const useGotoLink = () => {
   const router = useRouter();
   return useCallback(
-    (props: { linkCode: string; }) =>
+    (props: { linkCode: any; }) =>
       router.push(
         [
           "",
@@ -76,22 +88,28 @@ export const useGotoLink = () => {
   );
 };
 
-export interface UseGoto {
-  (routeName: "Index"): () => void;
-  (routeName: "Home"): () => void;
-  (routeName: "Login"): (props: { url?: string | undefined; }) => void;
-  (routeName: "Link"): (props: { linkCode: string; }) => void;
-}
+// Corresponding to src/app/profile/create/page.tsx
+export const useGotoProfileCreate = () => {
+  const router = useRouter();
+  return useCallback(() => router.push("/profile/create"), [router]);
+};
 
-export const useGoto: UseGoto = (routeName: "Index" | "Home" | "Login" | "Link"): any => {
-  const __route0 = useGotoIndex();
-  const __route1 = useGotoHome();
-  const __route2 = useGotoLogin();
-  const __route3 = useGotoLink();
-  switch (routeName) {
-    case "Index": return __route0;
-    case "Home": return __route1;
-    case "Login": return __route2;
-    case "Link": return __route3;
-  }
+// Corresponding to src/app/quest/[questId]/page.tsx
+export const useGotoQuest = () => {
+  const router = useRouter();
+  return useCallback(
+    (props: { questId: string; }) =>
+      router.push(
+        [
+          "",
+          ...toPathParams(props, [{ "part": "quest", "isParam": false }, { "part": "questId", "isParam": true }]),
+        ].join("/"),
+      ),
+    [router],
+  );
+};
+
+export const useGoto = (): any => {
+  const router = useRouter();
+  return useCallback((urlString: string) => router.push(urlString), [router]);
 };
