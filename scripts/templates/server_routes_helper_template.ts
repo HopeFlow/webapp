@@ -102,9 +102,10 @@ const parseRouteFromUrl = (urlString: string) => {
       parseFromRequestRecord(match.groups!, spec.paramsTypeDef);
     const getValue = (v: string[]) => (v.length === 1 ? v[0] : v);
     const rawSearchParams = Object.fromEntries(
-      url.searchParams
-        .keys()
-        .map((k) => [k, getValue(url.searchParams.getAll(k))]),
+      Array.from(url.searchParams.keys()).map((k) => [
+        k,
+        getValue(url.searchParams.getAll(k)),
+      ]),
     );
     const searchParams =
       spec.searchParamsTypeDef &&

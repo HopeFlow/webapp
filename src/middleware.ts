@@ -2,6 +2,7 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { isPublicUrl } from "@/helpers/server/routes"; // generated
+import { X_CUR_URL_HEADER } from "./helpers/server/constants";
 
 function getBaseUrl(req: Request): string {
   const h = req.headers;
@@ -14,9 +15,9 @@ export default clerkMiddleware(async (auth, request) => {
   const { pathname, search } = request.nextUrl;
 
   const updatedHeaders = new Headers(request.headers);
-  updatedHeaders.set("X-Cur-Path", pathname);
+  updatedHeaders.set(X_CUR_URL_HEADER, request.nextUrl.toString());
 
-  if (true || isPublicUrl(request.nextUrl.href)) {
+  if (isPublicUrl(request.nextUrl.href)) {
     return NextResponse.next({ request: { headers: updatedHeaders } });
   }
 

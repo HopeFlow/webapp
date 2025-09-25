@@ -50,7 +50,7 @@ export const useGotoHome = () => {
 export const useGotoLogin = () => {
   const router = useRouter();
   return useCallback(
-    (props: import("/data/Work/HopeFlow/webapp/src/helpers/server/page_component").PageParams) =>
+    (props: import("/Users/saeed/Projects/webapp/src/helpers/server/page_component").PageParams) =>
       router.push(
         [
           "",

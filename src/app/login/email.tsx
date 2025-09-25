@@ -4,34 +4,158 @@ import { Button } from "@/components/button";
 import { HopeflowLogo } from "@/components/logos/hopeflow";
 import { EmailLogo } from "@/components/logos/email";
 import { ArrowRightIcon } from "@/components/icons/arrow_right";
-import { useGotoIndex } from "@/helpers/client/routes";
+import { useGoto, useGotoIndex } from "@/helpers/client/routes";
 import {
   useState,
   useRef,
   ChangeEvent,
   KeyboardEvent,
   ClipboardEvent,
+  useEffect,
 } from "react";
 import { cn } from "@/helpers/client/tailwind_helpers";
+import { useSignIn, useSignUp } from "@clerk/nextjs";
+import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
+import type {
+  SignInFirstFactor,
+  EmailCodeFactor,
+  OAuthStrategy,
+} from "@clerk/types";
 
-export function LoginEmail({}: { url?: string }) {
+const toast = (msg: string) => console.log("[toast]", msg);
+
+type VerificationStage =
+  | "prepare_token"
+  | "verify_login_token"
+  | "verify_signup_token";
+
+export function LoginEmail({ url }: { url?: string }) {
+  const {
+    isLoaded: isSignInLoaded,
+    signIn,
+    setActive: setSignInActive,
+  } = useSignIn();
+  const {
+    isLoaded: isSignUpLoaded,
+    signUp,
+    setActive: setSignUpActive,
+  } = useSignUp();
+
+  const [stage, setStage] = useState<VerificationStage>("prepare_token");
   const [verifying, setVerifying] = useState(false);
   const [email, setEmail] = useState("");
   const gotoIndex = useGotoIndex();
   const [otp, setOtp] = useState(new Array(6).fill(""));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const goto = useGoto();
 
-  const handleNext = () => {
-    // Here you would typically send the email to the backend
-    // and on success, move to the verification screen.
-    setVerifying(true);
+  useEffect(() => {
+    if (!verifying) return;
+    const t = setInterval(
+      () => setResendCooldown((c) => (c > 0 ? c - 1 : c)),
+      1000,
+    );
+    return () => clearInterval(t);
+  }, [verifying]);
+
+  const handleClerkError = (e: unknown) => {
+    if (isClerkAPIResponseError(e)) {
+      const err = e.errors?.[0];
+      toast(`${err?.code}: ${err?.longMessage || err?.message}`);
+    } else {
+      toast(`Unexpected error: ${e}`);
+    }
   };
 
-  const handleVerify = () => {
-    // Here you would send the OTP to the backend for verification.
-    console.log("Verifying OTP:", otp.join(""));
-    // On success, you would navigate the user.
-    gotoIndex();
+  // Start flow (sign-in first; if not found, sign-up)
+  const startEmailFlow = async () => {
+    if (!isSignInLoaded || !isSignUpLoaded || !signIn || !signUp) return;
+    if (!email) {
+      toast("Please enter a valid email.");
+      return;
+    }
+
+    // Try sign-in
+    let shouldSignUp = false;
+    try {
+      const { supportedFirstFactors } = await signIn.create({
+        identifier: email,
+      });
+
+      const isEmailCodeFactor = (f: SignInFirstFactor): f is EmailCodeFactor =>
+        f.strategy === "email_code";
+      const emailCodeFactor = supportedFirstFactors?.find(isEmailCodeFactor);
+
+      if (emailCodeFactor) {
+        await signIn.prepareFirstFactor({
+          strategy: "email_code",
+          emailAddressId: emailCodeFactor.emailAddressId,
+        });
+        setStage("verify_login_token");
+        setVerifying(true);
+        setResendCooldown(30);
+        return;
+      }
+      // If no email_code factor is available, fallback to signup.
+      shouldSignUp = true;
+    } catch (e) {
+      if (
+        isClerkAPIResponseError(e) &&
+        e.errors?.[0]?.code === "form_identifier_not_found"
+      ) {
+        shouldSignUp = true;
+      } else {
+        handleClerkError(e);
+        return;
+      }
+    }
+
+    if (shouldSignUp) {
+      try {
+        const r = await signUp.create({ emailAddress: email });
+        await r.prepareEmailAddressVerification();
+        setStage("verify_signup_token");
+        setVerifying(true);
+        setResendCooldown(30);
+      } catch (e) {
+        handleClerkError(e);
+      }
+    }
+  };
+
+  const verify = async () => {
+    const code = otp.join("");
+    if (code.length !== 6) {
+      toast("Please enter the 6-digit code.");
+      return;
+    }
+    try {
+      if (stage === "verify_login_token") {
+        const attempt = await signIn!.attemptFirstFactor({
+          strategy: "email_code",
+          code,
+        });
+        if (attempt.status === "complete") {
+          await setSignInActive!({ session: attempt.createdSessionId });
+          goto(url || "/");
+        } else {
+          toast(`Sign-in not complete: ${attempt.status}`);
+        }
+      } else if (stage === "verify_signup_token") {
+        const attempt = await signUp!.attemptEmailAddressVerification({ code });
+        if (attempt.status === "complete") {
+          await setSignUpActive!({ session: attempt.createdSessionId });
+          goto(url || "/");
+        } else {
+          toast(`Sign-up not complete: ${attempt.status}`);
+        }
+      } else {
+        toast("Please request a code first.");
+      }
+    } catch (e) {
+      handleClerkError(e);
+    }
   };
 
   const handleOtpChange = (index: number, value: string) => {
@@ -52,7 +176,7 @@ export function LoginEmail({}: { url?: string }) {
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, index: number) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      handleVerify();
+      verify();
     }
     // Move to previous input on backspace if current input is empty
     if (e.key === "Backspace" && !otp[index] && index > 0) {
@@ -94,13 +218,17 @@ export function LoginEmail({}: { url?: string }) {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  handleNext();
+                  startEmailFlow();
                 }
               }}
             />
           </div>
           <div className="flex-1"></div>
-          <Button className="w-full" buttonType="primary" onClick={handleNext}>
+          <Button
+            className="w-full"
+            buttonType="primary"
+            onClick={startEmailFlow}
+          >
             Next <ArrowRightIcon />
           </Button>
         </div>
@@ -148,12 +276,9 @@ export function LoginEmail({}: { url?: string }) {
               </button>
             </div>
           </div>
+
           <div className="flex-1"></div>
-          <Button
-            className="w-full"
-            buttonType="primary"
-            onClick={handleVerify}
-          >
+          <Button className="w-full" buttonType="primary" onClick={verify}>
             Verify <ArrowRightIcon />
           </Button>
         </div>

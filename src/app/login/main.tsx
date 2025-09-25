@@ -15,8 +15,7 @@ import type {
   SignInFirstFactor,
   EmailCodeFactor,
 } from "@clerk/types";
-import { hrefToLogin } from "@/helpers/client/routes";
-import { useRouter } from "next/navigation";
+import { useGoto } from "@/helpers/client/routes";
 
 const LogoContainer = ({ children }: { children: React.ReactNode }) => (
   <span className="border border-base-300 p-0.5 rounded-full bg-gray-50">
@@ -24,7 +23,7 @@ const LogoContainer = ({ children }: { children: React.ReactNode }) => (
   </span>
 );
 
-function LoginOAth({
+function LoginOAuth({
   onEmail,
   handleSigninWith,
 }: {
@@ -87,9 +86,15 @@ const TransitionContainer = ({
 
 let pendingProcessResumed = false;
 
-export function LoginMain({ url }: { url?: string }) {
+export function LoginMain({
+  url,
+  currentUrl,
+}: {
+  url?: string;
+  currentUrl: string;
+}) {
   const [usingEmail, setUsingEmail] = useState(false);
-  const router = useRouter();
+  const goto = useGoto();
   const {
     isLoaded: isSignInLoaded,
     signIn,
@@ -104,7 +109,7 @@ export function LoginMain({ url }: { url?: string }) {
   // Handle OAuth
   const handleSigninWith = async (strategy: OAuthStrategy) => {
     if (!isSignInLoaded || !signIn) return;
-    const redirectUrl = hrefToLogin({ url });
+    const redirectUrl = currentUrl;
     await signIn.authenticateWithRedirect({
       strategy,
       redirectUrl,
@@ -125,7 +130,7 @@ export function LoginMain({ url }: { url?: string }) {
         const res = await signIn.create({ transfer: true });
         if (res.status === "complete") {
           await setSignInActive({ session: res.createdSessionId });
-          router.refresh();
+          goto(url);
           return;
         }
       }
@@ -136,7 +141,7 @@ export function LoginMain({ url }: { url?: string }) {
         const res = await signUp.create({ transfer: true });
         if (res.status === "complete") {
           await setSignUpActive({ session: res.createdSessionId });
-          router.refresh();
+          goto(url);
         }
       }
     };
@@ -152,13 +157,14 @@ export function LoginMain({ url }: { url?: string }) {
     signUp,
     setSignInActive,
     setSignUpActive,
-    router,
+    url,
+    goto,
   ]);
 
   return (
     <div className="flex-1 w-full flex flex-col items-center justify-center relative">
       <TransitionContainer show={!usingEmail}>
-        <LoginOAth
+        <LoginOAuth
           onEmail={() => setUsingEmail(true)}
           handleSigninWith={handleSigninWith}
         />
