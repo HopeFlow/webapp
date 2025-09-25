@@ -10,21 +10,35 @@ import { LoginEmail } from "./email";
 import { useState, useEffect } from "react";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { useSignIn, useSignUp } from "@clerk/nextjs";
-import type {
-  OAuthStrategy,
-  SignInFirstFactor,
-  EmailCodeFactor,
-} from "@clerk/types";
-import { hrefToLogin } from "@/helpers/client/routes";
-import { useRouter } from "next/navigation";
+import type { OAuthStrategy } from "@clerk/types";
+import { useGoto } from "@/helpers/client/routes";
 
 const LogoContainer = ({ children }: { children: React.ReactNode }) => (
-  <span className="border border-base-300 p-0.5 rounded-full bg-gray-50">
-    {children}
+  <span className="flex items-center justify-center w-6 h-6 rounded-full border border-base-300 bg-gray-50">
+    <span className="w-5 h-5 flex items-center justify-center">{children}</span>
   </span>
 );
 
-function LoginOAth({
+const ButtonRow = ({
+  leading,
+  label,
+  trailing,
+}: {
+  leading: React.ReactNode;
+  label: React.ReactNode;
+  trailing?: React.ReactNode;
+}) => (
+  <span className="grid grid-cols-[1.5rem_1fr_1.5rem] items-center gap-3 w-full">
+    <span className="justify-self-start">{leading}</span>
+    <span className="justify-self-center">{label}</span>
+    {/* Reserve space even if there is no trailing icon to keep alignment */}
+    <span className="justify-self-end">
+      {trailing ?? <span className="w-6 h-6" />}
+    </span>
+  </span>
+);
+
+function LoginOAuth({
   onEmail,
   handleSigninWith,
 }: {
@@ -42,26 +56,39 @@ function LoginOAth({
           buttonType="primary"
           onClick={() => handleSigninWith("oauth_google")}
         >
-          <LogoContainer>
-            <GoogleLogo />
-          </LogoContainer>
-          Login/Signup with Google
+          <ButtonRow
+            leading={
+              <LogoContainer>
+                <GoogleLogo />
+              </LogoContainer>
+            }
+            label="Login/Signup with Google"
+          />
         </Button>
         <Button
-          buttonType="secondary"
+          buttonType="primary"
           onClick={() => handleSigninWith("oauth_facebook")}
         >
-          <LogoContainer>
-            <FacebookLogo />
-          </LogoContainer>
-          Login/Signup with Facebook
+          <ButtonRow
+            leading={
+              <LogoContainer>
+                <FacebookLogo />
+              </LogoContainer>
+            }
+            label="Login/Signup with Facebook"
+          />
         </Button>
         <div className="divider">Or</div>
         <Button buttonType="neutral" onClick={() => onEmail()}>
-          <LogoContainer>
-            <EmailLogo />
-          </LogoContainer>
-          Login/Signup with Email <ArrowRightIcon />
+          <ButtonRow
+            leading={
+              <LogoContainer>
+                <EmailLogo />
+              </LogoContainer>
+            }
+            label="Login/Signup with Email"
+            trailing={<ArrowRightIcon className="w-4 h-4" />}
+          />
         </Button>
       </div>
     </div>
@@ -87,9 +114,15 @@ const TransitionContainer = ({
 
 let pendingProcessResumed = false;
 
-export function LoginMain({ url }: { url?: string }) {
+export function LoginMain({
+  url,
+  currentUrl,
+}: {
+  url?: string;
+  currentUrl: string;
+}) {
   const [usingEmail, setUsingEmail] = useState(false);
-  const router = useRouter();
+  const goto = useGoto();
   const {
     isLoaded: isSignInLoaded,
     signIn,
@@ -104,7 +137,7 @@ export function LoginMain({ url }: { url?: string }) {
   // Handle OAuth
   const handleSigninWith = async (strategy: OAuthStrategy) => {
     if (!isSignInLoaded || !signIn) return;
-    const redirectUrl = hrefToLogin({ url });
+    const redirectUrl = currentUrl;
     await signIn.authenticateWithRedirect({
       strategy,
       redirectUrl,
@@ -125,7 +158,7 @@ export function LoginMain({ url }: { url?: string }) {
         const res = await signIn.create({ transfer: true });
         if (res.status === "complete") {
           await setSignInActive({ session: res.createdSessionId });
-          router.refresh();
+          goto(url);
           return;
         }
       }
@@ -136,7 +169,7 @@ export function LoginMain({ url }: { url?: string }) {
         const res = await signUp.create({ transfer: true });
         if (res.status === "complete") {
           await setSignUpActive({ session: res.createdSessionId });
-          router.refresh();
+          goto(url);
         }
       }
     };
@@ -152,13 +185,14 @@ export function LoginMain({ url }: { url?: string }) {
     signUp,
     setSignInActive,
     setSignUpActive,
-    router,
+    url,
+    goto,
   ]);
 
   return (
     <div className="flex-1 w-full flex flex-col items-center justify-center relative">
       <TransitionContainer show={!usingEmail}>
-        <LoginOAth
+        <LoginOAuth
           onEmail={() => setUsingEmail(true)}
           handleSigninWith={handleSigninWith}
         />
