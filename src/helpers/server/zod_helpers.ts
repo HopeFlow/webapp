@@ -1,13 +1,21 @@
 import { z } from "zod";
 
+export function isStringLikeSchema(schema: z.ZodTypeAny): boolean {
+  return (
+    schema instanceof z.ZodString ||
+    schema instanceof z.ZodEnum ||
+    schema instanceof z.ZodNativeEnum ||
+    (schema instanceof z.ZodLiteral && typeof schema.value === "string")
+  );
+}
+
 export function parseFromString<T extends z.ZodTypeAny>(
   value: string,
   typeDef: T,
 ): z.infer<T> {
   const unwrapedTypeDef =
     typeDef instanceof z.ZodOptional ? typeDef.unwrap() : typeDef;
-  if (unwrapedTypeDef instanceof z.ZodString)
-    return unwrapedTypeDef.parse(value);
+  if (isStringLikeSchema(unwrapedTypeDef)) return unwrapedTypeDef.parse(value);
   const jsonParsed = JSON.parse(value);
   return unwrapedTypeDef.parse(jsonParsed);
 }
@@ -27,10 +35,9 @@ export function parseFromRequestRecord<T extends z.AnyZodObject>(
       continue;
     }
     if (memberTypeDef instanceof z.ZodArray) {
-      if (!Array.isArray(value[key]))
-        throw new Error(`Array value expected for ${key}`);
+      const finalValue = Array.isArray(value[key]) ? value[key] : [value[key]];
       const elementTypeDef = memberTypeDef.element;
-      convertedParams[key] = value[key].map((v) =>
+      convertedParams[key] = finalValue.map((v) =>
         parseFromString(v, elementTypeDef),
       );
     } else {

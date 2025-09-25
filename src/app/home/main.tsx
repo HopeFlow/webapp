@@ -5,7 +5,7 @@ import { MobileHeader } from "@/components/mobile_header";
 import { Sidebar } from "@/components/sidebar";
 import Image from "next/image";
 
-export default function HomeMain() {
+export function HomeMain() {
   return (
     <div className="flex-1 w-full flex flex-row items-stretch">
       <Sidebar />
