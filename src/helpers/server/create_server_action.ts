@@ -13,17 +13,18 @@ export interface ServerAction<P extends AnyArgs, R> {
 
 export type CrudAction = "create" | "read" | "update" | "remove";
 
-// 👉 Simpler: just the base signature + createVariant (no overloads)
-export type CrudServerAction<C, R, U, D, P extends AnyArgs = []> = ServerAction<
-  [CrudAction, C | U | D | undefined, ...P],
-  R | boolean
-> & {
+export interface CrudServerAction<C, R, U, D, P extends AnyArgs = []>
+  extends ServerAction<[CrudAction, C | U | D | undefined, ...P], R | boolean> {
+  (action: "create", data: C, ...args: P): Promise<boolean>;
+  (action: "read", ...args: P): Promise<R>;
+  (action: "update", data: U, ...args: P): Promise<boolean>;
+  (action: "remove", data: D, ...args: P): Promise<boolean>;
   createVariant<V extends AnyArgs, W>(
     this: CrudServerAction<C, R, U, D, P>,
     variantName: string,
     read: (...args: V) => Promise<W>,
   ): ServerAction<V, W>;
-};
+}
 
 /* -------------- Small helper -------------- */
 
@@ -103,7 +104,6 @@ export const createCrudServerAction = <C, R, U, D, P extends AnyArgs>({
   update?: (data: U, ...args: P) => Promise<boolean>;
   remove?: (data: D, ...args: P) => Promise<boolean>;
 }): CrudServerAction<C, R, U, D, P> => {
-  // Single dispatcher (all through defineServerFunction)
   const dispatcher = defineServerFunction<
     [CrudAction, C | U | D | undefined, ...P],
     R | boolean
@@ -131,9 +131,7 @@ export const createCrudServerAction = <C, R, U, D, P extends AnyArgs>({
   });
 
   const base = toServerAction(dispatcher, { id, scope });
-
-  // Attach createVariant; keep the callable the same
-  return Object.assign(base, { createVariant }) as CrudServerAction<
+  return Object.assign(base, { createVariant }) as unknown as CrudServerAction<
     C,
     R,
     U,
