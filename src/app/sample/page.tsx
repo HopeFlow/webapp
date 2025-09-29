@@ -1,5 +1,4 @@
 "use client";
-// import {  transliterate } from "@/helpers/LLM";
 import { useManageItems } from "@/server_actions/client/sample/manageItems";
 import { useSimpleAction } from "@/server_actions/client/sample/simpleAction";
 import { useState } from "react";
@@ -8,7 +7,7 @@ export default function SamplePage() {
   // const asciiName = await transliterate("بهروز ودادیان");
   // return <div>Hello {asciiName}</div>;
 
-  const [itemId, setItemId] = useState("1");
+  const [itemId, setItemId] = useState(1);
   const { data: item, isLoading: isLoadingItem } = useManageItems(
     "getItemById",
     itemId,
@@ -101,7 +100,7 @@ export default function SamplePage() {
             <input
               type="text"
               value={itemId}
-              onChange={(e) => setItemId(e.target.value)}
+              onChange={(e) => setItemId(parseInt(e.target.value))}
               className="input input-bordered"
               placeholder="Enter Item ID"
             />
