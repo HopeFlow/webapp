@@ -480,7 +480,8 @@ export const userProfileTable = sqliteTable("userProfile", {
   credence: numeric().notNull().default("0"),
   emailFrequency: text({ enum: emailFrequencyDef }).notNull().default("daily"),
   lastSentAt: timestamp(),
-  timezone: text(),
+  timezone: text().notNull().default("Europe/Berlin"),
+  asciiName: text().notNull().default(""),
 });
 
 /**

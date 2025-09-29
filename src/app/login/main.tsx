@@ -55,44 +55,48 @@ function LoginOAuth({
         <Button
           buttonType="neutral"
           buttonStyle="outline"
-          className="text-base-content hover:bg-base-300"
+          className="text-base-content hover:bg-base-300 w-full flex items-center justify-between gap-3"
           onClick={() => handleSigninWith("oauth_google")}
         >
-          <ButtonRow
-            leading={
-              <LogoContainer>
-                <GoogleLogo />
-              </LogoContainer>
-            }
-            label="Login/Signup with Google"
-          />
+          <span className="justify-self-start">
+            <LogoContainer>
+              <GoogleLogo />
+            </LogoContainer>
+          </span>
+          <span className="flex-1 text-center">Login/Signup with Google</span>
+          {/* reserve space for alignment */}
+          <span className="w-6 h-6" />
         </Button>
         <Button
           buttonType="neutral"
           buttonStyle="outline"
-          className="text-base-content hover:bg-base-300"
+          className="text-base-content hover:bg-base-300 w-full flex items-center justify-between gap-3"
           onClick={() => handleSigninWith("oauth_facebook")}
         >
-          <ButtonRow
-            leading={
-              <LogoContainer>
-                <FacebookLogo />
-              </LogoContainer>
-            }
-            label="Login/Signup with Facebook"
-          />
+          <span className="justify-self-start">
+            <LogoContainer>
+              <FacebookLogo />
+            </LogoContainer>
+          </span>
+          <span className="flex-1 text-center">Login/Signup with Facebook</span>
+          {/* reserve space for alignment */}
+          <span className="w-6 h-6" />
         </Button>
         <div className="divider">Or</div>
-        <Button buttonType="neutral" onClick={() => onEmail()}>
-          <ButtonRow
-            leading={
-              <LogoContainer>
-                <EmailLogo />
-              </LogoContainer>
-            }
-            label="Login/Signup with Email"
-            trailing={<ArrowRightIcon className="w-4 h-4" />}
-          />
+        <Button
+          buttonType="neutral"
+          className="w-full flex items-center justify-between gap-3"
+          onClick={() => onEmail()}
+        >
+          <span className="justify-self-start">
+            <LogoContainer>
+              <EmailLogo />
+            </LogoContainer>
+          </span>
+          <span className="flex-1 text-center">Login/Signup with Email</span>
+          <span className="justify-self-end">
+            <ArrowRightIcon className="w-4 h-4" />
+          </span>
         </Button>
       </div>
     </div>
