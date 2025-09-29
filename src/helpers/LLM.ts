@@ -11,10 +11,28 @@ export const callForActionSentenceGenerationPrompt =
 
 //
 
-export const gptOSS = async () => {
-  console.log("gptOSS is called")
-  const a = await (await getCloudflareContext({ async: true })).env.AI.run("@cf/openai/gpt-oss-20b", {
-    input: "Write a short greeting sentence"
+const getLLMResponse = async (prompt: string) => {
+  const result = await (
+    await getCloudflareContext({ async: true })
+  ).env.AI.run("@cf/openai/gpt-oss-20b", {
+    input: prompt,
   });
-  console.log({a});
+  const output = (
+    result as {
+      output: Array<{ content: Array<{ text: string }>; type: string }>;
+    }
+  ).output
+    .filter((i) => i.type === "message")
+    .flatMap((i) => i.content.map((i) => i.text))
+    .join("\n");
+  return output;
+};
+
+export const transliterate = async (inputName: string) => {
+  const prompt = `transliterate this name to ascii characters: ${inputName}. The output should be a json with following format: {"ascii": "name in ascii"}`;
+
+  const output = await getLLMResponse(prompt);
+
+  const parsedOutput = JSON.parse(output);
+  return parsedOutput.ascii;
 };

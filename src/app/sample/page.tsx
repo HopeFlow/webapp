@@ -1,11 +1,12 @@
-import { gptOSS } from "@/helpers/gpt_oss";
+import { gptOSS, transliterate } from "@/helpers/LLM";
 // import { useManageItems } from "@/server_actions/client/sample/manageItems";
 // import { useSimpleAction } from "@/server_actions/client/sample/simpleAction";
 // import { useState } from "react";
 
 export default async function SamplePage() {
-  await gptOSS();
-  return <div>Sample</div>
+  const asciiName = await transliterate("بهروز ودادیان");
+  return <div>Hello {asciiName}</div>;
+
   // const [itemId, setItemId] = useState("1");
   // const { data: item, isLoading: isLoadingItem } = useManageItems(
   //   "getItemById",
