@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { ProfileMain } from "./main";
-import { withParamsAndUser } from "@/helpers/server/page_component";
+import Prefetch, { withParamsAndUser } from "@/helpers/server/page_component";
 import { user2SafeUser } from "@/helpers/server/auth";
-import { profile } from "@/server_actions/definitions/profile";
 import { redirectToHome } from "@/helpers/server/routes";
+import { prefetchManageUserProfile } from "@/server_actions/client/profile/profile";
+import { prefetchManageItems } from "@/server_actions/client/sample/manageItems";
 
 const hasAlreadyCreatedProfile = async () => {};
 
@@ -16,7 +17,11 @@ export default withParamsAndUser(
     const isCreate = command?.[0] === "create";
     if (isCreate && (await hasAlreadyCreatedProfile())) redirectToHome();
     // Otherwise, render the profile page
-    return <ProfileMain command={command?.[0]} url={url} user={safeUser} />;
+    return (
+      <Prefetch actions={[prefetchManageUserProfile()]}>
+        <ProfileMain command={command?.[0]} url={url} user={safeUser} />
+      </Prefetch>
+    );
   },
   {
     paramsTypeDef: z.object({

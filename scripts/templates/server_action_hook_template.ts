@@ -13,6 +13,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from "@tanstack/react-query";
 
 declare type P = AnyArgs;
@@ -121,6 +122,29 @@ const useServerAction = (...args: P) => {
   );
   return query;
 };
+
+// A generic key builder. Codegen will rename this and adjust the body to the
+// correct head (action id or variant id) and parameter list (maybe variantName).
+export const getQueryKeyTemplate = (...args: P) => {
+  return [] as const; // codegen replaces with: [<head>, ...args] as const
+};
+
+// A generic query options builder. Codegen will rename this and change queryFn:
+// - serverAction(...args)       for simple
+// - crudServerAction("read", ...) for CRUD
+// - variantSymbol(...args)      when variantName is chosen
+export const getQueryOptionsTemplate = (...args: P) => {
+  return {
+    queryKey: getQueryKeyTemplate(...args),
+    queryFn: async () => await serverAction(...args),
+  } as const;
+};
+
+// A generic prefetch factory. Codegen will rename & make it call the renamed options.
+export const prefetchTemplate =
+  (...args: P) =>
+  (qc: QueryClient) =>
+    qc.prefetchQuery(getQueryOptionsTemplate(...args));
 
 // Following code prevents intellisense errors regarding unused variables
 // #region postamble

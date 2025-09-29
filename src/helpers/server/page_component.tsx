@@ -4,6 +4,11 @@ import { parseFromRequestRecord } from "./zod_helpers";
 import { LoadingBlocker } from "@/components/loading";
 import { currentUserNoThrow } from "@/helpers/server/auth";
 import type { User } from "@clerk/nextjs/server";
+import {
+  HydrationBoundary,
+  dehydrate,
+  QueryClient,
+} from "@tanstack/react-query";
 
 // Identity HOCs used purely as markers for the route generator.
 // do NOTHING at runtime — your generator just detects them.
@@ -121,4 +126,20 @@ export function withParamsAndUser<
     return handlerResult;
   };
   return result;
+}
+
+export type Prefetcher = (qc: QueryClient) => Promise<unknown>;
+
+export default async function Prefetch({
+  actions,
+  children,
+}: {
+  children: ReactNode;
+  actions: Prefetcher[];
+}) {
+  const qc = new QueryClient();
+  await Promise.all(actions.map((a) => a(qc)));
+  return (
+    <HydrationBoundary state={dehydrate(qc)}>{children}</HydrationBoundary>
+  );
 }

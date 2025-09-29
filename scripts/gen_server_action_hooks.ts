@@ -270,6 +270,13 @@ const getTemplateHookVariableStatement = (
   return result;
 };
 
+const getTemplateVar = (name: string, templateSourceFile: SourceFile) => {
+  const vs = templateSourceFile.getVariableStatement(name);
+  if (!vs)
+    throw new Error(`Could not find template variable statement for ${name}`);
+  return vs;
+};
+
 const collectTypes = (type: Type | undefined, collected: Set<Symbol>) => {
   if (!type) return;
 
@@ -538,6 +545,282 @@ const rectifyServerActionCalls = (
     });
 };
 
+const emitPrefetchExportsFromTemplate = (
+  actionSymbol: Symbol,
+  actionInfo: ActionInfo,
+  templateSourceFile: SourceFile,
+  sourceFile: SourceFile,
+  argsTypes: Map<Symbol, readonly [Type, boolean]>,
+  isArgsEmpty: boolean,
+  isCrud: boolean,
+) => {
+  const pascal = upperCaseFirstLetter(actionInfo.id);
+  const getKeyTemplate = getTemplateVar(
+    "getQueryKeyTemplate",
+    templateSourceFile,
+  );
+  const getOptsTemplate = getTemplateVar(
+    "getQueryOptionsTemplate",
+    templateSourceFile,
+  );
+  const prefetchTemplate = getTemplateVar(
+    "prefetchTemplate",
+    templateSourceFile,
+  );
+
+  // Helper: choose the args parameter type text
+  const resolveArgsParamTypeText = () => {
+    if (argsTypes.size === 1) {
+      const [t] = Array.from(argsTypes.values())[0]; // [Type, isEmpty]
+      return getResolvedTypeText(t, sourceFile); // e.g. "[string]"
+    }
+    return "any[]"; // for variants/mixed signatures, keep spread happy
+  };
+
+  // ----------------- 1) get<Key> -----------------
+  const getKeyDecl = sourceFile
+    .addVariableStatement(getKeyTemplate.getStructure())
+    .setIsExported(true)
+    .getDeclarations()[0];
+
+  getKeyDecl.rename(`get${pascal}QueryKey`);
+  const getKeyFn = getKeyDecl.getInitializerIfKindOrThrow(
+    SyntaxKind.ArrowFunction,
+  );
+
+  if (actionInfo.variants) {
+    getKeyFn.insertParameter(0, {
+      name: "variantName",
+      type:
+        Array.from(actionInfo.variants.values())
+          .map((v) => JSON.stringify(v.variantName))
+          .join(" | ") + " | null",
+    });
+  }
+
+  // ✅ Set args param type (or remove if empty)
+  if (isArgsEmpty) {
+    getKeyFn.getParameterOrThrow("args").remove();
+  } else {
+    getKeyFn.getParameterOrThrow("args").setType(resolveArgsParamTypeText());
+  }
+
+  const variantMap = actionInfo.variants
+    ? Object.fromEntries(
+        Array.from(actionInfo.variants.values()).map((v) => [
+          v.variantName!,
+          v.id,
+        ]),
+      )
+    : null;
+
+  const headExpr = actionInfo.variants
+    ? `variantName ? (${JSON.stringify(
+        variantMap,
+      )})[variantName] : ${JSON.stringify(actionInfo.id)}`
+    : JSON.stringify(actionInfo.id);
+
+  getKeyFn.setBodyText(
+    `return [${headExpr}${isArgsEmpty ? "" : ", ...args"}] as const;`,
+  );
+
+  // ----------------- 2) get<Id>QueryOptions -----------------
+  const getOptsDecl = sourceFile
+    .addVariableStatement(getOptsTemplate.getStructure())
+    .setIsExported(true)
+    .getDeclarations()[0];
+  getOptsDecl.rename(`get${pascal}QueryOptions`);
+  const getOptsFn = getOptsDecl.getInitializerIfKindOrThrow(
+    SyntaxKind.ArrowFunction,
+  );
+
+  if (actionInfo.variants) {
+    getOptsFn.insertParameter(0, {
+      name: "variantName",
+      type:
+        Array.from(actionInfo.variants.values())
+          .map((v) => JSON.stringify(v.variantName))
+          .join(" | ") + " | null",
+    });
+  }
+
+  // ✅ Set args param type (or remove if empty)
+  if (isArgsEmpty) {
+    getOptsFn.getParameterOrThrow("args").remove();
+  } else {
+    getOptsFn.getParameterOrThrow("args").setType(resolveArgsParamTypeText());
+  }
+
+  // replace key builder calls
+  getOptsFn
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .filter((c) => c.getExpression().getText() === "getQueryKeyTemplate")
+    .forEach((c) => c.setExpression(`get${pascal}QueryKey`));
+
+  getOptsFn
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .filter((c) => c.getExpression().getText() === `get${pascal}QueryKey`)
+    .forEach((c) => {
+      const callText = actionInfo.variants
+        ? `get${pascal}QueryKey(variantName${isArgsEmpty ? "" : ", ...args"})`
+        : `get${pascal}QueryKey(${isArgsEmpty ? "" : "...args"})`;
+      c.replaceWithText(callText);
+    });
+
+  if (!actionInfo.variants) {
+    getOptsFn
+      .getDescendantsOfKind(SyntaxKind.PropertyAssignment)
+      .find((p) => p.getName() === "queryFn")!
+      .setInitializer(
+        isCrud
+          ? isArgsEmpty
+            ? `async () => ${actionSymbol.getName()}("read")`
+            : `async () => ${actionSymbol.getName()}("read", ...args)`
+          : isArgsEmpty
+          ? `async () => ${actionSymbol.getName()}()`
+          : `async () => ${actionSymbol.getName()}(...args)`,
+      );
+  } else {
+    const [baseArgsType /*, baseEmpty */] = argsTypes.get(actionSymbol)!;
+
+    // 2) build the variant branches with per-branch typed spreads
+    const variantBranches = Array.from(actionInfo.variants!.entries())
+      .map(([variantSymbol, v]) => {
+        const [variantType, variantEmpty] = argsTypes.get(variantSymbol)!;
+        return `variantName === ${JSON.stringify(
+          v.variantName,
+        )} ? ${variantSymbol.getName()}(${
+          variantEmpty
+            ? ""
+            : `...args as ${getResolvedTypeText(variantType, sourceFile)}`
+        }) : `;
+      })
+      .join("");
+
+    // 3) build the base call with a typed spread too
+    const actionExprBase = isCrud
+      ? `${actionSymbol.getName()}("read"${
+          isArgsEmpty
+            ? ""
+            : `, ...args as ${getResolvedTypeText(baseArgsType, sourceFile)}`
+        })`
+      : `${actionSymbol.getName()}(${
+          isArgsEmpty
+            ? ""
+            : `...args as ${getResolvedTypeText(baseArgsType, sourceFile)}`
+        })`;
+
+    // 4) set the queryFn initializer as a block (ArrowFunction.setBodyText needs braces)
+    const queryFnProp = getOptsFn
+      .getDescendantsOfKind(SyntaxKind.PropertyAssignment)
+      .find((p) => p.getName() === "queryFn")!;
+    queryFnProp.setInitializer(
+      `async () => { return ${variantBranches}${actionExprBase}; }`,
+    );
+  }
+
+  // ----------------- 3) prefetch<Id> -----------------
+  const prefetchDecl = sourceFile
+    .addVariableStatement(prefetchTemplate.getStructure())
+    .setIsExported(true)
+    .getDeclarations()[0];
+  prefetchDecl.rename(`prefetch${pascal}`);
+  const prefetchFn = prefetchDecl.getInitializerIfKindOrThrow(
+    SyntaxKind.ArrowFunction,
+  );
+
+  const [baseArgsType] = argsTypes.get(actionSymbol)!;
+  if (isArgsEmpty) {
+    prefetchFn.getParameterOrThrow("args").remove();
+  } else if (!actionInfo.variants) {
+    // exact tuple type for single-action case
+    prefetchFn
+      .getParameterOrThrow("args")
+      .setType(getResolvedTypeText(baseArgsType, sourceFile));
+  }
+
+  if (actionInfo.variants) {
+    prefetchFn.insertParameter(0, {
+      name: "variantName",
+      type:
+        Array.from(actionInfo.variants.values())
+          .map((v) => JSON.stringify(v.variantName))
+          .join(" | ") + " | null",
+    });
+  }
+
+  if (actionInfo.variants) {
+    // Build a callable interface with one signature per variant + the base action.
+    const prefetchType = sourceFile.addInterface({
+      name: `Prefetch${upperCaseFirstLetter(actionInfo.id)}`,
+      isExported: true,
+    });
+
+    const [baseArgsType] = argsTypes.get(actionSymbol)!;
+
+    const callSigs = [
+      // variants
+      ...Array.from(actionInfo.variants!.entries()).map(
+        ([variantSymbol, v]) => {
+          const [variantType] = argsTypes.get(variantSymbol)!;
+          return {
+            parameters: [
+              {
+                name: "variantName",
+                type: JSON.stringify(v.variantName),
+                isRestParameter: false,
+              },
+              {
+                name: "args",
+                type: getResolvedTypeText(variantType, sourceFile),
+                isRestParameter: true,
+              },
+            ],
+            returnType: "(qc: QueryClient) => Promise<unknown>",
+          };
+        },
+      ),
+      // base
+      {
+        parameters: [
+          { name: "variantName", type: "null", isRestParameter: false },
+          ...(isArgsEmpty
+            ? []
+            : [
+                {
+                  name: "args",
+                  type: getResolvedTypeText(baseArgsType, sourceFile),
+                  isRestParameter: true,
+                },
+              ]),
+        ],
+        returnType: "(qc: QueryClient) => Promise<unknown>",
+      },
+    ];
+
+    prefetchType.addCallSignatures(callSigs);
+
+    // Annotate the const with the interface and make the implementation permissive.
+    // (Arrow implementations can't have multiple signatures, so we widen the impl.)
+    prefetchDecl.setType(prefetchType.getName());
+    prefetchFn.getParameters().forEach((p) => {
+      if (p.getName() === "args") p.setType("unknown[]"); // impl-wide params
+    });
+  }
+
+  prefetchFn
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .filter((c) => c.getExpression().getText() === "getQueryOptionsTemplate")
+    .forEach((c) => {
+      const callText = actionInfo.variants
+        ? `get${pascal}QueryOptions(variantName${
+            isArgsEmpty ? "" : ", ...args"
+          })`
+        : `get${pascal}QueryOptions(${isArgsEmpty ? "" : "...args"})`;
+      c.replaceWithText(callText);
+    });
+};
+
 const buildServerActionHook = (
   actionSymbol: Symbol,
   actionInfo: ActionInfo,
@@ -545,7 +828,13 @@ const buildServerActionHook = (
   sourceFile: SourceFile,
 ) => {
   const [P] = getActionSymbolTypeParams(actionSymbol);
-  const [, functionDeclaration, isArgsEmpty] = addHookVariableStatement(
+  const [
+    ,
+    /* hookDeclaration */ functionDeclaration,
+    isArgsEmpty,
+    ,
+    argsTypes,
+  ] = addHookVariableStatement(
     "useServerAction",
     actionSymbol,
     actionInfo,
@@ -561,6 +850,15 @@ const buildServerActionHook = (
     actionSymbol.getName(),
     isArgsEmpty,
   );
+  emitPrefetchExportsFromTemplate(
+    actionSymbol,
+    actionInfo,
+    templateSourceFile,
+    sourceFile,
+    argsTypes,
+    isArgsEmpty,
+    /* isCrud */ false,
+  );
   return false;
 };
 
@@ -571,14 +869,16 @@ const buildServerActionWithInvalidationsHook = (
   sourceFile: SourceFile,
 ) => {
   const [P] = getActionSymbolTypeParams(actionSymbol);
-  const [, functionDeclaration, isArgsEmpty] = addHookVariableStatement(
-    "useServerActionWithInvalidations",
-    actionSymbol,
-    actionInfo,
-    P,
-    templateSourceFile,
-    sourceFile,
-  );
+
+  const [, functionDeclaration, isArgsEmpty, , argsTypes] =
+    addHookVariableStatement(
+      "useServerActionWithInvalidations",
+      actionSymbol,
+      actionInfo,
+      P,
+      templateSourceFile,
+      sourceFile,
+    );
 
   setQueryKey(functionDeclaration, actionInfo.id, isArgsEmpty);
   setDependentQueryKeys(
@@ -594,6 +894,18 @@ const buildServerActionWithInvalidationsHook = (
     actionSymbol.getName(),
     isArgsEmpty,
   );
+
+  // emit prefetch exports for “with invalidations” flavor as well
+  emitPrefetchExportsFromTemplate(
+    actionSymbol,
+    actionInfo,
+    templateSourceFile,
+    sourceFile,
+    argsTypes,
+    isArgsEmpty,
+    /* isCrud */ false,
+  );
+
   return false;
 };
 
@@ -945,6 +1257,15 @@ const buildCrudServerActionHook = (
       )`,
     );
   }
+  emitPrefetchExportsFromTemplate(
+    actionSymbol,
+    actionInfo,
+    templateSourceFile,
+    sourceFile,
+    argsTypes,
+    isArgsEmpty,
+    /* isCrud */ true,
+  );
   return hasAnyType;
 };
 
@@ -1119,6 +1440,7 @@ const main = () => {
         "useQueryClient",
         "type UseQueryResult",
         "type UseMutationResult",
+        "type QueryClient",
       ],
     });
 

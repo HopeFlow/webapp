@@ -16,15 +16,15 @@ export const simpleAction = createServerAction({
 
 // Example 2: A CRUD server action for managing 'items'
 export interface Item {
-  id: string;
+  id: number;
   name: string;
   description?: string;
 }
 
 // Mock database
 const items: Item[] = [
-  { id: "1", name: "First Item", description: "A default item" },
-  { id: "2", name: "Second Item" },
+  { id: 1, name: "First Item", description: "A default item" },
+  { id: 2, name: "Second Item" },
 ];
 
 export const manageItems = createCrudServerAction({
@@ -37,7 +37,7 @@ export const manageItems = createCrudServerAction({
   // Create a new item
   create: async (newItem: Omit<Item, "id">) => {
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    const item = { ...newItem, id: String(items.length + 1) };
+    const item = { ...newItem, id: items.length + 1 };
     items.push(item);
     console.log("Created new item:", item);
     return true;
@@ -54,7 +54,7 @@ export const manageItems = createCrudServerAction({
     return false;
   },
   // Remove an item
-  remove: async (itemToRemove: { id: string }) => {
+  remove: async (itemToRemove: { id: number }) => {
     await new Promise((resolve) => setTimeout(resolve, 2000));
     const index = items.findIndex((item) => item.id === itemToRemove.id);
     if (index !== -1) {
@@ -69,7 +69,7 @@ export const manageItems = createCrudServerAction({
 // Example 3: A variant of the 'manageItems' action to get a single item by ID
 export const getItemById = manageItems.createVariant(
   "getItemById",
-  async (id: string) => {
+  async (id: number) => {
     console.log(`Getting item with id: ${id}`);
     return items.find((item) => item.id === id);
   },
