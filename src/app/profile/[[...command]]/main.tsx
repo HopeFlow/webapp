@@ -5,6 +5,7 @@ import { LoadingElement } from "@/components/loading";
 import { MobileDock } from "@/components/mobile_dock";
 import { MobileHeader } from "@/components/mobile_header";
 import { Sidebar } from "@/components/sidebar";
+import { useGotoHome } from "@/helpers/client/routes";
 import { SafeUser } from "@/helpers/server/auth";
 import { useManageUserProfile } from "@/server_actions/client/profile/profile";
 import {
@@ -237,7 +238,7 @@ export function ProfileMain({
 }) {
   const { name, setName, file, setFile, previewUrl, loadingImage } =
     useProfileFields(user);
-  const { update } = useManageUserProfile();
+  const { data, update } = useManageUserProfile();
   const isSubmitting = update.isPending;
   const canSubmit = name.trim().length > 0 && !isSubmitting;
   return (

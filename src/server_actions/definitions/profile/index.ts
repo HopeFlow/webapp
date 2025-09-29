@@ -13,21 +13,22 @@ import { emailFrequencyDef } from "@/db/constants";
 /**
  * Shape returned to the client. Keep this lean for the create screen.
  */
-export interface ProfileRead extends SafeUser {
-  emailEnabled?: boolean;
-  emailFrequency?: string | null;
-  timezone?: string | null;
+export interface ProfileRead {
+  emailEnabled: boolean;
+  emailFrequency: string;
+  timezone: string;
+  credence: string;
 }
 
 /**
  * Payload accepted by update. Keep fields optional so UI can send only what changed.
  */
 export interface ProfileUpdateInput {
-  name?: string; // "First Last"
+  name?: string; // "FirstName LastName"
   photo?: File | null; // image file from client (can be null to skip)
   emailEnabled?: boolean;
   emailFrequency?: (typeof emailFrequencyDef)[number];
-  timezone?: string | null;
+  timezone?: string;
 }
 
 function splitName(full?: string | null): {
@@ -61,16 +62,12 @@ export const profile = createCrudServerAction({
       .from(userProfileTable)
       .where(eq(userProfileTable.userId, user.id))
       .limit(1);
-
+    if (!row) return undefined;
     return {
-      firstName: user.firstName,
-      lastName: user.lastName,
-      fullName: user.fullName,
-      imageUrl: user.imageUrl ?? undefined,
-      hasImage: user.hasImage ?? undefined,
-      emailEnabled: row?.emailEnabled ?? undefined,
-      emailFrequency: row?.emailFrequency ?? undefined,
-      timezone: row?.timezone ?? undefined,
+      emailEnabled: row.emailEnabled,
+      emailFrequency: row.emailFrequency,
+      timezone: row.timezone,
+      credence: row.credence,
     };
   },
 
@@ -120,7 +117,7 @@ export const profile = createCrudServerAction({
       setValues.emailEnabled = data.emailEnabled;
     if (data.emailFrequency !== undefined)
       setValues.emailFrequency = data.emailFrequency;
-    if (data.timezone !== undefined) setValues.timezone = data.timezone ?? null;
+    if (data.timezone !== undefined) setValues.timezone = data.timezone;
 
     if (insertIfNotExist) {
       // Preferred: single round-trip UPSERT
