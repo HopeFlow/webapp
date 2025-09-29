@@ -1,3 +1,5 @@
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+
 export const titleGenerationPrompt =
   'You are an expert on literature and psychology. The user will give you a passage and title. You have to generate one 4-7 word sentence to ask the reader of the sentence to help the writer of passage reach his/her goal. Try to include key points of the passage that may affect help. The input will be in JSON format. "name" field holding name of the writer of passage and "passage" indicating the content of the passage. The sentence should be in third person voice e.g. `Help Nolan recover his stolen totem` or `Aid Susan find her beloved cat (Maggy)` or `Stand with John in search for "Arabian Nights"';
 
@@ -9,4 +11,10 @@ export const callForActionSentenceGenerationPrompt =
 
 //
 
-const gptOSS = function () {};
+export const gptOSS = async () => {
+  console.log("gptOSS is called")
+  const a = await (await getCloudflareContext({ async: true })).env.AI.run("@cf/openai/gpt-oss-20b", {
+    input: "Write a short greeting sentence"
+  });
+  console.log({a});
+};
