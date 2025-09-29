@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { withParams } from "@/helpers/server/with_params";
 import { LinkMain } from "./main";
+import { withParams } from "@/helpers/server/page_component";
 
 export default withParams(
   async function LinkPage({ linkCode }) {

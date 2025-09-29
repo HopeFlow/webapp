@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
 import Providers from "./providers";
+import { JsxElement } from "ts-morph";
 
 const geistSans = Geist({
   variable: "--font-hopeflow-sans",
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
 const SplashScreen = () => (
   <div
     data-testid="splashScreen"
-    className="flex h-full w-full items-center justify-center bg-[#12a17d]"
+    className="flex-1 flex h-full w-full items-center justify-center bg-[#12a17d]"
   >
     <HopeflowLogo size={100} fillColor="#f8f8f8" />
   </div>

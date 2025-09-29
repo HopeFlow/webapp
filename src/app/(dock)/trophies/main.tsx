@@ -86,21 +86,12 @@ export function TrophiesMain() {
     },
   ];
   return (
-    <div className="flex-1 w-full flex flex-row items-stretch">
-      <Sidebar />
-      <div className="flex-1 bg-base-200 relative">
-        <div className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
-          <MobileHeader />
-          <div className="w-full flex-1 flex flex-col gap-12 items-center justify-center relative">
-            <div className="w-full flex-1 p-8 min-h-full overflow-auto">
-              <div className="w-full flex flex-col gap-8 items-center justify-center">
-                {cards.map((item) => (
-                  <TrophyCard key={item.title} {...item} />
-                ))}
-              </div>
-            </div>
-          </div>
-          <MobileDock />
+    <div className="w-full flex-1 flex flex-col gap-12 items-center justify-center relative">
+      <div className="w-full flex-1 p-8 min-h-full overflow-auto">
+        <div className="w-full flex flex-col gap-8 items-center justify-center">
+          {cards.map((item) => (
+            <TrophyCard key={item.title} {...item} />
+          ))}
         </div>
       </div>
     </div>

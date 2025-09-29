@@ -13,12 +13,15 @@ import { emailFrequencyDef } from "@/db/constants";
 /**
  * Shape returned to the client. Keep this lean for the create screen.
  */
-export interface ProfileRead {
-  emailEnabled: boolean;
-  emailFrequency: string;
-  timezone: string;
-  credence: string;
-}
+export type ProfileRead =
+  | { exists: false }
+  | {
+      exists: true;
+      emailEnabled: boolean;
+      emailFrequency: string;
+      timezone: string;
+      credence: string;
+    };
 
 /**
  * Payload accepted by update. Keep fields optional so UI can send only what changed.
@@ -53,17 +56,18 @@ export const profile = createCrudServerAction({
   /**
    * READ — returns current user core fields + drizzle prefs (if any)
    */
-  read: async (): Promise<ProfileRead | undefined> => {
+  read: async (): Promise<ProfileRead> => {
     const user = await currentUserNoThrow();
-    if (!user) return undefined;
+    if (!user) return { exists: false };
     const db = await getHopeflowDatabase();
     const [row] = await db
       .select()
       .from(userProfileTable)
       .where(eq(userProfileTable.userId, user.id))
       .limit(1);
-    if (!row) return undefined;
+    if (!row) return { exists: false };
     return {
+      exists: true,
       emailEnabled: row.emailEnabled,
       emailFrequency: row.emailFrequency,
       timezone: row.timezone,

@@ -22,7 +22,6 @@ import { ArrowRightIcon } from "@/components/icons/arrow_right";
 export function QuestContributorView() {
   return (
     <div className="max-w-6xl w-full flex flex-col self-center">
-      <MobileHeader />
       <div className="flex flex-col gap-4 md:gap-6 p-6">
         <div className="w-full flex flex-row items-center justify-start gap-1">
           <h1 className="font-normal text-4xl">

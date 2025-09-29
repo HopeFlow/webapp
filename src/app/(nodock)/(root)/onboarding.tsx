@@ -1,6 +1,6 @@
 "use client";
 
-import { usePersistentState } from "@/app/(root)/persistent_state";
+import { usePersistentState } from "@/app/(nodock)/(root)/persistent_state";
 import { Button, CloseButton, GhostButton } from "@/components/button";
 import { ArrowLeftIcon } from "@/components/icons/arrow_left";
 import { Steps } from "@/components/steps";
