@@ -4,8 +4,12 @@ import { Prefetch, withParamsAndUser } from "@/helpers/server/page_component";
 import { user2SafeUser } from "@/helpers/server/auth";
 import { redirectToHome } from "@/helpers/server/routes";
 import { prefetchManageUserProfile } from "@/server_actions/client/profile/profile";
+import { profile } from "@/server_actions/definitions/profile";
 
-const hasAlreadyCreatedProfile = async () => false;
+const hasAlreadyCreatedProfile = async () => {
+  const result = await profile("read");
+  return result.exists;
+};
 
 export default withParamsAndUser(
   async function createAccount({ url, user }) {
