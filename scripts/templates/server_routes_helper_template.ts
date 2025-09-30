@@ -28,8 +28,8 @@ const toSearchParams = <T extends { [key: string]: unknown }>(
     const value = props[key];
     if (value === undefined) return [];
     if (Array.isArray(value))
-      return value.map((e) => `${key}=${toStringParam(e)}`);
-    return [`${key}=${toStringParam(value)}`];
+      return value.filter((e) => !!e).map((e) => `${key}=${toStringParam(e)}`);
+    return value ? [`${key}=${toStringParam(value)}`] : [];
   });
   if (result.length === 0) return "";
   return `?${result.join("&")}`;

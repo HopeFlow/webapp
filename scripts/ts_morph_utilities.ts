@@ -7,6 +7,13 @@ export const lowerCaseFirstLetter = (str: string) =>
 export const upperCaseFirstLetter = (str: string) =>
   str[0].toUpperCase() + str.slice(1);
 
+export const toPascalCase = (str: string) => {
+  return str
+    .split("_")
+    .map((s) => upperCaseFirstLetter(s))
+    .join("");
+};
+
 export const getOrThrow = <K, V>(map: Map<K, V>, key: K) => {
   const value = map.get(key);
   const keyText =
@@ -25,7 +32,10 @@ export const getRealSymbol = (node: Node | undefined) => {
   return symbol?.getAliasedSymbol() ?? symbol;
 };
 
-export const getResolvedTypeText = (type: Type, enclosingNode?: Node): string => {
+export const getResolvedTypeText = (
+  type: Type,
+  enclosingNode?: Node,
+): string => {
   // If it's a type alias, try to resolve
   if (type.isTypeParameter()) {
     const constraint = type.getConstraint();
@@ -33,11 +43,19 @@ export const getResolvedTypeText = (type: Type, enclosingNode?: Node): string =>
   }
   if (type.isUnion()) {
     // For unions, join the text of constituent types
-    return type.getUnionTypes().map(t => getResolvedTypeText(t, enclosingNode)).join(" | ");
+    return type
+      .getUnionTypes()
+      .map((t) => getResolvedTypeText(t, enclosingNode))
+      .join(" | ");
   }
   if (type.isTuple()) {
     return (
-      "[" + type.getTupleElements().map(t => getResolvedTypeText(t, enclosingNode)).join(", ") + "]"
+      "[" +
+      type
+        .getTupleElements()
+        .map((t) => getResolvedTypeText(t, enclosingNode))
+        .join(", ") +
+      "]"
     );
   }
   if (type.isLiteral()) {
