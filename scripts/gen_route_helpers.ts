@@ -3,7 +3,7 @@ import {
   createProject,
   doesResolveToObject,
   getResolvedTypeText,
-  upperCaseFirstLetter,
+  toPascalCase,
 } from "./ts_morph_utilities";
 import {
   ArrowFunction,
@@ -36,7 +36,7 @@ const main = () => {
 
   const addServerRedirectFunction = (
     routeName: string,
-    propsType: Type | undefined,
+    propsType: Symbol[] | undefined,
     templateName: string,
   ) => {
     const redirectToRouteFunctionStatement =
@@ -55,13 +55,22 @@ const main = () => {
     if (propsType)
       redirectFunction
         .getParameterOrThrow("props")
-        .setType(getResolvedTypeText(propsType));
+        .setType(
+          `{${propsType
+            .map(
+              (p) =>
+                `${p.getName()}${p.isOptional() ? "?" : ""}: ${p
+                  .getTypeAtLocation(redirectFunction)
+                  .getText()}`,
+            )
+            .join(",")}}`,
+        );
     return redirectFunction;
   };
 
   const addClientRedirectHook = (
     routeName: string,
-    propsType: Type | undefined,
+    propsType: Symbol[] | undefined,
     templateName: string,
   ) => {
     const redirectToRouteFunctionStatement =
@@ -88,7 +97,16 @@ const main = () => {
     if (propsType)
       redirectFunction
         .getParameterOrThrow("props")
-        .setType(getResolvedTypeText(propsType));
+        .setType(
+          `{${propsType
+            .map(
+              (p) =>
+                `${p.getName()}${p.isOptional() ? "?" : ""}: ${p
+                  .getTypeAtLocation(redirectFunction)
+                  .getText()}`,
+            )
+            .join(",")}}`,
+        );
     return redirectFunction;
   };
 
@@ -125,7 +143,7 @@ const main = () => {
   type RouteInfo = {
     path: string;
     pathParts: Array<{ part: string; isParam: boolean; isArrayParam: boolean }>;
-    propsType: Type | undefined;
+    propsType: Symbol[] | undefined;
     paramsTypeDef: CallExpression | undefined;
     searchParamsTypeDef: CallExpression | undefined;
     isPublic: boolean;
@@ -143,7 +161,8 @@ const main = () => {
         .slice(2, -1)
         .reduce((s, p) => {
           if (!/^[a-zA-Z0-9]/.test(p)) return s;
-          return s + upperCaseFirstLetter(p);
+          // return s + upperCaseFirstLetter(p);
+          return s + toPascalCase(p);
         }, "") || "Index";
 
     const pathParts = filePath
@@ -229,7 +248,9 @@ const main = () => {
       }
     });
 
-    const parameters = (function getPageComponentProps(symbol) {
+    const [parameters, ignoreUserParam] = (function getPageComponentProps(
+      symbol,
+    ) {
       const declarations = symbol.getDeclarations();
       if (declarations.length !== 1)
         throw new Error(
@@ -239,26 +260,39 @@ const main = () => {
         );
       const declaration = declarations[0];
       if (declaration.isKind(SyntaxKind.FunctionDeclaration))
-        return declaration.getSignature().getParameters();
+        return [declaration.getSignature().getParameters(), false];
       if (declaration.isKind(SyntaxKind.FunctionExpression))
-        return declaration.getSignature().getParameters();
+        return [declaration.getSignature().getParameters(), false];
       if (declaration.isKind(SyntaxKind.ArrowFunction))
-        return declaration.getSignature().getParameters();
+        return [declaration.getSignature().getParameters(), false];
       if (declaration.isKind(SyntaxKind.ExportAssignment)) {
-        let expression = declaration.getExpression();
-        if (expression.isKind(SyntaxKind.CallExpression)) {
-          if (expression.getExpression().getText() === "withParams") {
+        let ignoreUserParam = false;
+        let expression: Node = declaration.getExpression();
+        while (expression.isKind(SyntaxKind.CallExpression)) {
+          const calleeText = expression.getExpression().getText();
+          if (["withParams", "withParamsAndUser"].includes(calleeText)) {
             const callArguments = expression.getArguments();
             if (callArguments.length !== 2)
-              throw new Error("Expected 2 arguments for withParams");
-            const handlerArgumentSymbol = callArguments[0].getSymbolOrThrow();
-            return getPageComponentProps(handlerArgumentSymbol);
-          }
+              throw new Error(`Expected 2 arguments for ${calleeText}`);
+            ignoreUserParam = calleeText === "withParamsAndUser";
+            expression = callArguments[0];
+          } else if (["publicPage", "withUser"].includes(calleeText)) {
+            const callArguments = expression.getArguments();
+            if (callArguments.length !== 1)
+              throw new Error(`Expected 1 argument for ${calleeText}`);
+            ignoreUserParam = calleeText === "withUser";
+            expression = callArguments[0];
+          } else break;
         }
         const signatures = expression.getType().getCallSignatures();
         if (signatures.length !== 1)
           throw new Error("Multiple signatures in search for page component");
-        return signatures[0].getParameters();
+        return [
+          signatures[0]
+            .getParameters()
+            .filter((p) => !ignoreUserParam || p.getName() !== "user"),
+          ignoreUserParam,
+        ];
       }
       throw new Error("Could not find page component parameters");
     })(defaultExportSymbol);
@@ -287,10 +321,17 @@ const main = () => {
       );
     }
 
+    const filteredPropsType = propsType
+      ?.getProperties()
+      .filter((p) => !ignoreUserParam || p.getName() !== "user");
+
     routes.set(routeName, {
       path: filePath,
       pathParts,
-      propsType,
+      propsType:
+        filteredPropsType && filteredPropsType.length > 0
+          ? filteredPropsType
+          : undefined,
       paramsTypeDef,
       searchParamsTypeDef,
       isPublic,
@@ -341,9 +382,9 @@ const main = () => {
           );
         redirectSignatures.set(routeName, redirectFunction);
       } else if (pathParts) {
-        const searchParamProperties = propsType
-          .getProperties()
-          .filter((p) => !pathParts.some(({ part }) => p.getName() === part));
+        const searchParamProperties = propsType.filter(
+          (p) => !pathParts.some(({ part }) => p.getName() === part),
+        );
         if (searchParamProperties.length === 0) {
           const redirectFunction = addServerRedirectFunction(
             routeName,
@@ -400,7 +441,7 @@ const main = () => {
             .getExpressionIfKindOrThrow(SyntaxKind.CallExpression)
             .getArguments()
             .at(1),
-          propsType.getProperties(),
+          propsType,
         );
         redirectSignatures.set(routeName, redirectFunction);
       }
@@ -418,9 +459,9 @@ const main = () => {
           .replaceWithText(`"/${pathParts.map(({ part }) => part).join("/")}"`);
         hookSignatures.set(routeName, redirectFunction);
       } else if (pathParts) {
-        const searchParamProperties = propsType
-          .getProperties()
-          .filter((p) => !pathParts.some(({ part }) => p.getName() === part));
+        const searchParamProperties = propsType.filter(
+          (p) => !pathParts.some(({ part }) => p.getName() === part),
+        );
         if (searchParamProperties.length === 0) {
           const redirectFunction = addClientRedirectHook(
             routeName,
@@ -477,7 +518,7 @@ const main = () => {
             .getExpressionIfKindOrThrow(SyntaxKind.CallExpression)
             .getArguments()
             .at(1),
-          propsType.getProperties(),
+          propsType,
         );
         hookSignatures.set(routeName, redirectFunction);
       }
