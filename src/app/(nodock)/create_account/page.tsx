@@ -1,10 +1,9 @@
 import { z } from "zod";
 import { CreateAccountMain } from "./main";
-import Prefetch, { withParamsAndUser } from "@/helpers/server/page_component";
+import { Prefetch, withParamsAndUser } from "@/helpers/server/page_component";
 import { user2SafeUser } from "@/helpers/server/auth";
 import { redirectToHome } from "@/helpers/server/routes";
 import { prefetchManageUserProfile } from "@/server_actions/client/profile/profile";
-import { prefetchManageItems } from "@/server_actions/client/sample/manageItems";
 
 const hasAlreadyCreatedProfile = async () => false;
 

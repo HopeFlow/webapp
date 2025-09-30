@@ -130,7 +130,7 @@ export function withParamsAndUser<
 
 export type Prefetcher = (qc: QueryClient) => Promise<unknown>;
 
-export default async function Prefetch({
+export async function Prefetch({
   actions,
   children,
 }: {

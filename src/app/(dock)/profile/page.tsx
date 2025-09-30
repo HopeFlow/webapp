@@ -1,5 +1,5 @@
 import { ProfileMain } from "./main";
-import Prefetch, { withUser } from "@/helpers/server/page_component";
+import { Prefetch, withUser } from "@/helpers/server/page_component";
 import { user2SafeUser } from "@/helpers/server/auth";
 import { prefetchManageUserProfile } from "@/server_actions/client/profile/profile";
 
