@@ -7,7 +7,7 @@ import { ExclamationCircleIcon } from "@/components/icons/exclamation_circle";
 import Image from "next/image";
 import { Steps } from "@/components/steps";
 import { ArrowRightIcon } from "@/components/icons/arrow_right";
-import { AnyArgs } from "@/helpers/client/type_helpers";
+import { debounce } from "@/helpers/client/functions";
 
 export const showReflowModal = () => {
   showModal("global-modal-reflow");
@@ -217,14 +217,6 @@ const Step4 = () => {
 //   relationship?: string;
 //   endorsementNote?: string;
 // };
-
-function debounce<P extends AnyArgs>(f: (...args: P) => void, delay: number) {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  return (...args: P) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => f(...args), delay);
-  };
-}
 
 export const ReflowModal = () => {
   const [stepIndex, setStepIndex] = useState(0);

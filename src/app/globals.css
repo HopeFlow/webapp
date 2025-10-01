@@ -1,38 +1,53 @@
 @import "tailwindcss";
 
+@layer base {
+  /* * {
+  box-sizing: border-box;
+} */
+
+  .flex > * {
+    min-width: 0;
+    min-height: 0;
+  }
+}
+
 @plugin "daisyui/theme" {
   name: "hopeflow";
   default: true;
   prefersdark: false;
   color-scheme: "light";
 
-  --color-base-100: oklch(100% 0 0);              /* white */
-  --color-base-200: oklch(97% 0.004 250);         /* very light gray */
-  --color-base-300: oklch(94% 0.006 250);         /* light gray */
-  --color-base-content: oklch(30% 0.02 250);      /* dark text */
+  --color-base-100: oklch(100% 0 0); /* white */
+  --color-base-200: oklch(97% 0.004 250); /* very light gray */
+  --color-base-300: oklch(94% 0.006 250); /* light gray */
+  --color-base-content: oklch(30% 0.02 250); /* dark text */
 
-  --color-primary: oklch(59.2% 0.145 163.2);      /* brand green (#12A17D) */
-  --color-primary-content: oklch(96% 0.02 160);   /* white/near-white for contrast */
+  --color-primary: oklch(59.2% 0.145 163.2); /* brand green (#12A17D) */
+  --color-primary-content: oklch(
+    96% 0.02 160
+  ); /* white/near-white for contrast */
 
-  --color-secondary: oklch(63% 0.15 305);         /* magenta-pink, complements green */
+  --color-secondary: oklch(63% 0.15 305); /* magenta-pink, complements green */
   --color-secondary-content: oklch(96% 0.02 305); /* readable text */
 
-  --color-accent: oklch(72% 0.16 230);            /* sky blue accent */
+  --color-accent: oklch(72% 0.16 230); /* sky blue accent */
   --color-accent-content: oklch(98% 0.02 230);
 
-  --color-neutral: oklch(85% 0.01 250);           /* soft gray */
-  --color-neutral-content: oklch(20% 0.01 250);   /* dark gray text */
+  --color-neutral: oklch(85% 0.01 250); /* soft gray */
+  --color-neutral-content: oklch(20% 0.01 250); /* dark gray text */
 
-  --color-info: oklch(78% 0.12 240);              /* info blue */
+  --color-info: oklch(78% 0.12 240); /* info blue */
   --color-info-content: oklch(25% 0.04 240);
 
-  --color-success: oklch(64% 0.18 140);           /* fresh green (different hue than primary) */
+  --color-success: oklch(
+    64% 0.18 140
+  ); /* fresh green (different hue than primary) */
   --color-success-content: oklch(96% 0.02 140);
 
-  --color-warning: oklch(75% 0.18 80);            /* amber */
+  --color-warning: oklch(75% 0.18 80); /* amber */
   --color-warning-content: oklch(25% 0.05 80);
 
-  --color-error: oklch(55% 0.22 25);              /* strong red */
+  --color-error: oklch(55% 0.22 25); /* strong red */
   --color-error-content: oklch(95% 0.02 25);
 
   --radius-selector: 1rem;
@@ -43,7 +58,7 @@
   --border: 1.5px;
   --depth: 0;
   --noise: 0;
-  }
+}
 
 @plugin "daisyui" {
   themes: hopeflow --default, dark --prefersdark;
@@ -56,15 +71,6 @@
     --modal-bl: 0;
     --modal-br: 0; */
   }
-}
-
-/* * {
-  box-sizing: border-box;
-} */
-
-.flex > * {
-  min-width: 0;
-  min-height: 0;
 }
 
 svg .draw {
