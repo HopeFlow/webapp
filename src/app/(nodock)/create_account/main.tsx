@@ -1,80 +1,15 @@
 "use client";
 
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import moment from "moment-timezone";
 import { Button } from "@/components/button";
 import { LoadingElement } from "@/components/loading";
-import { MobileDock } from "@/components/mobile_dock";
 import { MobileHeader } from "@/components/mobile_header";
-import { Sidebar } from "@/components/sidebar";
-import { useGotoHome } from "@/helpers/client/routes";
 import { SafeUser } from "@/helpers/server/auth";
 import { useManageUserProfile } from "@/server_actions/client/profile/profile";
-import {
-  ReactNode,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-
-/**
- * Hook: useProfileFields — manages name + image file + preview URL.
- * - Initializes from user (first/last + imageUrl)
- * - Fetches existing image as a File (so backend receives a file even for remote URL)
- */
-function useProfileFields(user?: SafeUser | null) {
-  const [name, setName] = useState<string>(
-    user ? [user.firstName, user.lastName].filter(Boolean).join(" ") : "",
-  );
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const loadingImage = !!user?.imageUrl && !file && !previewUrl;
-
-  // load existing user image (turn URL into a File so server receives multipart file)
-  useEffect(() => {
-    let revoked: string | null = null;
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-      revoked = url;
-    }
-    return () => {
-      if (revoked) URL.revokeObjectURL(revoked);
-    };
-  }, [file]);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      if (!user?.imageUrl || file) return; // already have file, skip
-      try {
-        const res = await fetch(user.imageUrl);
-        const blob = await res.blob();
-        if (cancelled) return;
-        setFile(
-          new File([blob], "user_photo", { type: blob.type || "image/jpeg" }),
-        );
-      } catch (err) {
-        console.warn("Failed to fetch existing image", err);
-        // optional: set an error flag so you don't keep showing spinner
-      }
-    }
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.imageUrl, file]);
-
-  return {
-    name,
-    setName,
-    file,
-    setFile,
-    previewUrl,
-    setPreviewUrl,
-    loadingImage,
-  };
-}
+import { useProfileFields } from "./useProfileFields";
+import { USER_PROFILE_DEFAULTS } from "@/helpers/client/constants";
+import { cn } from "@/helpers/client/tailwind_helpers";
 
 function AvatarContainer({
   children,
@@ -236,23 +171,73 @@ export function CreateAccountMain({
 }) {
   const { name, setName, file, setFile, previewUrl, loadingImage } =
     useProfileFields(user);
-  const { data, update } = useManageUserProfile();
+  const { update } = useManageUserProfile();
+
+  // ----- Email + Notifications State -----
+  const [emailEnabled, setEmailEnabled] = useState<boolean>(
+    USER_PROFILE_DEFAULTS.emailEnabled,
+  );
+  const [emailFrequency, setEmailFrequency] = useState<
+    "immediate" | "daily" | "weekly"
+  >(USER_PROFILE_DEFAULTS.emailFrequency);
+  const [timezone, setTimezone] = useState<string>(
+    USER_PROFILE_DEFAULTS.timezone,
+  );
+
+  const [browserPermission, setBrowserPermission] =
+    useState<NotificationPermission>("default");
+
+  useEffect(() => {
+    if (typeof Notification !== "undefined") {
+      setBrowserPermission(Notification.permission);
+    }
+  }, []);
+
+  const requestBrowserPermission = () => {
+    if (typeof Notification !== "undefined") {
+      Notification.requestPermission().then((permission) => {
+        setBrowserPermission(permission);
+      });
+    }
+  };
+
+  const timezoneOptions = useMemo(() => {
+    const names: string[] = moment.tz.names();
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (browserTz && names.includes(browserTz)) {
+      return [browserTz, ...names.filter((tz) => tz !== browserTz)];
+    }
+    return names;
+  }, []);
+
+  // ----- Submission -----
   const isSubmitting = update.isPending;
   const canSubmit = name.trim().length > 0 && !isSubmitting;
+
+  const handleSave = () => {
+    update.mutate({
+      name: name.trim(),
+      photo: file,
+      emailEnabled,
+      emailFrequency,
+      timezone,
+    });
+    onDone?.();
+  };
+
   return (
     <div className="flex-1 w-full flex flex-row items-stretch">
       <div className="flex-1 relative">
-        <div className="absolute top-0 left-0 w-full h-full bg-base-200 flex flex-col">
-          <MobileHeader inverseRole />
-          <div className="relative max-w-3xl w-full flex-1 overflow-auto p-8">
-            <div className="flex flex-col gap-4 md:gap-12 items-start justify-start">
-              <h1 className="font-normal text-2xl md:text-5xl">
+        <div className="absolute top-0 left-0 w-full h-full bg-base-200 flex flex-col items-center">
+          <MobileHeader inverseRole showUserAvatar={false} />
+          <div className="relative max-w-4xl w-full flex-1 overflow-auto p-8">
+            <div className="flex flex-col gap-8 md:gap-12 items-start justify-start">
+              <h1 className="font-normal text-3xl md:text-5xl">
                 Complete your profile ...
               </h1>
               {/* Picture + Name row */}
               <div className="w-full flex flex-col gap-4 md:flex-row md:gap-12">
                 <div className="flex flex-col md:items-center gap-4">
-                  <h2 className="font-normal">Profile picture</h2>
                   {/* <div className="w-36 h-36 bg-neutral rounded-box" /> */}
                   <ImagePicker
                     previewUrl={previewUrl}
@@ -262,8 +247,8 @@ export function CreateAccountMain({
                     onClear={() => setFile(null)}
                   />
                 </div>
-                <div className="flex-1 flex flex-col items-start gap-4">
-                  <h2 className="font-normal">Name</h2>
+                <div className="flex-1 flex flex-col items-start gap-2">
+                  <label className="font-light">Full Name</label>
                   <input
                     type="input"
                     placeholder="e.g. Jane Doe"
@@ -274,43 +259,74 @@ export function CreateAccountMain({
                   />
                 </div>
               </div>
-              <div className="w-full flex flex-col md:flex-row md:gap-12 justify-between">
-                <label className="flex flex-row gap-2 items-center justify-between">
-                  Show Notifications{" "}
-                  <input
-                    type="checkbox"
-                    defaultChecked={false}
-                    className="toggle"
-                  />
-                </label>
-                <i className="hidden md:inline">
-                  {" "}
-                  (You will have to confirm receiving notifications)
-                </i>
+              {/* Browser Notifications */}
+              <div className="flex gap-2">
+                <label className="font-light">Browser Notifications</label>
+                {browserPermission === "granted" && (
+                  <p className="text-success">Notifications enabled ✅</p>
+                )}
+                {browserPermission === "default" && (
+                  <div className="flex gap-2 content-between">
+                    <Button
+                      buttonType="neutral"
+                      buttonSize="sm"
+                      onClick={requestBrowserPermission}
+                    >
+                      Enable Browser Notifications
+                    </Button>
+                  </div>
+                )}
+                {browserPermission === "denied" && (
+                  <p className="text-error text-sm">
+                    Notifications blocked in your browser settings.
+                  </p>
+                )}
               </div>
-              <div className="w-full flex flex-col gap-4 md:flex-row md:gap-12 justify-between">
-                <label className="flex flex-row gap-2 items-center justify-between">
-                  Send Emails{" "}
+
+              {/* Email Settings */}
+              <div className="flex justify-between flex-wrap w-full gap-y-4">
+                <label className="flex items-center gap-2">
+                  Email Notifications
                   <input
                     type="checkbox"
-                    defaultChecked={false}
                     className="toggle"
+                    checked={emailEnabled}
+                    onChange={(e) => setEmailEnabled(e.target.checked)}
                   />
                 </label>
-                <label className="flex flex-row gap-2 items-center">
-                  Frequency{" "}
-                  <select defaultValue="Weekly" className="select">
-                    <option>Weekly</option>
-                    <option>Monthly</option>
-                    <option>Never</option>
-                  </select>
-                </label>
-                <div className="flex flex-row gap-2 items-center">
-                  Timezone{" "}
-                  <select defaultValue="Europe/Berlin" className="select">
-                    <option>Europe/Berlin</option>
-                    <option>Pacific Time</option>
-                  </select>
+                <div
+                  className={cn(
+                    "flex flex-wrap gap-y-4 items-center gap-4 min-w-0",
+                    !emailEnabled && "opacity-50 pointer-events-none",
+                  )}
+                >
+                  <label className="flex gap-2 items-center">
+                    Frequency
+                    <select
+                      className="select select-bordered"
+                      value={emailFrequency}
+                      onChange={(e) => setEmailFrequency(e.target.value as any)}
+                    >
+                      <option value="immediate">Immediate</option>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                    </select>
+                  </label>
+
+                  <label className="flex gap-2 items-center">
+                    Timezone
+                    <select
+                      className="select select-bordered"
+                      value={timezone}
+                      onChange={(e) => setTimezone(e.target.value)}
+                    >
+                      {timezoneOptions.map((tz) => (
+                        <option key={tz} value={tz}>
+                          {tz}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
               </div>
             </div>
@@ -321,20 +337,7 @@ export function CreateAccountMain({
               buttonSize="lg"
               disabled={!canSubmit}
               withSpinner={isSubmitting}
-              onClick={async () => {
-                try {
-                  await update.mutateAsync({ name: name.trim(), photo: file });
-                  onDone?.();
-                  // router navigation here if needed
-                } catch (e) {
-                  console.error(e);
-                  alert(
-                    e instanceof Error
-                      ? e.message
-                      : "Failed to update profile. Please try again.",
-                  );
-                }
-              }}
+              onClick={handleSave}
             >
               {isSubmitting ? "Saving..." : "Save and continue"}
             </Button>

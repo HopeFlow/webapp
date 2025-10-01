@@ -27,44 +27,11 @@ const toSearchParams = <T extends { [key: string]: unknown }>(
     const value = props[key];
     if (value === undefined) return [];
     if (Array.isArray(value))
-      return value.map((e) => `${key}=${toStringParam(e)}`);
-    return [`${key}=${toStringParam(value)}`];
+      return value.filter((e) => !!e).map((e) => `${key}=${toStringParam(e)}`);
+    return value ? [`${key}=${toStringParam(value)}`] : [];
   });
   if (result.length === 0) return "";
   return `?${result.join("&")}`;
-};
-
-// Corresponding to src/app/(root)/page.tsx
-export const useGotoIndex = () => {
-  const router = useRouter();
-  return useCallback(() => router.push("/"), [router]);
-};
-
-// Corresponding to src/app/home/page.tsx
-export const useGotoHome = () => {
-  const router = useRouter();
-  return useCallback(() => router.push("/home"), [router]);
-};
-
-// Corresponding to src/app/login/page.tsx
-export const useGotoLogin = () => {
-  const router = useRouter();
-  return useCallback(
-    (props: import("/Users/saeed/Projects/webapp/src/helpers/server/page_component").PageParams) =>
-      router.push(
-        [
-          "",
-          ...toPathParams(props, [{ "part": "login", "isParam": false }]),
-        ].join("/") + toSearchParams(props, ["params", "searchParams"]),
-      ),
-    [router],
-  );
-};
-
-// Corresponding to src/app/notifications/page.tsx
-export const useGotoNotifications = () => {
-  const router = useRouter();
-  return useCallback(() => router.push("/notifications"), [router]);
 };
 
 // Corresponding to src/app/sample/page.tsx
@@ -73,11 +40,86 @@ export const useGotoSample = () => {
   return useCallback(() => router.push("/sample"), [router]);
 };
 
-// Corresponding to src/app/link/[linkCode]/page.tsx
+// Corresponding to src/app/(dock)/home/page.tsx
+export const useGotoHome = () => {
+  const router = useRouter();
+  return useCallback(() => router.push("/home"), [router]);
+};
+
+// Corresponding to src/app/(dock)/notifications/page.tsx
+export const useGotoNotifications = () => {
+  const router = useRouter();
+  return useCallback(() => router.push("/notifications"), [router]);
+};
+
+// Corresponding to src/app/(dock)/profile/page.tsx
+export const useGotoProfile = () => {
+  const router = useRouter();
+  return useCallback(() => router.push("/profile"), [router]);
+};
+
+// Corresponding to src/app/(dock)/trophies/page.tsx
+export const useGotoTrophies = () => {
+  const router = useRouter();
+  return useCallback(() => router.push("/trophies"), [router]);
+};
+
+// Corresponding to src/app/(nodock)/(root)/page.tsx
+export const useGotoIndex = () => {
+  const router = useRouter();
+  return useCallback(() => router.push("/"), [router]);
+};
+
+// Corresponding to src/app/(nodock)/create_account/page.tsx
+export const useGotoCreateAccount = () => {
+  const router = useRouter();
+  return useCallback(
+    (props: { url?: string | undefined }) =>
+      router.push(
+        [
+          "",
+          ...toPathParams(props, [{ "part": "create_account", "isParam": false }]),
+        ].join("/") + toSearchParams(props, ["url"]),
+      ),
+    [router],
+  );
+};
+
+// Corresponding to src/app/(nodock)/login/page.tsx
+export const useGotoLogin = () => {
+  const router = useRouter();
+  return useCallback(
+    (props: { url?: string | undefined }) =>
+      router.push(
+        [
+          "",
+          ...toPathParams(props, [{ "part": "login", "isParam": false }]),
+        ].join("/") + toSearchParams(props, ["url"]),
+      ),
+    [router],
+  );
+};
+
+// Corresponding to src/app/(dock)/quest/[questId]/page.tsx
+export const useGotoQuest = () => {
+  const router = useRouter();
+  return useCallback(
+    (props: { questId: string }) =>
+      router.push(
+        [
+          "",
+          ...toPathParams(props, [{ "part": "quest", "isParam": false }, { "part": "questId", "isParam": true }]),
+        ].join("/"),
+      ),
+    [router],
+  );
+};
+
+// Corresponding to src/app/(nodock)/link/[linkCode]/page.tsx
 export const useGotoLink = () => {
   const router = useRouter();
   return useCallback(
-    (props: { linkCode: any; }) =>
+    (props: { linkCode: string }) =>
       router.push(
         [
           "",
@@ -88,21 +130,15 @@ export const useGotoLink = () => {
   );
 };
 
-// Corresponding to src/app/profile/create/page.tsx
-export const useGotoProfileCreate = () => {
-  const router = useRouter();
-  return useCallback(() => router.push("/profile/create"), [router]);
-};
-
-// Corresponding to src/app/quest/[questId]/page.tsx
-export const useGotoQuest = () => {
+// Corresponding to src/app/(dock)/chat/[questId]/[nodeId]/page.tsx
+export const useGotoChat = () => {
   const router = useRouter();
   return useCallback(
-    (props: { questId: string; }) =>
+    (props: { nodeId: string, questId: string }) =>
       router.push(
         [
           "",
-          ...toPathParams(props, [{ "part": "quest", "isParam": false }, { "part": "questId", "isParam": true }]),
+          ...toPathParams(props, [{ "part": "chat", "isParam": false }, { "part": "questId", "isParam": true }, { "part": "nodeId", "isParam": true }]),
         ].join("/"),
       ),
     [router],

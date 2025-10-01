@@ -49,7 +49,7 @@ function splitName(full?: string | null): {
   return { firstName: firstName || undefined, lastName: lastName || undefined };
 }
 
-export const profile = createCrudServerAction({
+export const userProfileCrud = createCrudServerAction({
   id: "manageUserProfile",
   scope: "profile",
 
