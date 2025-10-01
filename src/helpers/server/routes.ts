@@ -28,71 +28,81 @@ const toSearchParams = <T extends { [key: string]: unknown }>(
     const value = props[key];
     if (value === undefined) return [];
     if (Array.isArray(value))
-      return value.map((e) => `${key}=${toStringParam(e)}`);
-    return [`${key}=${toStringParam(value)}`];
+      return value.filter((e) => !!e).map((e) => `${key}=${toStringParam(e)}`);
+    return value ? [`${key}=${toStringParam(value)}`] : [];
   });
   if (result.length === 0) return "";
   return `?${result.join("&")}`;
 };
 
-// Corresponding to src/app/(root)/page.tsx
-export const redirectToIndex = (): never => redirect("/");
-
-// Corresponding to src/app/home/page.tsx
-export const redirectToHome = (): never => redirect("/home");
-
-// Corresponding to src/app/login/page.tsx
-export const redirectToLogin = (
-  props: import("/Users/saeed/Projects/webapp/src/helpers/server/page_component").PageParams,
-): never =>
-  redirect(
-    ["", ...toPathParams(props, [{ part: "login", isParam: false }])].join(
-      "/",
-    ) + toSearchParams(props, ["params", "searchParams"]),
-  );
-
-// Corresponding to src/app/notifications/page.tsx
-export const redirectToNotifications = (): never => redirect("/notifications");
-
 // Corresponding to src/app/sample/page.tsx
 export const redirectToSample = (): never => redirect("/sample");
 
-// Corresponding to src/app/link/[linkCode]/page.tsx
-export const redirectToLink = (props: { linkCode: any }): never =>
+// Corresponding to src/app/(dock)/home/page.tsx
+export const redirectToHome = (): never => redirect("/home");
+
+// Corresponding to src/app/(dock)/notifications/page.tsx
+export const redirectToNotifications = (): never => redirect("/notifications");
+
+// Corresponding to src/app/(dock)/profile/page.tsx
+export const redirectToProfile = (): never => redirect("/profile");
+
+// Corresponding to src/app/(dock)/trophies/page.tsx
+export const redirectToTrophies = (): never => redirect("/trophies");
+
+// Corresponding to src/app/(nodock)/(root)/page.tsx
+export const redirectToIndex = (): never => redirect("/");
+
+// Corresponding to src/app/(nodock)/create_account/page.tsx
+export const redirectToCreateAccount = (props: { url?: string | undefined }): never =>
   redirect(
     [
       "",
-      ...toPathParams(props, [
-        { part: "link", isParam: false },
-        { part: "linkCode", isParam: true },
-      ]),
-    ].join("/"),
+      ...toPathParams(props, [{ "part": "create_account", "isParam": false }]),
+    ].join("/") + toSearchParams(props, ["url"]),
   );
 
-// Corresponding to src/app/profile/create/page.tsx
-export const redirectToProfileCreate = (): never => redirect("/profile/create");
+// Corresponding to src/app/(nodock)/login/page.tsx
+export const redirectToLogin = (props: { url?: string | undefined }): never =>
+  redirect(
+    [
+      "",
+      ...toPathParams(props, [{ "part": "login", "isParam": false }]),
+    ].join("/") + toSearchParams(props, ["url"]),
+  );
 
-// Corresponding to src/app/quest/[questId]/page.tsx
+// Corresponding to src/app/(dock)/quest/[questId]/page.tsx
 export const redirectToQuest = (props: { questId: string }): never =>
   redirect(
     [
       "",
-      ...toPathParams(props, [
-        { part: "quest", isParam: false },
-        { part: "questId", isParam: true },
-      ]),
+      ...toPathParams(props, [{ "part": "quest", "isParam": false }, { "part": "questId", "isParam": true }]),
+    ].join("/"),
+  );
+
+// Corresponding to src/app/(dock)/quest/create/page.tsx
+export const redirectToQuestCreate = (): never => redirect("/quest/create");
+
+// Corresponding to src/app/(nodock)/link/[linkCode]/page.tsx
+export const redirectToLink = (props: { linkCode: string }): never =>
+  redirect(
+    [
+      "",
+      ...toPathParams(props, [{ "part": "link", "isParam": false }, { "part": "linkCode", "isParam": true }]),
+    ].join("/"),
+  );
+
+// Corresponding to src/app/(dock)/chat/[questId]/[nodeId]/page.tsx
+export const redirectToChat = (props: { questId: string, nodeId: string }): never =>
+  redirect(
+    [
+      "",
+      ...toPathParams(props, [{ "part": "chat", "isParam": false }, { "part": "questId", "isParam": true }, { "part": "nodeId", "isParam": true }]),
     ].join("/"),
   );
 
 const routeSpecs: Map<
-  | "Index"
-  | "Home"
-  | "Login"
-  | "Notifications"
-  | "Sample"
-  | "Link"
-  | "ProfileCreate"
-  | "Quest",
+  "Sample" | "Home" | "Notifications" | "Profile" | "Trophies" | "Index" | "CreateAccount" | "Login" | "Quest" | "QuestCreate" | "Link" | "Chat",
   {
     pathRegExp: RegExp;
     paramsTypeDef?: z.AnyZodObject;
@@ -100,78 +110,27 @@ const routeSpecs: Map<
     isPublic: boolean;
   }
 > = new Map([
-  [
-    "Index",
-    {
-      pathRegExp: /^\/$/,
-      paramsTypeDef: undefined,
-      searchParamsTypeDef: undefined,
-      isPublic: false,
-    },
-  ],
-  [
-    "Home",
-    {
-      pathRegExp: /^\/home$/,
-      paramsTypeDef: undefined,
-      searchParamsTypeDef: undefined,
-      isPublic: false,
-    },
-  ],
-  [
-    "Login",
-    {
-      pathRegExp: /^\/login$/,
-      paramsTypeDef: undefined,
-      searchParamsTypeDef: z.object({ url: z.string().optional() }),
-      isPublic: true,
-    },
-  ],
-  [
-    "Notifications",
-    {
-      pathRegExp: /^\/notifications$/,
-      paramsTypeDef: undefined,
-      searchParamsTypeDef: undefined,
-      isPublic: false,
-    },
-  ],
-  [
-    "Sample",
-    {
-      pathRegExp: /^\/sample$/,
-      paramsTypeDef: undefined,
-      searchParamsTypeDef: undefined,
-      isPublic: false,
-    },
-  ],
-  [
-    "Link",
-    {
-      pathRegExp: /^\/link\/(?<linkCode>[^/]+)$/,
-      paramsTypeDef: z.object({ linkCode: z.string() }),
-      searchParamsTypeDef: undefined,
-      isPublic: false,
-    },
-  ],
-  [
-    "ProfileCreate",
-    {
-      pathRegExp: /^\/profile\/create$/,
-      paramsTypeDef: undefined,
-      searchParamsTypeDef: undefined,
-      isPublic: false,
-    },
-  ],
-  [
-    "Quest",
-    {
-      pathRegExp: /^\/quest\/(?<questId>[^/]+)$/,
-      paramsTypeDef: z.object({ questId: z.string() }),
-      searchParamsTypeDef: undefined,
-      isPublic: false,
-    },
-  ],
+  ["Sample", { pathRegExp: /^\/sample$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
+  ["Home", { pathRegExp: /^\/home$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
+  ["Notifications", { pathRegExp: /^\/notifications$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
+  ["Profile", { pathRegExp: /^\/profile$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
+  ["Trophies", { pathRegExp: /^\/trophies$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
+  ["Index", { pathRegExp: /^\/$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
+  ["CreateAccount", {
+    pathRegExp: /^\/create_account$/, paramsTypeDef: undefined, searchParamsTypeDef: z.object({
+      url: z.string().url().optional(),
+    }), isPublic: false
+  }],
+  ["Login", { pathRegExp: /^\/login$/, paramsTypeDef: undefined, searchParamsTypeDef: z.object({ url: z.string().optional() }), isPublic: true }],
+  ["Quest", { pathRegExp: /^\/quest\/(?<questId>[^/]+)$/, paramsTypeDef: z.object({ questId: z.string() }), searchParamsTypeDef: undefined, isPublic: false }],
+  ["QuestCreate", { pathRegExp: /^\/quest\/create$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
+  ["Link", { pathRegExp: /^\/link\/(?<linkCode>[^/]+)$/, paramsTypeDef: z.object({ linkCode: z.string() }), searchParamsTypeDef: undefined, isPublic: false }],
+  ["Chat", {
+    pathRegExp: /^\/chat\/(?<questId>[^/]+)\/(?<nodeId>[^/]+)$/, paramsTypeDef: z.object({
+      questId: z.string(),
+      nodeId: z.string(),
+    }), searchParamsTypeDef: undefined, isPublic: false
+  }],
 ]);
 
 const parseRouteFromUrl = (urlString: string) => {
@@ -214,21 +173,17 @@ export const redirectTo = (urlString: string): never => {
   const { routeName, params, searchParams } = routeNameAndSpecs;
   const props = { ...params, ...searchParams };
   switch (routeName) {
-    case "Index":
-      return redirectToIndex();
-    case "Home":
-      return redirectToHome();
-    case "Login":
-      return redirectToLogin(props as any);
-    case "Notifications":
-      return redirectToNotifications();
-    case "Sample":
-      return redirectToSample();
-    case "Link":
-      return redirectToLink(props as any);
-    case "ProfileCreate":
-      return redirectToProfileCreate();
-    case "Quest":
-      return redirectToQuest(props as any);
+    case "Sample": return redirectToSample();
+    case "Home": return redirectToHome();
+    case "Notifications": return redirectToNotifications();
+    case "Profile": return redirectToProfile();
+    case "Trophies": return redirectToTrophies();
+    case "Index": return redirectToIndex();
+    case "CreateAccount": return redirectToCreateAccount(props as any);
+    case "Login": return redirectToLogin(props as any);
+    case "Quest": return redirectToQuest(props as any);
+    case "QuestCreate": return redirectToQuestCreate();
+    case "Link": return redirectToLink(props as any);
+    case "Chat": return redirectToChat(props as any);
   }
 };

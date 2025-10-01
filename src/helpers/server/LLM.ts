@@ -1,3 +1,5 @@
+"use server";
+
 import { z, ZodError } from "zod";
 
 /** --- Common helpers --- */
@@ -15,7 +17,11 @@ function zodFail(message: string, path: (string | number)[] = []): never {
 
 // Try parsing `u` with schema `S`, but if it looks like an API error object,
 // convert it to a ZodError with the server's message.
-function parseOrZod<S extends z.ZodTypeAny>(schema: S, u: unknown, path: (string | number)[] = []) {
+function parseOrZod<S extends z.ZodTypeAny>(
+  schema: S,
+  u: unknown,
+  path: (string | number)[] = [],
+) {
   // If it looks like { error: { message } }, surface it as a ZodError
   const errRes = ErrorResponseSchema.safeParse(u);
   if (errRes.success) {
@@ -33,7 +39,7 @@ function parseOrZod<S extends z.ZodTypeAny>(schema: S, u: unknown, path: (string
 }
 
 /** --- Error response (Cloudflare/OpenAI-compatible) --- */
-export const ErrorResponseSchema = z.object({
+const ErrorResponseSchema = z.object({
   error: z.object({
     message: z.string().default(""),
     code: z.union([z.string(), z.number()]).optional(),
@@ -72,7 +78,10 @@ const AssistantMessageSchema = z.object({
 });
 
 /** --- Choice (non-stream) --- */
-const FinishReason = z.enum(["stop", "length", "content_filter", "tool_calls"]).nullable().optional();
+const FinishReason = z
+  .enum(["stop", "length", "content_filter", "tool_calls"])
+  .nullable()
+  .optional();
 
 const ChoiceSchema = z.object({
   index: z.number(),
@@ -83,14 +92,17 @@ const ChoiceSchema = z.object({
 });
 
 /** --- Usage (tokens) --- */
-const UsageSchema = z.object({
-  prompt_tokens: z.number(),
-  completion_tokens: z.number(),
-  total_tokens: z.number(),
-}).partial().transform((u) => u); // some providers omit fields
+const UsageSchema = z
+  .object({
+    prompt_tokens: z.number(),
+    completion_tokens: z.number(),
+    total_tokens: z.number(),
+  })
+  .partial()
+  .transform((u) => u); // some providers omit fields
 
 /** --- ChatCompletion (non-stream) --- */
-export const CfChatCompletionSchema = z.object({
+const CfChatCompletionSchema = z.object({
   id: z.string(),
   object: z.literal("chat.completion"),
   created: z.number(),
@@ -101,49 +113,62 @@ export const CfChatCompletionSchema = z.object({
 
 /** --- Streaming chunk --- */
 // Delta format: OpenAI-compatible
-const DeltaSchema = z.object({
-  role: CfChatRole.optional(),
-  content: z.string().optional(),
-  // tolerate vendor extras:
-}).passthrough();
+const DeltaSchema = z
+  .object({
+    role: CfChatRole.optional(),
+    content: z.string().optional(),
+    // tolerate vendor extras:
+  })
+  .passthrough();
 
 const StreamChoiceSchema = z.object({
   index: z.number(),
-  delta: DeltaSchema.optional(),            // normal token chunks
+  delta: DeltaSchema.optional(), // normal token chunks
   message: AssistantMessageSchema.optional(), // some vendors send full message snapshots
   logprobs: z.any().nullable().optional(),
   finish_reason: FinishReason,
   stop_reason: z.string().nullable().optional(),
 });
 
-export const CfChatCompletionChunkSchema = z.object({
-  id: z.string(),
-  object: z.literal("chat.completion.chunk"),
-  created: z.number(),
-  model: z.string(),
-  choices: z.array(StreamChoiceSchema).min(1),
-  usage: UsageSchema.optional(),
-}).passthrough();
+const CfChatCompletionChunkSchema = z
+  .object({
+    id: z.string(),
+    object: z.literal("chat.completion.chunk"),
+    created: z.number(),
+    model: z.string(),
+    choices: z.array(StreamChoiceSchema).min(1),
+    usage: UsageSchema.optional(),
+  })
+  .passthrough();
 
 /** --- Request params (lightly validated at runtime) --- */
-export const CfOpenAIChatCreateParamsSchema = z.object({
-  model: z.string(),
-  messages: z.array(
-    z.object({
-      role: CfChatRole,
-      content: z.union([z.string(), z.array(CfChatCompletionContentPartSchema)]),
-      name: z.string().optional(),
-    }),
-  ),
-  stream: z.literal(false).optional(),
-}).passthrough();
+const CfOpenAIChatCreateParamsSchema = z
+  .object({
+    model: z.string(),
+    messages: z.array(
+      z.object({
+        role: CfChatRole,
+        content: z.union([
+          z.string(),
+          z.array(CfChatCompletionContentPartSchema),
+        ]),
+        name: z.string().optional(),
+      }),
+    ),
+    stream: z.literal(false).optional(),
+  })
+  .passthrough();
 
-export const CfOpenAIChatCreateParamsStreamingSchema =
+const CfOpenAIChatCreateParamsStreamingSchema =
   CfOpenAIChatCreateParamsSchema.extend({ stream: z.literal(true) });
 
-export async function* SseToGenerator(
+async function* SseToGenerator(
   response: Response,
-): AsyncGenerator<{ event?: string; data: string; id?: string }, void, unknown> {
+): AsyncGenerator<
+  { event?: string; data: string; id?: string },
+  void,
+  unknown
+> {
   if (!response.body) zodFail("No response body to read (SSE).");
 
   const reader = response.body.getReader();
@@ -209,15 +234,19 @@ export async function* SseToGenerator(
 }
 
 // Type imports you already have:
-type CfChatCompletion = z.infer<typeof CfChatCompletionSchema>;
-type CfChatCompletionChunk = z.infer<typeof CfChatCompletionChunkSchema>;
-type CfOpenAIChatCreateParams = z.infer<typeof CfOpenAIChatCreateParamsSchema>;
-type CfOpenAIChatCreateParamsStreaming = z.infer<typeof CfOpenAIChatCreateParamsStreamingSchema>;
+export type CfChatCompletion = z.infer<typeof CfChatCompletionSchema>;
+export type CfChatCompletionChunk = z.infer<typeof CfChatCompletionChunkSchema>;
+export type CfOpenAIChatCreateParams = z.infer<
+  typeof CfOpenAIChatCreateParamsSchema
+>;
+export type CfOpenAIChatCreateParamsStreaming = z.infer<
+  typeof CfOpenAIChatCreateParamsStreamingSchema
+>;
 
-export function getLLMResponse(
+export async function getLLMResponse(
   params: CfOpenAIChatCreateParamsStreaming,
 ): Promise<AsyncGenerator<CfChatCompletionChunk, void, unknown>>;
-export function getLLMResponse(
+export async function getLLMResponse(
   params: CfOpenAIChatCreateParams,
 ): Promise<CfChatCompletion>;
 
@@ -233,17 +262,33 @@ export async function getLLMResponse(
   const baseUrl = `https://gateway.ai.cloudflare.com/v1/${process.env.CLOUDFLARE_ACCOUNT_ID}/hopeflow/compat/chat/completions`;
   const headersCommon = {
     Authorization: `Bearer ${process.env.CLOUDFLARE_HOPEFLOW_TOKEN ?? ""}`,
-    "cf-aig-authorization": `Bearer ${process.env.CLOUDFLARE_HOPEFLOW_TOKEN ?? ""}`,
+    "cf-aig-authorization": `Bearer ${
+      process.env.CLOUDFLARE_HOPEFLOW_TOKEN ?? ""
+    }`,
     "Content-Type": "application/json",
   };
 
   // STREAMING
   if (isStreaming) {
-    const response = await fetch(baseUrl, {
-      method: "POST",
-      headers: { ...headersCommon, Accept: "text/event-stream" },
-      body: JSON.stringify({ ...parsedParams, input: "" }),
-    });
+    const fetchResponse = async () => {
+      let retries = 0;
+      try {
+        return await fetch(baseUrl, {
+          method: "POST",
+          headers: { ...headersCommon, Accept: "text/event-stream" },
+          body: JSON.stringify({ ...parsedParams, input: "" }),
+        });
+      } catch (e) {
+        if (retries < 3) {
+          retries++;
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          return await fetchResponse();
+        }
+        throw e;
+      }
+    };
+
+    const response = await fetchResponse();
 
     if (!response.ok) {
       let bodyText: string;
@@ -274,7 +319,9 @@ export async function getLLMResponse(
           zodFail(msg, ["stream"]);
         }
 
-        const chunk = parseOrZod(CfChatCompletionChunkSchema, chunkUnknown, ["stream"]);
+        const chunk = parseOrZod(CfChatCompletionChunkSchema, chunkUnknown, [
+          "stream",
+        ]);
         yield chunk;
       }
     })();
@@ -325,25 +372,39 @@ export const transliterate = async (inputName: string) => {
     .find((c): c is string => typeof c === "string" && c.length > 0);
 
   if (!content) {
-    zodFail("Assistant returned empty content", ["choices", 0, "message", "content"]);
+    zodFail("Assistant returned empty content", [
+      "choices",
+      0,
+      "message",
+      "content",
+    ]);
   }
 
   let jsonUnknown: unknown;
   try {
     jsonUnknown = JSON.parse(content);
   } catch {
-    zodFail("Assistant content is not valid JSON", ["choices", 0, "message", "content"]);
+    zodFail("Assistant content is not valid JSON", [
+      "choices",
+      0,
+      "message",
+      "content",
+    ]);
   }
 
-  const parsed = parseOrZod(TransliterationSchema, jsonUnknown, ["assistant-json"]);
+  const parsed = parseOrZod(TransliterationSchema, jsonUnknown, [
+    "assistant-json",
+  ]);
   return parsed.ascii;
 };
 
-export const titleGenerationPrompt =
+/*
+const titleGenerationPrompt =
   'You are an expert on literature and psychology. The user will give you a passage and title. You have to generate one 4-7 word sentence to ask the reader of the sentence to help the writer of passage reach his/her goal. Try to include key points of the passage that may affect help. The input will be in JSON format. "name" field holding name of the writer of passage and "passage" indicating the content of the passage. The sentence should be in third person voice e.g. `Help Nolan recover his stolen totem` or `Aid Susan find her beloved cat (Maggy)` or `Stand with John in search for "Arabian Nights"';
 
-export const reasonGenerationPrompt =
+const reasonGenerationPrompt =
   'Given a reason to pass a request from a friend of you to someone you know or a group of people you know, convert it to a SMALL paragraph length text from the third person perspective addressing the reader. If no reason is provided, generate a general paragraph that is true implicitly and make it explicit. Do not add any unspecified claims. e.g. "Because he is in the neighborhood and knows cars well" to "Because you are in the neighborhood and know cars." or "Because she has a large connection pool with painters and artists" to "As you have vast connections with painters and art people". For empty reasons for example "Because he thinks you can help Mat find his stolen car".';
 
-export const callForActionSentenceGenerationPrompt =
+const callForActionSentenceGenerationPrompt =
   'The user will give you a passage containing description of a request for help and title. Generate 4 4-7 word sentences and output a JSON array. First sentence checking with reader if he has the answer, lead and can directly help e.g. "If you know where to find it". Second checking with reader if he knows someone that MAY be able to help or even pass the word e.g. "If you know someone who may help". Third sentence encoraging to connect with the starter of quest and providing them with answer. And finally fourth to encourage passing the word via Reflow. Reflow is a term used in the application. The first two sentences must be INCOMPLETE and must NOT be questions.';
+*/

@@ -1,4 +1,3 @@
-import { Sidebar } from "@/components/sidebar";
 import { QuestStarterView } from "./starter";
 import { QuestContributorView } from "./contributor";
 import z from "zod";
