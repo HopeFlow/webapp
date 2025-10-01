@@ -118,7 +118,7 @@ const routeSpecs: Map<
   ["Index", { pathRegExp: /^\/$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
   ["CreateAccount", {
     pathRegExp: /^\/create_account$/, paramsTypeDef: undefined, searchParamsTypeDef: z.object({
-      url: z.string().url().optional(),
+      url: z.string().optional(),
     }), isPublic: false
   }],
   ["Login", { pathRegExp: /^\/login$/, paramsTypeDef: undefined, searchParamsTypeDef: z.object({ url: z.string().optional() }), isPublic: true }],

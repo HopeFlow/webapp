@@ -23,6 +23,7 @@ import {
 } from "./constants";
 import { inList, lit } from "../helpers/server/db";
 import { mirrorEnum } from "@/helpers/client/type_helpers";
+import { USER_PROFILE_DEFAULTS } from "@/helpers/client/constants";
 
 const primaryKey = () =>
   text()
@@ -53,7 +54,7 @@ export const questTable = sqliteTable(
 
     title: text().notNull(),
     shareTitle: text(),
-    description: text({ mode: "json" }).notNull(), // SerializedEditorState as JSON
+    description: text().notNull(),
 
     rewardAmount: numeric().notNull().default("0"),
     baseBlobPath: text().notNull(),
@@ -476,11 +477,13 @@ export const notificationsTable = sqliteTable("notifications", {
 
 export const userProfileTable = sqliteTable("userProfile", {
   userId: text().primaryKey().notNull(),
-  emailEnabled: boolean().notNull().default(true),
+  emailEnabled: boolean().notNull().default(USER_PROFILE_DEFAULTS.emailEnabled),
   credence: numeric().notNull().default("0"),
-  emailFrequency: text({ enum: emailFrequencyDef }).notNull().default("daily"),
+  emailFrequency: text({ enum: emailFrequencyDef })
+    .notNull()
+    .default(USER_PROFILE_DEFAULTS.emailFrequency),
   lastSentAt: timestamp(),
-  timezone: text().notNull().default("Europe/Berlin"),
+  timezone: text().notNull().default(USER_PROFILE_DEFAULTS.timezone),
   asciiName: text().notNull().default(""),
 });
 
@@ -515,8 +518,11 @@ export const nodeRelations = relations(nodeTable, ({ one, many }) => ({
   viewLink: one(linkTable, {
     fields: [nodeTable.viewLinkId],
     references: [linkTable.id],
+    relationName: "viewLinkUsage",
   }),
-  ownedLinks: many(linkTable),
+  ownedLinks: many(linkTable, {
+    relationName: "linkOwner",
+  }),
   comments: many(commentTable),
   histories: many(questHistoryTable),
   proposedAnswers: many(proposedAnswerTable),
@@ -532,8 +538,11 @@ export const linkRelations = relations(linkTable, ({ one, many }) => ({
   ownerNode: one(nodeTable, {
     fields: [linkTable.ownerNodeId],
     references: [nodeTable.id],
+    relationName: "linkOwner",
   }),
-  usedByNodes: many(nodeTable),
+  usedByNodes: many(nodeTable, {
+    relationName: "viewLinkUsage",
+  }),
   histories: many(questHistoryTable),
   userRelations: many(questUserRelationTable),
 }));

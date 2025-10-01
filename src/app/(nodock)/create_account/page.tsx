@@ -1,11 +1,14 @@
 import { z } from "zod";
 import { CreateAccountMain } from "./main";
-import { Prefetch, withParamsAndUser } from "@/helpers/server/page_component";
+import { withParamsAndUser } from "@/helpers/server/page_component";
 import { user2SafeUser } from "@/helpers/server/auth";
 import { redirectToHome } from "@/helpers/server/routes";
-import { prefetchManageUserProfile } from "@/server_actions/client/profile/profile";
+import { userProfileCrud } from "@/server_actions/definitions/profile";
 
-const hasAlreadyCreatedProfile = async () => false;
+const hasAlreadyCreatedProfile = async () => {
+  const result = await userProfileCrud("read");
+  return result.exists;
+};
 
 export default withParamsAndUser(
   async function createAccount({ url, user }) {
@@ -15,15 +18,11 @@ export default withParamsAndUser(
     // If the user has already created a profile and command is "create", redirect to the home page
     if (await hasAlreadyCreatedProfile()) redirectToHome();
     // Otherwise, render the profile page
-    return (
-      <Prefetch actions={[prefetchManageUserProfile()]}>
-        <CreateAccountMain url={url} user={safeUser} />
-      </Prefetch>
-    );
+    return <CreateAccountMain url={url} user={safeUser} />;
   },
   {
     searchParamsTypeDef: z.object({
-      url: z.string().url().optional(),
+      url: z.string().optional(),
     }),
   },
 );

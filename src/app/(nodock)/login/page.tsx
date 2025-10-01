@@ -4,7 +4,11 @@ import { LoginMain } from "./main";
 import { publicPage, withParamsAndUser } from "@/helpers/server/page_component";
 import { headers } from "next/headers";
 import { isAccountCreated } from "@/server_actions/definitions/login/index.server";
-import { redirectTo, redirectToHome } from "@/helpers/server/routes";
+import {
+  redirectTo,
+  redirectToCreateAccount,
+  redirectToHome,
+} from "@/helpers/server/routes";
 import { X_CUR_URL_HEADER } from "@/helpers/server/constants";
 
 export default publicPage(
@@ -27,11 +31,11 @@ export default publicPage(
         // If the user hasn't finished account creation:
         if (url) {
           // Redirect them to the account creation flow, with the original URL passed through
-          // return routeSpecs.createAccount.redirectTo({ url });
+          redirectToCreateAccount({ url });
         }
 
         // Redirect to the create account route without a `url` param since url was not provided
-        // return routeSpecs.createAccount.redirectTo();
+        redirectToCreateAccount({});
       }
       // If there is no user (not logged in), render the login page UI with optional `url` for redirecting later
       return <LoginMain url={url} currentUrl={currentUrl} />;
