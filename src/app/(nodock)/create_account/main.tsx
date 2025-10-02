@@ -10,6 +10,18 @@ import { useManageUserProfile } from "@/server_actions/client/profile/profile";
 import { useProfileFields } from "./useProfileFields";
 import { USER_PROFILE_DEFAULTS } from "@/helpers/client/constants";
 import { cn } from "@/helpers/client/tailwind_helpers";
+import { useGoto, useGotoHome } from "@/helpers/client/routes";
+
+const getBrowserTimeZone = () => {
+  try {
+    // Prefer the browser-reported IANA zone
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz && moment.tz.names().includes(tz)) return tz;
+  } catch {}
+  // Fallback: let moment guess; final fallback: UTC
+  const guessed = moment.tz.guess();
+  return moment.tz.names().includes(guessed) ? guessed : "UTC";
+};
 
 function AvatarContainer({
   children,
@@ -82,47 +94,41 @@ function AvatarPreview({
 /**
  * ImagePicker — hidden file input + buttons; supports click & drag/drop.
  */
+const MAX_IMAGE_MB = 3;
+const MAX_IMAGE_BYTES = MAX_IMAGE_MB * 1024 * 1024;
+
 function ImagePicker({
   onPick,
-  onClear,
   disabled,
   previewUrl,
   loadingImage,
 }: {
   onPick: (file: File) => void;
-  onClear: () => void;
   disabled?: boolean;
   previewUrl?: string | null;
   loadingImage?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const dropRef = useRef<HTMLDivElement | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const el = dropRef.current;
-    if (!el) return;
-    const prevent = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
-    const onDrop = (e: DragEvent) => {
-      prevent(e);
-      const f = e.dataTransfer?.files?.[0];
-      if (f && f.type.startsWith("image/")) onPick(f);
-    };
-    el.addEventListener("dragover", prevent);
-    el.addEventListener("dragenter", prevent);
-    el.addEventListener("drop", onDrop);
-    return () => {
-      el.removeEventListener("dragover", prevent);
-      el.removeEventListener("dragenter", prevent);
-      el.removeEventListener("drop", onDrop);
-    };
-  }, [onPick]);
+  const handleChosenFile = (f: File | undefined | null) => {
+    if (!f) return;
+    setError(null);
+
+    if (!f.type.startsWith("image/")) {
+      setError("Please upload an image file.");
+      return;
+    }
+    if (f.size > MAX_IMAGE_BYTES) {
+      setError(`Image is too large. Max size is ${MAX_IMAGE_MB}MB.`);
+      return;
+    }
+    onPick(f);
+  };
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <div ref={dropRef} className="relative">
+      <div className="relative">
         <AvatarPreview
           src={previewUrl || undefined}
           name={undefined}
@@ -132,12 +138,9 @@ function ImagePicker({
           ref={inputRef}
           type="file"
           accept="image/*"
-          capture="user"
           className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) onPick(f);
-          }}
+          onChange={(e) => handleChosenFile(e.target.files?.[0] ?? null)}
+          // capture="user" // consider removing on desktop
         />
         <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
           <Button
@@ -148,14 +151,14 @@ function ImagePicker({
           >
             {previewUrl ? "Change" : "Upload"}
           </Button>
-          {previewUrl && (
-            <Button buttonType="neutral" buttonSize="sm" onClick={onClear}>
-              Remove
-            </Button>
-          )}
         </div>
       </div>
-      <p className="text-xs opacity-70">Drag & drop or upload an image</p>
+
+      {/* Updated helper text (no drag/drop mention) */}
+      <p className="text-xs opacity-70">
+        Upload an image (max {MAX_IMAGE_MB}MB)
+      </p>
+      {error && <p className="text-xs text-error">{error}</p>}
     </div>
   );
 }
@@ -163,16 +166,15 @@ function ImagePicker({
 export function CreateAccountMain({
   url,
   user,
-  onDone,
 }: {
   url?: string;
   user: SafeUser;
-  onDone?: () => void;
 }) {
   const { name, setName, file, setFile, previewUrl, loadingImage } =
     useProfileFields(user);
   const { update } = useManageUserProfile();
-
+  const goTo = useGoto();
+  const goToHome = useGotoHome();
   // ----- Email + Notifications State -----
   const [emailEnabled, setEmailEnabled] = useState<boolean>(
     USER_PROFILE_DEFAULTS.emailEnabled,
@@ -180,9 +182,7 @@ export function CreateAccountMain({
   const [emailFrequency, setEmailFrequency] = useState<
     "immediate" | "daily" | "weekly"
   >(USER_PROFILE_DEFAULTS.emailFrequency);
-  const [timezone, setTimezone] = useState<string>(
-    USER_PROFILE_DEFAULTS.timezone,
-  );
+  const [timezone, setTimezone] = useState<string>(getBrowserTimeZone());
 
   const [browserPermission, setBrowserPermission] =
     useState<NotificationPermission>("default");
@@ -215,21 +215,28 @@ export function CreateAccountMain({
   const canSubmit = name.trim().length > 0 && !isSubmitting;
 
   const handleSave = () => {
-    update.mutate({
-      name: name.trim(),
-      photo: file,
-      emailEnabled,
-      emailFrequency,
-      timezone,
-    });
-    onDone?.();
+    update
+      .mutateAsync({
+        name: name.trim(),
+        photo: file,
+        emailEnabled,
+        emailFrequency,
+        timezone,
+      })
+      .then(() => {
+        if (url) {
+          goTo(url);
+        } else {
+          goToHome();
+        }
+      });
   };
 
   return (
     <div className="flex-1 w-full flex flex-row items-stretch">
       <div className="flex-1 relative">
         <div className="absolute top-0 left-0 w-full h-full bg-base-200 flex flex-col items-center">
-          <MobileHeader inverseRole showUserAvatar={false} />
+          <MobileHeader inverseRole showUserAvatar={false} user={user} />
           <div className="relative max-w-4xl w-full flex-1 overflow-auto p-8">
             <div className="flex flex-col gap-8 md:gap-12 items-start justify-start">
               <h1 className="font-normal text-3xl md:text-5xl">
@@ -244,7 +251,6 @@ export function CreateAccountMain({
                     disabled={isSubmitting || loadingImage}
                     loadingImage={loadingImage}
                     onPick={(f) => setFile(f)}
-                    onClear={() => setFile(null)}
                   />
                 </div>
                 <div className="flex-1 flex flex-col items-start gap-2">
@@ -260,27 +266,27 @@ export function CreateAccountMain({
                 </div>
               </div>
               {/* Browser Notifications */}
-              <div className="flex gap-2">
-                <label className="font-light">Browser Notifications</label>
-                {browserPermission === "granted" && (
-                  <p className="text-success">Notifications enabled ✅</p>
-                )}
-                {browserPermission === "default" && (
-                  <div className="flex gap-2 content-between">
-                    <Button
-                      buttonType="neutral"
-                      buttonSize="sm"
+              <div className="flex gap-2 justify-between w-full">
+                <div className="flex gap-2">
+                  <label className="font-light">Browser Notifications</label>
+                  <div className="flex">
+                    <input
+                      type="checkbox"
+                      className="toggle"
                       onClick={requestBrowserPermission}
-                    >
-                      Enable Browser Notifications
-                    </Button>
+                      checked={browserPermission === "granted"}
+                      disabled={browserPermission !== "default"}
+                    />
                   </div>
-                )}
-                {browserPermission === "denied" && (
-                  <p className="text-error text-sm">
-                    Notifications blocked in your browser settings.
-                  </p>
-                )}
+                </div>
+                <div className="hidden md:inline">
+                  {browserPermission === "default" &&
+                    "Enable push notifications in your browser to get real-time updates."}
+                  {browserPermission === "denied" &&
+                    "Notifications are blocked. Update your browser settings"}
+                  {browserPermission === "granted" &&
+                    "Notifications are enabled. To Disable, go to your browser settings."}
+                </div>
               </div>
 
               {/* Email Settings */}

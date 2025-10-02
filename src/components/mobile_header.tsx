@@ -1,13 +1,16 @@
 import Image from "next/image";
 import { UserAvatarAndMenu } from "./useravatar_menu";
 import { cn } from "@/helpers/client/tailwind_helpers";
+import { SafeUser } from "@/helpers/server/auth";
 
 export const MobileHeader = ({
   inverseRole,
   showUserAvatar = true,
+  user,
 }: {
   inverseRole?: boolean;
   showUserAvatar?: boolean;
+  user?: SafeUser;
 }) => (
   <div
     className={cn(
@@ -16,14 +19,16 @@ export const MobileHeader = ({
     )}
   >
     <Image
-      src="/img/wordmark.webp"
+      src="/img/wordmark.svg"
       alt="Home"
       width={118}
       height={32}
       className="h-8 w-auto object-contain"
     />
     <div className="flex flex-col gap-4 [&>*]:w-full">
-      {showUserAvatar && <UserAvatarAndMenu placeLeftBottom />}
+      {showUserAvatar && user && (
+        <UserAvatarAndMenu placeLeftBottom user={user} />
+      )}
     </div>
   </div>
 );

@@ -15,7 +15,6 @@ export function parseFromString<T extends z.ZodTypeAny>(
 ): z.infer<T> {
   const unwrapedTypeDef =
     typeDef instanceof z.ZodOptional ? typeDef.unwrap() : typeDef;
-  console.log(value, unwrapedTypeDef);
   if (isStringLikeSchema(unwrapedTypeDef)) return unwrapedTypeDef.parse(value);
   const jsonParsed = JSON.parse(value);
   return unwrapedTypeDef.parse(jsonParsed);
