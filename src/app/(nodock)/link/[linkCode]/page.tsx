@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { LinkMain } from "./main";
-import { withParams } from "@/helpers/server/page_component";
+import { withParams, withParamsAndUser } from "@/helpers/server/page_component";
+import { user2SafeUser } from "@/helpers/server/auth";
 
-export default withParams(
-  async function LinkPage({ linkCode }) {
+export default withParamsAndUser(
+  async function LinkPage({ linkCode, user }) {
     void linkCode;
-    return <LinkMain />;
+    return <LinkMain user={user && user2SafeUser(user)} />;
   },
   { paramsTypeDef: z.object({ linkCode: z.string() }) },
 );

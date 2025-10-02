@@ -4,7 +4,7 @@ import { Button } from "@/components/button";
 import { HopeflowLogo } from "@/components/logos/hopeflow";
 import { EmailLogo } from "@/components/logos/email";
 import { ArrowRightIcon } from "@/components/icons/arrow_right";
-import { useGoto, useGotoIndex } from "@/helpers/client/routes";
+import { useGoto, useGotoHome, useGotoIndex } from "@/helpers/client/routes";
 import {
   useState,
   useRef,
@@ -44,13 +44,12 @@ export function LoginEmail({ url }: { url?: string }) {
   const [stage, setStage] = useState<VerificationStage>("prepare_token");
   const [verifying, setVerifying] = useState(false);
   const [email, setEmail] = useState("");
-  const gotoIndex = useGotoIndex();
   const [otp, setOtp] = useState(new Array(6).fill(""));
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const [resendCooldown, setResendCooldown] = useState(0);
   const [isPreparing, setIsPreparing] = useState(false);
   const [isVerifyingBtn, setIsVerifyingBtn] = useState(false);
   const goto = useGoto();
+  const gotoHome = useGotoHome();
 
   useEffect(() => {
     if (verifying) {
@@ -107,7 +106,6 @@ export function LoginEmail({ url }: { url?: string }) {
           });
           setStage("verify_login_token");
           setVerifying(true);
-          setResendCooldown(30);
           return;
         }
         shouldSignUp = true;
@@ -129,7 +127,6 @@ export function LoginEmail({ url }: { url?: string }) {
           await r.prepareEmailAddressVerification();
           setStage("verify_signup_token");
           setVerifying(true);
-          setResendCooldown(30);
         } catch (e) {
           handleClerkError(e);
         }
@@ -155,7 +152,8 @@ export function LoginEmail({ url }: { url?: string }) {
         });
         if (attempt.status === "complete") {
           await setSignInActive!({ session: attempt.createdSessionId });
-          goto(url || "/");
+          if (url) goto(url);
+          else gotoHome();
         } else {
           toast(`Sign-in not complete: ${attempt.status}`);
         }
@@ -163,7 +161,8 @@ export function LoginEmail({ url }: { url?: string }) {
         const attempt = await signUp!.attemptEmailAddressVerification({ code });
         if (attempt.status === "complete") {
           await setSignUpActive!({ session: attempt.createdSessionId });
-          goto(url || "/");
+          if (url) goto(url);
+          else gotoHome();
         } else {
           toast(`Sign-up not complete: ${attempt.status}`);
         }

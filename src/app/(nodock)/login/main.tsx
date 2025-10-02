@@ -11,30 +11,11 @@ import { useState, useEffect } from "react";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { useSignIn, useSignUp } from "@clerk/nextjs";
 import type { OAuthStrategy } from "@clerk/types";
-import { useGoto } from "@/helpers/client/routes";
+import { useGoto, useGotoHome } from "@/helpers/client/routes";
 
 const LogoContainer = ({ children }: { children: React.ReactNode }) => (
   <span className="flex items-center justify-center w-6 h-6 rounded-full border border-base-300 bg-gray-50">
     <span className="w-5 h-5 flex items-center justify-center">{children}</span>
-  </span>
-);
-
-const ButtonRow = ({
-  leading,
-  label,
-  trailing,
-}: {
-  leading: React.ReactNode;
-  label: React.ReactNode;
-  trailing?: React.ReactNode;
-}) => (
-  <span className="grid grid-cols-[1.5rem_1fr_1.5rem] items-center gap-3 w-full">
-    <span className="justify-self-start">{leading}</span>
-    <span className="justify-self-center">{label}</span>
-    {/* Reserve space even if there is no trailing icon to keep alignment */}
-    <span className="justify-self-end">
-      {trailing ?? <span className="w-6 h-6" />}
-    </span>
   </span>
 );
 
@@ -131,6 +112,7 @@ export function LoginMain({
 }) {
   const [usingEmail, setUsingEmail] = useState(false);
   const goto = useGoto();
+  const gotoHome = useGotoHome();
   const {
     isLoaded: isSignInLoaded,
     signIn,
@@ -166,8 +148,9 @@ export function LoginMain({
         const res = await signIn.create({ transfer: true });
         if (res.status === "complete") {
           await setSignInActive({ session: res.createdSessionId });
-          goto(url);
-          return;
+          console.log("Redirecting to (SignIn):", url);
+          if (url) goto(url);
+          else gotoHome();
         }
       }
 
@@ -177,7 +160,9 @@ export function LoginMain({
         const res = await signUp.create({ transfer: true });
         if (res.status === "complete") {
           await setSignUpActive({ session: res.createdSessionId });
-          goto(url);
+          console.log("Redirecting to (SignUp):", url);
+          if (url) goto(url);
+          else gotoHome();
         }
       }
     };

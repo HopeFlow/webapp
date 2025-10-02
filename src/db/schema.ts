@@ -63,6 +63,14 @@ export const questTable = sqliteTable(
     status: text({ enum: questStatusDef }).notNull().default("active"),
     farewellMessage: text(),
 
+    coverPhoto: text({ mode: "json" })
+      .$type<{
+        url: string;
+        width: number;
+        height: number;
+        alt: string;
+      }>()
+      .notNull(),
     media: text({ mode: "json" }).$type<QuestMedia[]>(),
 
     screeningQuestions: text({ mode: "json" }).$type<ScreeningQuestion[]>(),
@@ -82,6 +90,19 @@ export const questTable = sqliteTable(
     return [
       // reward non-negative
       check("quest_reward_nonneg_chk", sql`${table.rewardAmount} >= 0`),
+
+      //CoverPhoto aspect ratio 16:9 (enforce in app or via CHECK in raw SQL)
+      check(
+        "quest_coverphoto_aspect_ratio_chk",
+        sql`
+        json_type(${table.coverPhoto}, '$.width') IN ('integer','real') AND
+        json_type(${table.coverPhoto}, '$.height') IN ('integer','real') AND
+        json_extract(${table.coverPhoto}, '$.width') > 0 AND
+        json_extract(${table.coverPhoto}, '$.height') > 0 AND
+        (json_extract(${table.coverPhoto}, '$.width') * 9) =
+        (json_extract(${table.coverPhoto}, '$.height') * 16)
+      `,
+      ),
 
       // temporal sanity
       check(

@@ -20,18 +20,19 @@ import {
   showSubmitAnswerModal,
   SubmitAnswerModal,
 } from "@/modals/submit_answer_modal";
+import { SafeUser } from "@/helpers/server/auth";
 
-export function LinkMain() {
+export function LinkMain({ user }: { user?: SafeUser }) {
   return (
     <div className="max-w-6xl w-full flex flex-col self-center">
-      <MobileHeader />
+      <MobileHeader user={user} />
       <div className="flex flex-col gap-4 md:gap-6 p-6">
         <div className="w-full flex flex-row items-center justify-start gap-6">
           <h1 className="md:w-2/3 font-normal text-4xl">
             Help Jacob find his stolen bicycle
           </h1>
           <div className="flex-1 hidden md:flex items-center justify-center">
-            <MobileHeader inverseRole />
+            <MobileHeader inverseRole user={user} />
           </div>
         </div>
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
