@@ -16,18 +16,19 @@ import { ReflowIcon } from "@/components/icons/reflow";
 import { BookmarkIcon } from "@/components/icons/bookmark";
 import { MediatorsIcon } from "@/components/icons/mediators";
 import { ReflowModal, showReflowModal } from "@/modals/reflow_modal";
+import { SafeUser } from "@/helpers/server/auth";
 
-export function LinkMain() {
+export function LinkMain({ user }: { user?: SafeUser }) {
   return (
     <div className="max-w-6xl w-full flex flex-col self-center">
-      <MobileHeader />
+      <MobileHeader user={user} />
       <div className="flex flex-col gap-4 md:gap-6 p-6">
         <div className="w-full flex flex-row items-center justify-start gap-6">
           <h1 className="md:w-2/3 font-normal text-4xl">
             Help Jacob find his stolen bicycle
           </h1>
           <div className="flex-1 hidden md:flex items-center justify-center">
-            <MobileHeader inverseRole />
+            <MobileHeader inverseRole user={user} />
           </div>
         </div>
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
@@ -161,9 +162,9 @@ export function LinkMain() {
             </div>
             <div className="collapse-content text-justify">
               <p>
-                <i>$950</i> has been allocated for the quest. If{" "}
-                <i>you</i> solve it directly, you&apos;ll receive <b>half</b>{" "}
-                which is <b>$425</b>.
+                <i>$950</i> has been allocated for the quest. If <i>you</i>{" "}
+                solve it directly, you&apos;ll receive <b>half</b> which is{" "}
+                <b>$425</b>.
               </p>
               <p>
                 If your pass the word on, rewards then flow through a{" "}

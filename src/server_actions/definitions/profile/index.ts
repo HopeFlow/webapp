@@ -8,7 +8,9 @@ import {
   currentUserNoThrow,
   SafeUser,
 } from "@/helpers/server/auth";
+import unidecode from "unidecode";
 import { emailFrequencyDef } from "@/db/constants";
+import { transliterate } from "@/helpers/LLM";
 
 /**
  * Shape returned to the client. Keep this lean for the create screen.
@@ -22,6 +24,20 @@ export type ProfileRead =
       timezone: string;
       credence: string;
     };
+
+const checkIfAscii = (str: string) => {
+  for (let i = 0; i < str.length; i++) {
+    if (str.charCodeAt(i) > 127) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const checkIfLatin = (str: string) => {
+  const latinRegex = /^[\u0000-\u024F\s\p{P}\p{S}]*$/u;
+  return latinRegex.test(str);
+};
 
 /**
  * Payload accepted by update. Keep fields optional so UI can send only what changed.
@@ -89,6 +105,7 @@ export const userProfileCrud = createCrudServerAction({
     const db = await getHopeflowDatabase();
     const users = client.users;
 
+    let userFirstName = "";
     // Clerk: name ───────────────────────────────────────────────────────────
     if (typeof data.name === "string") {
       const { firstName, lastName } = splitName(data.name);
@@ -97,6 +114,9 @@ export const userProfileCrud = createCrudServerAction({
         (firstName === undefined || updated.firstName === firstName) &&
         (lastName === undefined || updated.lastName === lastName);
       if (!okName) return false;
+      else {
+        userFirstName = firstName!.split(" ")[0];
+      }
     }
 
     // Clerk: photo ──────────────────────────────────────────────────────────
@@ -122,6 +142,18 @@ export const userProfileCrud = createCrudServerAction({
     if (data.emailFrequency !== undefined)
       setValues.emailFrequency = data.emailFrequency;
     if (data.timezone !== undefined) setValues.timezone = data.timezone;
+
+    if (!checkIfAscii(userFirstName)) {
+      if (checkIfLatin(userFirstName)) {
+        const asciiName = unidecode(userFirstName);
+        setValues.asciiName = asciiName;
+      } else {
+        const asciiName = await transliterate(userFirstName);
+        setValues.asciiName = asciiName;
+      }
+    } else {
+      setValues.asciiName = userFirstName;
+    }
 
     if (insertIfNotExist) {
       // Preferred: single round-trip UPSERT

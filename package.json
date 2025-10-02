@@ -41,6 +41,7 @@
     "remark-math": "^6.0.0",
     "server-only": "^0.0.1",
     "tailwind-merge": "^3.3.1",
+    "unidecode": "^1.1.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -50,6 +51,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/unidecode": "^1.1.0",
     "daisyui": "^5.0.50",
     "drizzle-kit": "^0.31.4",
     "eslint": "^9",
