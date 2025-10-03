@@ -155,6 +155,7 @@ export const userProfileCrud = createCrudServerAction({
       setValues.asciiName = userFirstName;
     }
 
+    let wrotePrefs = false;
     if (insertIfNotExist) {
       // Preferred: single round-trip UPSERT
       await db
@@ -164,21 +165,32 @@ export const userProfileCrud = createCrudServerAction({
           target: userProfileTable.userId,
           set: setValues,
         });
-      return true;
+      wrotePrefs = true;
+    } else {
+      // Otherwise, do a strict UPDATE only and report if nothing changed
+      const upd = await db
+        .update(userProfileTable)
+        .set(setValues)
+        .where(eq(userProfileTable.userId, user.id));
+
+      // Drizzle returns driver-specific metadata; try common shapes safely
+      const rowsAffected =
+        (upd as unknown as { rowsAffected?: number })?.rowsAffected ??
+        (upd as unknown as { changes?: number })?.changes ??
+        0;
+
+      wrotePrefs = rowsAffected > 0;
     }
 
-    // Otherwise, do a strict UPDATE only and report if nothing changed
-    const upd = await db
-      .update(userProfileTable)
-      .set(setValues)
-      .where(eq(userProfileTable.userId, user.id));
+    if (!wrotePrefs) return false;
 
-    // Drizzle returns driver-specific metadata; try common shapes safely
-    const rowsAffected =
-      (upd as unknown as { rowsAffected?: number })?.rowsAffected ??
-      (upd as unknown as { changes?: number })?.changes ??
-      0;
-
-    return rowsAffected > 0;
+    // Clerk: set flag that user profile was created
+    if (!user.publicMetadata.userProfileCreated) {
+      const updated = await users.updateUserMetadata(user.id, {
+        publicMetadata: { userProfileCreated: true },
+      });
+      if (!updated || !updated.publicMetadata.userProfileCreated) return false;
+    }
+    return true;
   },
 });

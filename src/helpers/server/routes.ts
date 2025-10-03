@@ -119,7 +119,7 @@ const routeSpecs: Map<
   ["CreateAccount", {
     pathRegExp: /^\/create_account$/, paramsTypeDef: undefined, searchParamsTypeDef: z.object({
       url: z.string().optional(),
-    }), isPublic: false
+    }), isPublic: true
   }],
   ["Login", { pathRegExp: /^\/login$/, paramsTypeDef: undefined, searchParamsTypeDef: z.object({ url: z.string().optional() }), isPublic: true }],
   ["Quest", { pathRegExp: /^\/quest\/(?<questId>[^/]+)$/, paramsTypeDef: z.object({ questId: z.string() }), searchParamsTypeDef: undefined, isPublic: false }],
