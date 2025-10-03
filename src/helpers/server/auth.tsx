@@ -14,6 +14,7 @@ export const user2SafeUser = (user: User): SafeUser =>
     lastName: user.lastName,
     fullName: user.fullName,
     hasImage: user.hasImage,
+    userProfileCreated: Boolean(user.publicMetadata.userProfileCreated),
     imageUrl: user.imageUrl,
   } as SafeUser);
 
