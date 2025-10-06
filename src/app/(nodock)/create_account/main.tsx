@@ -6,22 +6,12 @@ import { Button } from "@/components/button";
 import { LoadingElement } from "@/components/loading";
 import { MobileHeader } from "@/components/mobile_header";
 import { SafeUser } from "@/helpers/server/auth";
-import { useManageUserProfile } from "@/server_actions/client/profile/profile";
 import { useProfileFields } from "./useProfileFields";
 import { USER_PROFILE_DEFAULTS } from "@/helpers/client/constants";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { useGoto, useGotoHome } from "@/helpers/client/routes";
-
-const getBrowserTimeZone = () => {
-  try {
-    // Prefer the browser-reported IANA zone
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (tz && moment.tz.names().includes(tz)) return tz;
-  } catch {}
-  // Fallback: let moment guess; final fallback: UTC
-  const guessed = moment.tz.guess();
-  return moment.tz.names().includes(guessed) ? guessed : "UTC";
-};
+import { getBrowserTimeZone } from "@/helpers/client/time";
+import { useManageUserProfile } from "@/server_actions/client/create_account/userProfileCrud";
 
 function AvatarContainer({
   children,
