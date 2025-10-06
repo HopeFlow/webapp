@@ -3,7 +3,7 @@
 import { useGotoProfile } from "@/helpers/client/routes";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { SafeUser } from "@/helpers/server/auth";
-import { useClerk, useUser } from "@clerk/nextjs";
+import { useClerk } from "@clerk/nextjs";
 import Image from "next/image";
 
 export const UserAvatarAndMenu = ({
@@ -16,7 +16,9 @@ export const UserAvatarAndMenu = ({
   const { signOut } = useClerk();
 
   const handleSignOut = () => {
-    signOut();
+    signOut({
+      redirectUrl: "/login",
+    });
   };
   const gotoProfile = useGotoProfile();
   return (

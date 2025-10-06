@@ -3,14 +3,9 @@ import { getHopeflowDatabase } from "@/db";
 import { userProfileTable } from "@/db/schema";
 import { createCrudServerAction } from "@/helpers/server/create_server_action";
 import { eq } from "drizzle-orm";
-import {
-  clerkClientNoThrow,
-  currentUserNoThrow,
-  SafeUser,
-} from "@/helpers/server/auth";
-import unidecode from "unidecode";
+import { clerkClientNoThrow, currentUserNoThrow } from "@/helpers/server/auth";
 import { emailFrequencyDef } from "@/db/constants";
-import { transliterate } from "@/helpers/LLM";
+import { ensureCreatedFlag, upsertUserProfile } from "../common/profile";
 
 /**
  * Shape returned to the client. Keep this lean for the create screen.
@@ -24,20 +19,6 @@ export type ProfileRead =
       timezone: string;
       credence: string;
     };
-
-const checkIfAscii = (str: string) => {
-  for (let i = 0; i < str.length; i++) {
-    if (str.charCodeAt(i) > 127) {
-      return false;
-    }
-  }
-  return true;
-};
-
-const checkIfLatin = (str: string) => {
-  const latinRegex = /^[\u0000-\u024F\s\p{P}\p{S}]*$/u;
-  return latinRegex.test(str);
-};
 
 /**
  * Payload accepted by update. Keep fields optional so UI can send only what changed.
@@ -67,7 +48,7 @@ function splitName(full?: string | null): {
 
 export const userProfileCrud = createCrudServerAction({
   id: "manageUserProfile",
-  scope: "profile",
+  scope: "create_account",
 
   /**
    * READ — returns current user core fields + drizzle prefs (if any)
@@ -82,6 +63,12 @@ export const userProfileCrud = createCrudServerAction({
       .where(eq(userProfileTable.userId, user.id))
       .limit(1);
     if (!row) return { exists: false };
+    const client = await clerkClientNoThrow();
+    if (!client) {
+      console.error("clerkClientNoThrow failed");
+    } else {
+      await ensureCreatedFlag(client!.users, user.id, user.publicMetadata);
+    }
     return {
       exists: true,
       emailEnabled: row.emailEnabled,
@@ -94,19 +81,15 @@ export const userProfileCrud = createCrudServerAction({
   /**
    * UPDATE
    */
-  update: async (
-    data: ProfileUpdateInput,
-    insertIfNotExist: boolean = true,
-  ): Promise<boolean> => {
+  update: async (data: ProfileUpdateInput): Promise<boolean> => {
     const user = await currentUserNoThrow();
     const client = await clerkClientNoThrow();
     if (!user || !client) return false;
 
-    const db = await getHopeflowDatabase();
     const users = client.users;
 
-    let userFirstName = "";
-    // Clerk: name ───────────────────────────────────────────────────────────
+    // ── 1) write Clerk name/photo when provided
+    let firstNameRaw = user.firstName || "";
     if (typeof data.name === "string") {
       const { firstName, lastName } = splitName(data.name);
       const updated = await users.updateUser(user.id, { firstName, lastName });
@@ -114,12 +97,9 @@ export const userProfileCrud = createCrudServerAction({
         (firstName === undefined || updated.firstName === firstName) &&
         (lastName === undefined || updated.lastName === lastName);
       if (!okName) return false;
-      else {
-        userFirstName = firstName!.split(" ")[0];
-      }
+      firstNameRaw = firstName || firstNameRaw;
     }
 
-    // Clerk: photo ──────────────────────────────────────────────────────────
     if (data.photo instanceof File) {
       const updated = await users.updateUserProfileImage(user.id, {
         file: data.photo,
@@ -127,58 +107,27 @@ export const userProfileCrud = createCrudServerAction({
       if (!updated.hasImage) return false;
     }
 
-    // Drizzle: prefs upsert/update (only if any prefs present)
+    // ── 2) Prefs (any of them provided) — delegate to shared upsert
     const wantsPrefsUpdate =
       data.emailEnabled !== undefined ||
       data.emailFrequency !== undefined ||
       data.timezone !== undefined;
 
-    if (!wantsPrefsUpdate) return true;
-
-    // Build partial values without undefineds
-    const setValues: Partial<typeof userProfileTable.$inferInsert> = {};
-    if (data.emailEnabled !== undefined)
-      setValues.emailEnabled = data.emailEnabled;
-    if (data.emailFrequency !== undefined)
-      setValues.emailFrequency = data.emailFrequency;
-    if (data.timezone !== undefined) setValues.timezone = data.timezone;
-
-    if (!checkIfAscii(userFirstName)) {
-      if (checkIfLatin(userFirstName)) {
-        const asciiName = unidecode(userFirstName);
-        setValues.asciiName = asciiName;
-      } else {
-        const asciiName = await transliterate(userFirstName);
-        setValues.asciiName = asciiName;
-      }
-    } else {
-      setValues.asciiName = userFirstName;
+    if (wantsPrefsUpdate) {
+      await upsertUserProfile(
+        user.id,
+        {
+          emailEnabled: data.emailEnabled,
+          emailFrequency: data.emailFrequency as any,
+          timezone: data.timezone,
+        },
+        firstNameRaw,
+      );
     }
 
-    if (insertIfNotExist) {
-      // Preferred: single round-trip UPSERT
-      await db
-        .insert(userProfileTable)
-        .values({ userId: user.id, ...setValues })
-        .onConflictDoUpdate({
-          target: userProfileTable.userId,
-          set: setValues,
-        });
-      return true;
-    }
+    // ── 3) Ensure metadata flag
+    await ensureCreatedFlag(client.users, user.id, user.publicMetadata);
 
-    // Otherwise, do a strict UPDATE only and report if nothing changed
-    const upd = await db
-      .update(userProfileTable)
-      .set(setValues)
-      .where(eq(userProfileTable.userId, user.id));
-
-    // Drizzle returns driver-specific metadata; try common shapes safely
-    const rowsAffected =
-      (upd as unknown as { rowsAffected?: number })?.rowsAffected ??
-      (upd as unknown as { changes?: number })?.changes ??
-      0;
-
-    return rowsAffected > 0;
+    return true;
   },
 });

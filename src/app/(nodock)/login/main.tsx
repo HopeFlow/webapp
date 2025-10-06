@@ -126,13 +126,18 @@ export function LoginMain({
 
   // Handle OAuth
   const handleSigninWith = async (strategy: OAuthStrategy) => {
+    console.log("handleSigninWith", strategy);
     if (!isSignInLoaded || !signIn) return;
     const redirectUrl = currentUrl;
-    await signIn.authenticateWithRedirect({
-      strategy,
-      redirectUrl,
-      redirectUrlComplete: redirectUrl,
-    });
+    try {
+      await signIn.authenticateWithRedirect({
+        strategy,
+        redirectUrl,
+        redirectUrlComplete: redirectUrl,
+      });
+    } catch (err) {
+      console.error("handleSigninWith error", err);
+    }
   };
 
   // Auto-resume "transferable" cases (external account exists / needs transfer)

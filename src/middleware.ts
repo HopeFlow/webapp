@@ -1,8 +1,9 @@
 // middleware.ts
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { clerkClient, clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { isPublicUrl } from "@/helpers/server/routes"; // generated
 import { X_CUR_URL_HEADER } from "./helpers/server/constants";
+import { clerkClientNoThrow } from "./helpers/server/auth";
 
 function getBaseUrl(req: Request): string {
   const h = req.headers;
@@ -22,10 +23,24 @@ export default clerkMiddleware(async (auth, request) => {
   }
 
   const { userId } = await auth();
-  if (!userId) {
+  let userProfileCreated = false;
+  if (userId) {
+    try {
+      const user = await (await clerkClientNoThrow())?.users.getUser(userId);
+      userProfileCreated = Boolean(user?.publicMetadata.userProfileCreated);
+    } catch {
+      console.error("Error fetching user");
+      // If there's an error fetching the user, treat as not created
+      userProfileCreated = false;
+    }
+  }
+
+  if (!userId || !userProfileCreated) {
     const base = getBaseUrl(request);
     const returnTo = `${pathname}${search || ""}`;
-    const loginPath = `/login?url=${encodeURIComponent(returnTo)}`;
+    const loginPath = `/${
+      userId ? "create_account" : "login"
+    }?url=${encodeURIComponent(returnTo)}`;
     return NextResponse.redirect(new URL(loginPath, base));
   }
 

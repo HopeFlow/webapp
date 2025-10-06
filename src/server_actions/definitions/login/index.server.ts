@@ -4,8 +4,8 @@ import "server-only";
 import { getHopeflowDatabase } from "@/db";
 import { defineServerFunction } from "@/helpers/server/define_server_function";
 
-export const isAccountCreated = defineServerFunction({
-  id: "isAccountCreated",
+export const isUserProfileCreated = defineServerFunction({
+  id: "isUserProfileCreated",
   scope: "login",
   handler: async (userId: string) => {
     const db = await getHopeflowDatabase();
