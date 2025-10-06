@@ -3,8 +3,8 @@ import { eq } from "drizzle-orm";
 import { USER_PROFILE_DEFAULTS } from "@/helpers/client/constants";
 import { getHopeflowDatabase } from "@/db";
 import unidecode from "unidecode";
-import { transliterate } from "@/helpers/LLM";
 import { userProfileTable } from "@/db/schema";
+import { transliterate } from "@/helpers/server/LLM";
 
 export type UserPreferences = {
   emailEnabled?: boolean;
