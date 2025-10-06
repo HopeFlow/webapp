@@ -2,7 +2,7 @@ import { z } from "zod";
 import { CreateAccountMain } from "./main";
 import { publicPage, withParamsAndUser } from "@/helpers/server/page_component";
 import { user2SafeUser } from "@/helpers/server/auth";
-import { redirectToHome } from "@/helpers/server/routes";
+import { redirectToHome, redirectToLogin } from "@/helpers/server/routes";
 import { userProfileCrud } from "@/server_actions/definitions/create_account";
 
 const hasAlreadyCreatedProfile = async () => {
@@ -13,7 +13,10 @@ const hasAlreadyCreatedProfile = async () => {
 export default publicPage(
   withParamsAndUser(
     async function createAccount({ url, user }) {
-      if (!user) return null;
+      if (!user) {
+        redirectToLogin({ url });
+        return;
+      }
       const safeUser = user2SafeUser(user);
 
       // If the user has already created a profile and command is "create", redirect to the home page

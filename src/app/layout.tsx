@@ -1,10 +1,10 @@
-import { HopeflowLogo } from "@/components/logos/hopeflow";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import Providers from "./providers";
 import "./daisyui.css";
 import "./globals.css";
+import SplashScreen from "./splashScreen";
 
 const geistSans = Geist({
   variable: "--font-hopeflow-sans",
@@ -20,15 +20,6 @@ export const metadata: Metadata = {
   title: "Hopeflow",
   description: "Spread the ask, amplify the find",
 };
-
-const SplashScreen = () => (
-  <div
-    data-testid="splashScreen"
-    className="flex-1 flex h-full w-full items-center justify-center bg-[#12a17d]"
-  >
-    <HopeflowLogo size={100} fillColor="#f8f8f8" />
-  </div>
-);
 
 export default function RootLayout({
   children,

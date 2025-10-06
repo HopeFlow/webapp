@@ -115,7 +115,7 @@ const routeSpecs: Map<
   ["Notifications", { pathRegExp: /^\/notifications$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
   ["Profile", { pathRegExp: /^\/profile$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
   ["Trophies", { pathRegExp: /^\/trophies$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
-  ["Index", { pathRegExp: /^\/$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
+  ["Index", { pathRegExp: /^\/$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: true }],
   ["CreateAccount", {
     pathRegExp: /^\/create_account$/, paramsTypeDef: undefined, searchParamsTypeDef: z.object({
       url: z.string().optional(),

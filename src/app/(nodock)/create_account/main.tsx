@@ -266,6 +266,7 @@ export function CreateAccountMain({
                       onClick={requestBrowserPermission}
                       checked={browserPermission === "granted"}
                       disabled={browserPermission !== "default"}
+                      readOnly
                     />
                   </div>
                 </div>

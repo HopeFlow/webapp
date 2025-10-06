@@ -1,11 +1,13 @@
 "use client";
 
 import { usePersistentState } from "@/app/(nodock)/(root)/persistent_state";
+import SplashScreen from "@/app/splashScreen";
 import { Button, CloseButton, GhostButton } from "@/components/button";
 import { ArrowLeftIcon } from "@/components/icons/arrow_left";
 import { Steps } from "@/components/steps";
 import { useGotoLogin } from "@/helpers/client/routes";
 import Image from "next/image";
+import { useEffect, useMemo } from "react";
 
 const onboardingSteps = [
   {
@@ -62,31 +64,56 @@ const onboardingSteps = [
 ] as const;
 
 export default function Onboarding() {
-  const [onboardingStepIndex, setOnboardingStepIndex] = usePersistentState(
-    "root.onboardingStepIndex",
-    0,
+  const [onboardingStepIndex, setOnboardingStepIndex, loaded] =
+    usePersistentState("root.onboardingStepIndex", 0);
+  // Clamp to valid range before reading the step
+  const clampedIndex = useMemo(
+    () =>
+      Math.max(0, Math.min(onboardingSteps.length - 1, onboardingStepIndex)),
+    [onboardingStepIndex],
+  );
+  const [dismissed, setDismissed] = usePersistentState(
+    "root.dismissedOnboarding",
+    false,
   );
   const gotoLogin = useGotoLogin();
+
+  useEffect(() => {
+    if (dismissed) {
+      gotoLogin({});
+    }
+  }, [dismissed, gotoLogin]);
+
+  if (!loaded) return <SplashScreen />;
+  if (dismissed) return null;
+
   const { image, title, shortDescription, description } =
-    onboardingSteps[onboardingStepIndex];
+    onboardingSteps[clampedIndex];
+
   return (
     <div className="flex-1 flex flex-col p-6 items-center justify-start w-full h-full">
       <div className="flex w-full flex-row gap-4 items-center h-12">
         <GhostButton
           onClick={() =>
-            setOnboardingStepIndex((prevStepIndex) =>
-              prevStepIndex > 0 ? prevStepIndex - 1 : 0,
-            )
+            setOnboardingStepIndex(clampedIndex > 0 ? clampedIndex - 1 : 0)
           }
         >
           <ArrowLeftIcon />
         </GhostButton>
         <Steps
           numberOfSteps={onboardingSteps.length}
-          currentStep={onboardingStepIndex}
-          onClick={(step) => setOnboardingStepIndex(step)}
+          currentStep={clampedIndex}
+          onClick={(step) =>
+            setOnboardingStepIndex(
+              Math.max(0, Math.min(onboardingSteps.length - 1, step)),
+            )
+          }
         />
-        <CloseButton />
+        <CloseButton
+          onClick={() => {
+            setDismissed(true);
+          }}
+        />
       </div>
       <div className="flex-1 flex flex-col p-6 items-center justify-start max-w-5xl">
         <div className="flex-1 flex w-full max-h-full overflow-auto flex-col-reverse md:flex-row gap-2 md:gap-16 justify-end items-center md:items-start">
@@ -112,8 +139,13 @@ export default function Onboarding() {
           </div>
         </div>
         <div className="flex w-full flex-row gap-4 items-center justify-center h-12">
-          {(onboardingStepIndex === onboardingSteps.length - 1 && (
-            <Button className="flex-1" onClick={() => gotoLogin({ url: "" })}>
+          {(clampedIndex === onboardingSteps.length - 1 && (
+            <Button
+              className="flex-1"
+              onClick={() => {
+                setDismissed(true);
+              }}
+            >
               Get started!
             </Button>
           )) || (
@@ -133,7 +165,9 @@ export default function Onboarding() {
               <Button
                 className="flex-1"
                 buttonType="neutral"
-                onClick={() => gotoLogin({ url: "" })}
+                onClick={() => {
+                  setDismissed(true);
+                }}
               >
                 Skip
               </Button>
