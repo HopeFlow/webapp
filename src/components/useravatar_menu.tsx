@@ -16,7 +16,9 @@ export const UserAvatarAndMenu = ({
   const { signOut } = useClerk();
 
   const handleSignOut = () => {
-    signOut();
+    signOut({
+      redirectUrl: "/login",
+    });
   };
   const gotoProfile = useGotoProfile();
   return (
