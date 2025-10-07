@@ -8,8 +8,8 @@ import {
 } from "../common/profile";
 
 export const userProfileCrud = createCrudServerAction({
-  id: "createAccount",
-  scope: "create_account",
+  id: "Profile",
+  scope: "profile",
 
   /**
    * READ — returns current user core fields + drizzle prefs (if any)
