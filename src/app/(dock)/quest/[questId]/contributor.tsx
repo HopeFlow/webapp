@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { MobileHeader } from "@/components/mobile_header";
 import { Button, GhostButton } from "@/components/button";
-import { Carousel } from "@/components/carousel";
+import { MediaCarousel } from "@/components/media_carousel";
 import { Avatar, AvatarGroup } from "@/components/user_avatar";
 import { ReadMore } from "@/components/read_more";
 import { ReflowTree } from "@/components/reflow_tree";
@@ -30,7 +30,7 @@ export function QuestContributorView() {
         </div>
         <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-stretch">
           <div className="md:w-2/3 flex flex-col gap-4 justify-center">
-            <Carousel className="outline-base-content outline-2 flex-1">
+            <MediaCarousel className="outline-base-content outline-2 flex-1">
               <Image
                 src="https://pub-7027dcead7294deeacde6da1a50ed32f.r2.dev/trek-520-grando-51cm-v0.jpeg"
                 width={403.2}
@@ -45,7 +45,7 @@ export function QuestContributorView() {
                 alt="Trek 520 Grando"
                 className="w-auto object-contain"
               />
-            </Carousel>
+            </MediaCarousel>
             <div className="p-4 text-sm md:text-lg flex flex-row md:flex-row items-center gap-4 rounded-box bg-base-300">
               <div>
                 <b className="text-amber-700">Withering </b>

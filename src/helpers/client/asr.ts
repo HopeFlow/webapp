@@ -91,10 +91,6 @@ export const useSpeechRecognitionEngine = (
       let finalTranscript = "";
       let interimTranscript = "";
       totalItemCount = e.results.length;
-      console.log({
-        processedItemCount,
-        totalItemCount,
-      });
       for (let i = processedItemCount; i < e.results.length; i++) {
         const result = e.results[i];
         const alternative = result[0];
@@ -112,16 +108,6 @@ export const useSpeechRecognitionEngine = (
               : "") + alternative.transcript.trim();
         }
       }
-      console.log({
-        finalTranscript,
-        interimTranscript,
-      });
-      console.log({
-        results: Array.from(e.results).map((r) => ({
-          f: r.isFinal,
-          t: r[0].transcript,
-        })),
-      });
       if (finalTranscript !== "") {
         if (finalTranscript.toLowerCase() === "stop") asr.stop();
         else {

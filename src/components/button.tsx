@@ -64,6 +64,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
+      type="button"
       className={cn(
         className,
         "btn",
@@ -83,10 +84,15 @@ export function Button({
 export function GhostButton({
   className,
   children,
+  circle,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement>) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { circle?: boolean }) {
   return (
-    <button className={cn(className, "btn btn-ghost")} {...props}>
+    <button
+      type="button"
+      className={cn(className, "btn btn-ghost", circle && "btn-circle")}
+      {...props}
+    >
       {children}
     </button>
   );
@@ -97,7 +103,7 @@ export function CloseButton({
   ...restProps
 }: Exclude<ButtonHTMLAttributes<HTMLButtonElement>, "children">) {
   return (
-    <GhostButton className={cn(className, "p-0")} {...restProps}>
+    <GhostButton className={cn(className, "p-0")} circle {...restProps}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         fill="none"

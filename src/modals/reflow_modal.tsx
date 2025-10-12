@@ -112,7 +112,7 @@ const Step2 = () => {
           alt="man filling name"
           className="max-h-full w-auto object-contain"
         />
-        <div className="flex-1 h-[50%] border-b-[3px] border-[#2bf1e8]"></div>
+        <div className="flex-1 h-1/2 border-b-[3px] border-[#2bf1e8]"></div>
         <Image
           src="/img/man_link_sent_to.png"
           width={302}

@@ -1,81 +1,164 @@
+import { cn } from "@/helpers/client/tailwind_helpers";
 import {
-  useId,
   type DetailedHTMLProps,
   type HTMLAttributes,
-  type ReactNode,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
 } from "react";
-import { ArrowLeftIcon } from "./icons/arrow_left";
-import { ArrowRightIcon } from "./icons/arrow_right";
-import { cn } from "@/helpers/client/tailwind_helpers";
-
-const CarouselItem = ({
-  content,
-  baseId,
-  index,
-  prevIndex,
-  nextIndex,
-}: {
-  content: ReactNode;
-  baseId: string;
-  index: number;
-  prevIndex: number;
-  nextIndex: number;
-}) => (
-  <div id={`${baseId}_slide${index}`} className="carousel-item relative w-full">
-    <div className="w-full flex flex-col justify-center items-center">
-      {content}
-    </div>
-    <div className="absolute left-5 right-5 top-1/2 flex -translate-y-1/2 transform justify-between">
-      <a
-        href={`#${baseId}_slide${prevIndex}`}
-        className="btn btn-circle opacity-60 hover:opacity-100"
-      >
-        <ArrowLeftIcon />
-      </a>
-      <a
-        href={`#${baseId}_slide${nextIndex}`}
-        className="btn btn-circle opacity-60 hover:opacity-100"
-      >
-        <ArrowRightIcon />
-      </a>
-    </div>
-  </div>
-);
 
 export type CarouselProps = DetailedHTMLProps<
   HTMLAttributes<HTMLDivElement>,
   HTMLDivElement
->;
+> & {
+  childClassName?: string;
+  itemIndex: number;
+  onItemIndexChange?: (index: number) => void;
+};
 
 export const Carousel = ({
   children,
   className,
+  onItemIndexChange,
+  childClassName,
+  itemIndex,
   ...restProps
 }: CarouselProps) => {
   const baseId = useId();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const lastReportedIndexRef = useRef<number>(-1);
+
+  const childArray = (Array.isArray(children) ? children : [children]).filter(
+    (c) => c !== null && c !== undefined,
+  );
+  const maxIndex = Math.max(0, childArray.length - 1);
+  const clampedPropIndex = Math.min(Math.max(0, itemIndex), maxIndex);
+  useEffect(() => {
+    lastReportedIndexRef.current = clampedPropIndex;
+  }, [clampedPropIndex]);
+
+  // Compute which child is closest to the container's horizontal center
+  const computeCenteredIndex = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return -1;
+
+    const items = Array.from(
+      el.querySelectorAll<HTMLElement>(":scope > .carousel-item"),
+    );
+    if (items.length === 0) return -1;
+
+    const rect = el.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < items.length; i++) {
+      const r = items[i].getBoundingClientRect();
+      const itemCenterX = r.left + r.width / 2;
+      const dist = Math.abs(itemCenterX - centerX);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }, []);
+
+  // Throttled scroll handler using rAF
+  const handleScrollInternal = useCallback(() => {
+    if (rafIdRef.current != null) return; // already queued
+    rafIdRef.current = window.requestAnimationFrame(() => {
+      rafIdRef.current = null;
+      const idx = computeCenteredIndex();
+      if (
+        idx !== -1 &&
+        idx !== lastReportedIndexRef.current &&
+        onItemIndexChange
+      ) {
+        lastReportedIndexRef.current = idx;
+        onItemIndexChange(idx);
+      }
+    });
+  }, [computeCenteredIndex, onItemIndexChange]);
+
+  // Attach scroll listener (passive) and resize observer
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    el.addEventListener("scroll", handleScrollInternal, { passive: true });
+
+    // Recompute on resize (responsive)
+    const ro = new ResizeObserver(() => handleScrollInternal());
+    ro.observe(el);
+    Array.from(el.querySelectorAll<HTMLElement>(".carousel-item")).forEach(
+      (it) => ro.observe(it),
+    );
+
+    // Initial computation after mount
+    handleScrollInternal();
+
+    return () => {
+      el.removeEventListener("scroll", handleScrollInternal);
+      ro.disconnect();
+      if (rafIdRef.current != null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+    };
+  }, [handleScrollInternal]);
+
+  // When children set changes, recompute centered index once
+  useEffect(() => {
+    handleScrollInternal();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [childArray.length]);
+
+  // Imperative scroll when the controlled prop changes
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const items = Array.from(
+      el.querySelectorAll<HTMLElement>(":scope > .carousel-item"),
+    );
+    const target = items[clampedPropIndex];
+    if (!target) return;
+
+    // Only scroll if we’re not already centered on this child
+    const current = computeCenteredIndex();
+    if (current !== clampedPropIndex) {
+      target.scrollIntoView({
+        block: "nearest",
+        inline: "center",
+        behavior: "smooth",
+      });
+    }
+  }, [clampedPropIndex, computeCenteredIndex]);
+
   return (
     <div
       className={cn(
+        "w-full h-full carousel carousel-horizontal carousel-center",
         className,
-        "carousel",
-        "bg-base-content text-base-100 border-base-300",
-        "rounded-box overflow-hidden",
       )}
+      role="listbox"
+      ref={containerRef}
       {...restProps}
     >
-      {children &&
-        (Array.isArray(children) ? children : [children]).map(
-          (child, index, children) => (
-            <CarouselItem
-              key={`${baseId}_item${index}`}
-              baseId={baseId}
-              content={child}
-              index={index}
-              prevIndex={index === 0 ? children.length - 1 : index - 1}
-              nextIndex={index === children.length - 1 ? 0 : index + 1}
-            />
-          ),
-        )}
+      {childArray.map((child, index) => (
+        <div
+          role="option"
+          aria-selected={index === clampedPropIndex}
+          key={child.key ?? `${baseId}_item${index}`}
+          data-index={index}
+          className={cn("w-full relative carousel-item", childClassName)}
+        >
+          {child}
+        </div>
+      ))}
     </div>
   );
 };

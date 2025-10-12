@@ -4,7 +4,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
 import Providers from "./providers";
-import { JsxElement } from "ts-morph";
 
 const geistSans = Geist({
   variable: "--font-hopeflow-sans",

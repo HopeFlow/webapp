@@ -101,7 +101,7 @@ export default function Onboarding() {
               </p>
             ))}
           </div>
-          <div className="h-56 overflow-hidden md:max-w-[50%] md:h-full flex items-center justify-center">
+          <div className="h-56 overflow-hidden md:max-w-1/2 md:h-full flex items-center justify-center">
             <Image
               src={image.src}
               alt={image.alt}

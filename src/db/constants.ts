@@ -54,3 +54,18 @@ export const socialMediaNames = [
   "unknown",
 ] as const;
 export const emailFrequencyDef = ["immediate", "daily", "weekly"] as const;
+export type ScreeningQuestion = {
+  question: string;
+  answerRequired: boolean;
+  answer: string;
+};
+
+export type ScreeningAnswer = { questionIndex: number; answer: string; };
+
+export type QuestMedia = {
+  url: string;
+  width: number;
+  height: number;
+  alt: string;
+  type: "image" | "video";
+};

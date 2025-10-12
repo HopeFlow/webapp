@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { Button, CloseButton } from "./button";
 import { cn } from "@/helpers/client/tailwind_helpers";
 
@@ -10,13 +10,28 @@ export type ModalButtonProps = {
   onClick?: (close: () => void) => void;
 };
 
-export const showModal = (id: string) => {
-  const modal = document.getElementById(id) as HTMLDialogElement | null;
+export const showModal = (idOrRef: string | HTMLDialogElement | null) => {
+  const modal =
+    typeof idOrRef === "string"
+      ? (document.getElementById(idOrRef) as HTMLDialogElement | null)
+      : idOrRef;
   if (!modal) {
-    // TODO: handle the error
+    // TODO: handle the error (if idOrRef is string)
     return;
   }
   modal.showModal();
+};
+
+type ModalProps = {
+  id?: string;
+  header?: React.ReactNode;
+  children?: React.ReactNode;
+  defaultButton: ModalButtonProps;
+  cancelButton: ModalButtonProps;
+  restButtons?: ModalButtonProps[];
+  containerClassName?: string;
+  onClose?: () => void;
+  ref?: React.Ref<HTMLDialogElement | null>;
 };
 
 export const Modal = ({
@@ -28,23 +43,32 @@ export const Modal = ({
   restButtons,
   containerClassName,
   onClose,
-}: {
-  id: string;
-  header?: React.ReactNode;
-  children?: React.ReactNode;
-  defaultButton: ModalButtonProps;
-  cancelButton: ModalButtonProps;
-  restButtons?: ModalButtonProps[];
-  containerClassName?: string;
-  onClose?: () => void;
-}) => {
-  const close = useCallback(
-    () => (document.getElementById(id) as HTMLDialogElement).close(),
-    [id],
-  );
+  ref,
+}: ModalProps) => {
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const close = useCallback(() => dialogRef.current?.close(), [id]);
   return (
-    <dialog id={id} onClose={onClose} className="modal">
-      <div className="modal-box w-[calc(100%-2rem)] md:w-auto h-[calc(100%-2rem)] max-w-4xl md:h-auto flex flex-col gap-2 md:gap-4">
+    <dialog
+      ref={(dialog) => {
+        dialogRef.current = dialog;
+        if (typeof ref === "function") {
+          ref(dialog);
+        } else if (ref) {
+          ref.current = dialog;
+        }
+      }}
+      id={id}
+      onClose={onClose}
+      className="modal left-0 top-0 w-full h-full"
+    >
+      <div
+        className={cn(
+          "modal-box w-[calc(100%-2rem)]",
+          "md:w-auto h-[calc(100%-2rem)]",
+          "max-w-4xl md:h-auto",
+          "flex flex-col gap-2 md:gap-4",
+        )}
+      >
         <div className="flex flex-row gap-2 items-center justify-end">
           {header}
           <CloseButton onClick={close} />

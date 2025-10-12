@@ -1,5 +1,5 @@
 import { Button } from "@/components/button";
-import { Carousel } from "@/components/carousel";
+import { MediaCarousel } from "@/components/media_carousel";
 import { ArrowRightIcon } from "@/components/icons/arrow_right";
 import { Leaf } from "@/components/leaf";
 import { cn } from "@/helpers/client/tailwind_helpers";
@@ -48,7 +48,7 @@ export function StarterQuestCard({
       <StarterQuestCardNodes nodes={nodes} />
       <div className="flex-1 flex flex-col gap-2 items-start">
         <h1>{title}</h1>
-        <Carousel className="w-full h-48 md:h-96 flex flex-col items-center justify-center rounded-box overflow-hidden bg-base-content">
+        <MediaCarousel className="w-full h-48 md:h-96 flex flex-col items-center justify-center rounded-box overflow-hidden bg-base-content">
           {coverMedia.map(
             ({ imageUrl, alt, imageWidth, imageHeight }, index) => (
               <Image
@@ -61,7 +61,7 @@ export function StarterQuestCard({
               />
             ),
           )}
-        </Carousel>
+        </MediaCarousel>
         <div className="w-full flex flex-row">
           <span className="h-full inline-flex flex-row items-center gap-2">
             $ +{Math.max(0, bounty)}
@@ -157,7 +157,7 @@ export function ContributorQuestCard({
         </div>
         <div className="flex-1 flex flex-col gap-2 items-start">
           <h1>{title}</h1>
-          <Carousel className="w-full h-48 md:h-96 flex flex-col items-center justify-center rounded-box overflow-hidden bg-base-content">
+          <MediaCarousel className="w-full h-48 md:h-96 flex flex-col items-center justify-center rounded-box overflow-hidden bg-base-content">
             {coverMedia.map(
               ({ imageUrl, alt, imageWidth, imageHeight }, index) => (
                 <Image
@@ -170,7 +170,7 @@ export function ContributorQuestCard({
                 />
               ),
             )}
-          </Carousel>
+          </MediaCarousel>
         </div>
       </div>
       <div className="h-auto flex-1 flex flex-row gap-2">

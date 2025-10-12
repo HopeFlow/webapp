@@ -1,402 +1,171 @@
 "use server";
 
-import { z, ZodError } from "zod";
+import OpenAI from "openai";
+import { z } from "zod";
+import { zodTextFormat } from "openai/helpers/zod";
+import { defineServerFunction } from "./define_server_function";
 
-/** --- Common helpers --- */
+const getTransliteratePrompt = (inputName: string) =>
+  `
+transliterate "${inputName}" as a sequence of ASCII characters.
+OUTPUT ONLY THE TRANSLITERATION WITHOUT ANY EXTRA TEXT OR INFORMATION.
+`;
 
-// Throw a ZodError that "feels" like .parse() failures
-function zodFail(message: string, path: (string | number)[] = []): never {
-  throw new ZodError([
-    {
-      code: "custom",
-      message,
-      path,
-    },
-  ]);
-}
-
-// Try parsing `u` with schema `S`, but if it looks like an API error object,
-// convert it to a ZodError with the server's message.
-function parseOrZod<S extends z.ZodTypeAny>(
-  schema: S,
-  u: unknown,
-  path: (string | number)[] = [],
-) {
-  // If it looks like { error: { message } }, surface it as a ZodError
-  const errRes = ErrorResponseSchema.safeParse(u);
-  if (errRes.success) {
-    const msg = errRes.data.error.message || "Unknown AI error";
-    zodFail(msg, path);
-  }
-
-  // Otherwise validate the expected shape
-  const parsed = schema.safeParse(u);
-  if (!parsed.success) {
-    // Re-throw the exact ZodError to preserve error formatting & paths
-    throw parsed.error;
-  }
-  return parsed.data as z.infer<S>;
-}
-
-/** --- Error response (Cloudflare/OpenAI-compatible) --- */
-const ErrorResponseSchema = z.object({
-  error: z.object({
-    message: z.string().default(""),
-    code: z.union([z.string(), z.number()]).optional(),
-    type: z.string().optional(),
-    param: z.unknown().optional(),
-  }),
+export const transliterate = defineServerFunction({
+  handler: async (inputName: string) => {
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+    const response = await openai.responses.create({
+      model: "gpt-5-nano",
+      input: getTransliteratePrompt(inputName),
+    });
+    return response.output_text;
+  },
+  id: "transliterate",
+  scope: "global::llm",
 });
 
-/** --- Message content parts (keep broad) --- */
-const CfChatRole = z.enum(["system", "user", "assistant", "tool", "function"]);
+const createQuestChatSystemPrompt = `
+You are an expert counselor who helps people clarify what they are looking for so they can efficiently leverage their social connections to find it.
+The user will describe what they are searching for. Do the following:
+1. Decide if the information so far is sufficient for another person to clearly understand the user's need.
+2. Consider a few possible clarifying questions.
+3. Ask exactly ONE best clarifying question (short and specific).
+4. If the quest is crystal clear, generate no questions and just report that the quest is clear
+IMPORTANT:
+- Follow each message  with four (4) empty lines and then a number between 0 and 100. This number designates a clarity score.
+- The tool is logging-only. Do NOT wait for any response from it
+`;
 
-const CfChatCompletionContentPartSchema = z.union([
-  z.object({ type: z.literal("text"), text: z.string() }),
-  z.object({
-    type: z.literal("image_url"),
-    image_url: z.union([
-      z.string(),
-      z.object({
-        url: z.string(),
-        detail: z.enum(["low", "high", "auto"]).optional(),
-      }),
-    ]),
-  }),
-]);
-
-/** --- Assistant message (non-stream) --- */
-const AssistantMessageSchema = z.object({
-  role: z.literal("assistant"),
-  content: z.union([z.string(), z.null()]), // CF compat: may be null in some cases
-  refusal: z.any().nullable().optional(),
-  annotations: z.any().nullable().optional(),
-  audio: z.any().nullable().optional(),
-  function_call: z.any().nullable().optional(),
-  tool_calls: z.array(z.any()).default([]),
-  reasoning_content: z.string().optional().nullable(),
-});
-
-/** --- Choice (non-stream) --- */
-const FinishReason = z
-  .enum(["stop", "length", "content_filter", "tool_calls"])
-  .nullable()
-  .optional();
-
-const ChoiceSchema = z.object({
-  index: z.number(),
-  message: AssistantMessageSchema,
-  logprobs: z.any().nullable().optional(),
-  finish_reason: FinishReason,
-  stop_reason: z.string().nullable().optional(), // some providers include this
-});
-
-/** --- Usage (tokens) --- */
-const UsageSchema = z
-  .object({
-    prompt_tokens: z.number(),
-    completion_tokens: z.number(),
-    total_tokens: z.number(),
-  })
-  .partial()
-  .transform((u) => u); // some providers omit fields
-
-/** --- ChatCompletion (non-stream) --- */
-const CfChatCompletionSchema = z.object({
-  id: z.string(),
-  object: z.literal("chat.completion"),
-  created: z.number(),
-  model: z.string(),
-  choices: z.array(ChoiceSchema).min(1),
-  usage: UsageSchema.optional(),
-});
-
-/** --- Streaming chunk --- */
-// Delta format: OpenAI-compatible
-const DeltaSchema = z
-  .object({
-    role: CfChatRole.optional(),
-    content: z.string().optional(),
-    // tolerate vendor extras:
-  })
-  .passthrough();
-
-const StreamChoiceSchema = z.object({
-  index: z.number(),
-  delta: DeltaSchema.optional(), // normal token chunks
-  message: AssistantMessageSchema.optional(), // some vendors send full message snapshots
-  logprobs: z.any().nullable().optional(),
-  finish_reason: FinishReason,
-  stop_reason: z.string().nullable().optional(),
-});
-
-const CfChatCompletionChunkSchema = z
-  .object({
-    id: z.string(),
-    object: z.literal("chat.completion.chunk"),
-    created: z.number(),
-    model: z.string(),
-    choices: z.array(StreamChoiceSchema).min(1),
-    usage: UsageSchema.optional(),
-  })
-  .passthrough();
-
-/** --- Request params (lightly validated at runtime) --- */
-const CfOpenAIChatCreateParamsSchema = z
-  .object({
-    model: z.string(),
-    messages: z.array(
-      z.object({
-        role: CfChatRole,
-        content: z.union([
-          z.string(),
-          z.array(CfChatCompletionContentPartSchema),
-        ]),
-        name: z.string().optional(),
-      }),
-    ),
-    stream: z.literal(false).optional(),
-  })
-  .passthrough();
-
-const CfOpenAIChatCreateParamsStreamingSchema =
-  CfOpenAIChatCreateParamsSchema.extend({ stream: z.literal(true) });
-
-async function* SseToGenerator(
-  response: Response,
-): AsyncGenerator<
-  { event?: string; data: string; id?: string },
-  void,
-  unknown
-> {
-  if (!response.body) zodFail("No response body to read (SSE).");
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    // Split on blank line (SSE delimiter). Support both \n\n and \r\n\r\n
-    let start = 0;
-    while (true) {
-      const sepN = buffer.indexOf("\n\n", start);
-      const sepR = buffer.indexOf("\r\n\r\n", start);
-      const sep = sepR !== -1 && (sepN === -1 || sepR < sepN) ? sepR : sepN;
-      if (sep === -1) {
-        buffer = buffer.slice(start);
-        break;
-      }
-      const block = buffer.slice(start, sep);
-      start = sep + (sep === sepR ? 4 : 2);
-
-      const evt = parseSSEBlock(block);
-      if (evt) yield evt;
-    }
-  }
-
-  // Flush any trailing block (no final blank line)
-  if (buffer.trim().length) {
-    const evt = parseSSEBlock(buffer);
-    if (evt) yield evt;
-  }
-
-  function parseSSEBlock(block: string) {
-    const lines = block.split(/\r?\n/);
-    let event: string | undefined;
-    let id: string | undefined;
-    const dataLines: string[] = [];
-
-    for (const raw of lines) {
-      if (!raw || raw.startsWith(":")) continue;
-      const idx = raw.indexOf(":");
-      const field = idx === -1 ? raw : raw.slice(0, idx);
-      const value = idx === -1 ? "" : raw.slice(idx + 1).replace(/^ /, "");
-      switch (field) {
-        case "event":
-          event = value;
-          break;
-        case "data":
-          dataLines.push(value);
-          break;
-        case "id":
-          id = value;
-          break;
-      }
-    }
-
-    if (dataLines.length === 0) return null;
-    return { event, id, data: dataLines.join("\n") };
-  }
-}
-
-// Type imports you already have:
-export type CfChatCompletion = z.infer<typeof CfChatCompletionSchema>;
-export type CfChatCompletionChunk = z.infer<typeof CfChatCompletionChunkSchema>;
-export type CfOpenAIChatCreateParams = z.infer<
-  typeof CfOpenAIChatCreateParamsSchema
->;
-export type CfOpenAIChatCreateParamsStreaming = z.infer<
-  typeof CfOpenAIChatCreateParamsStreamingSchema
->;
-
-export async function getLLMResponse(
-  params: CfOpenAIChatCreateParamsStreaming,
-): Promise<AsyncGenerator<CfChatCompletionChunk, void, unknown>>;
-export async function getLLMResponse(
-  params: CfOpenAIChatCreateParams,
-): Promise<CfChatCompletion>;
-
-export async function getLLMResponse(
-  params: CfOpenAIChatCreateParams | CfOpenAIChatCreateParamsStreaming,
-) {
-  // Validate params first; also decides which schema to use
-  const isStreaming = !!(params as any)?.stream;
-  const parsedParams = isStreaming
-    ? parseOrZod(CfOpenAIChatCreateParamsStreamingSchema, params, ["params"])
-    : parseOrZod(CfOpenAIChatCreateParamsSchema, params, ["params"]);
-
-  const baseUrl = `https://gateway.ai.cloudflare.com/v1/${process.env.CLOUDFLARE_ACCOUNT_ID}/hopeflow/compat/chat/completions`;
-  const headersCommon = {
-    Authorization: `Bearer ${process.env.CLOUDFLARE_HOPEFLOW_TOKEN ?? ""}`,
-    "cf-aig-authorization": `Bearer ${
-      process.env.CLOUDFLARE_HOPEFLOW_TOKEN ?? ""
-    }`,
-    "Content-Type": "application/json",
-  };
-
-  // STREAMING
-  if (isStreaming) {
-    const fetchResponse = async () => {
-      let retries = 0;
-      try {
-        return await fetch(baseUrl, {
-          method: "POST",
-          headers: { ...headersCommon, Accept: "text/event-stream" },
-          body: JSON.stringify({ ...parsedParams, input: "" }),
-        });
-      } catch (e) {
-        if (retries < 3) {
-          retries++;
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          return await fetchResponse();
-        }
-        throw e;
-      }
-    };
-
-    const response = await fetchResponse();
-
-    if (!response.ok) {
-      let bodyText: string;
-      try {
-        bodyText = await response.text();
-      } catch {
-        bodyText = response.statusText;
-      }
-      zodFail(`HTTP ${response.status}: ${bodyText}`, ["http"]);
-    }
-
-    // Return a typed async generator; every JSON event is validated
-    return (async function* () {
-      for await (const { data } of SseToGenerator(response)) {
-        if (data === "[DONE]") break;
-
-        let chunkUnknown: unknown;
-        try {
-          chunkUnknown = JSON.parse(data);
-        } catch {
-          zodFail("Malformed SSE JSON chunk", ["stream", "chunk"]);
-        }
-
-        // If server sent an error frame mid-stream, convert to ZodError
-        const errProbe = ErrorResponseSchema.safeParse(chunkUnknown);
-        if (errProbe.success) {
-          const msg = errProbe.data.error.message || "Unknown AI error";
-          zodFail(msg, ["stream"]);
-        }
-
-        const chunk = parseOrZod(CfChatCompletionChunkSchema, chunkUnknown, [
-          "stream",
-        ]);
-        yield chunk;
-      }
-    })();
-  }
-
-  // NON-STREAMING
-  const response = await fetch(baseUrl, {
-    method: "POST",
-    headers: { ...headersCommon, Accept: "application/json" },
-    body: JSON.stringify({ ...parsedParams, input: "" }),
-  });
-
-  if (!response.ok) {
-    let bodyText: string;
-    try {
-      bodyText = await response.text();
-    } catch {
-      bodyText = response.statusText;
-    }
-    zodFail(`HTTP ${response.status}: ${bodyText}`, ["http"]);
-  }
-
-  const json: unknown = await response.json();
-
-  // If it's an error payload, this throws a ZodError; else validates completion
-  const completion = parseOrZod(CfChatCompletionSchema, json, ["response"]);
-  return completion;
-}
-
-const TransliterationSchema = z.object({
-  ascii: z.string().min(1, "ascii must be a non-empty string"),
-});
-
-export const transliterate = async (inputName: string) => {
-  const prompt =
-    `transliterate this name to ascii characters: ${inputName}. ` +
-    `The output should be a json with following format: {"ascii": "name in ascii"}`;
-
-  const output = await getLLMResponse({
-    model: "workers-ai/@cf/openai/gpt-oss-20b",
-    messages: [{ role: "user", content: prompt }],
-    // stream: false (implicit)
-  });
-
-  // pick the first non-null content
-  const content = output.choices
-    .map((c) => c.message.content)
-    .find((c): c is string => typeof c === "string" && c.length > 0);
-
-  if (!content) {
-    zodFail("Assistant returned empty content", [
-      "choices",
-      0,
-      "message",
-      "content",
-    ]);
-  }
-
-  let jsonUnknown: unknown;
-  try {
-    jsonUnknown = JSON.parse(content);
-  } catch {
-    zodFail("Assistant content is not valid JSON", [
-      "choices",
-      0,
-      "message",
-      "content",
-    ]);
-  }
-
-  const parsed = parseOrZod(TransliterationSchema, jsonUnknown, [
-    "assistant-json",
-  ]);
-  return parsed.ascii;
+export type CreateQuestChatMessage = {
+  role: "user" | "assistant";
+  content: string;
 };
+
+type TextDeltaEvent = { type: "text-delta"; text: string };
+type SetClarityEvent = { type: "set-clarity"; level: number };
+type ReasoningEvent = { type: "reasoning-part"; title: string };
+
+export const createQuestChat = defineServerFunction({
+  id: "createQuestChat",
+  scope: "global::llm",
+
+  handler: async function* (
+    messages: CreateQuestChatMessage[],
+  ): AsyncGenerator<
+    ReasoningEvent | TextDeltaEvent | SetClarityEvent,
+    void,
+    unknown
+  > {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const input = [
+      { role: "system" as const, content: createQuestChatSystemPrompt },
+      ...messages.map((m) => ({ role: m.role, content: m.content })),
+    ];
+
+    const stream = await openai.responses.create({
+      model: "gpt-5-nano",
+      input,
+      reasoning: {
+        effort: "low",
+        summary: "detailed",
+      },
+      text: {
+        format: { type: "text" },
+      },
+      stream: true,
+    });
+
+    yield { type: "reasoning-part", title: "Thinking to better be at service" };
+    let populatedText = "";
+    let populatedReasoning = "";
+    let consumedLength = 0;
+    for await (const event of stream) {
+      let done = false;
+      switch (event.type) {
+        case "response.output_text.delta": {
+          populatedText += event.delta;
+          const m = populatedText.match(/^(.*)(?:\s*\n){4,}(\d+)$/);
+          if (m) {
+            done = true;
+            const delta = m[1].slice(consumedLength);
+            if (delta) yield { type: "text-delta", text: delta };
+            yield { type: "set-clarity", level: parseInt(m[2]) };
+            break;
+          } else {
+            const delta = populatedText.slice(consumedLength);
+            if (!/^[\s\n]+$/.test(delta)) {
+              yield { type: "text-delta", text: event.delta };
+              consumedLength = populatedText.length;
+            }
+          }
+          break;
+        }
+        case "response.reasoning_summary_text.delta": {
+          populatedReasoning += event.delta;
+          const m =
+            populatedReasoning.match(/\*\*\s*(.+?)\s*\*\*/) ??
+            populatedReasoning.match(/#+\s*(.+?)\s*\n/);
+          if (m) {
+            populatedReasoning = "";
+            yield { type: "reasoning-part", title: m[1] };
+          }
+          break;
+        }
+      }
+      if (done) break;
+    }
+  },
+});
+
+const getQuestTitleAndDescriptionSystemPrompt = `
+You are a concise copywriter.
+Task:
+— Read the conversation and infer exactly what the person is seeking.
+— Produce:
+   1) description: 1–4 paragraphs, plain language, specific, action-oriented, no fluff.
+   2) title: 4–7 words, shown to the seeker; vivid, concrete, respectful.
+   3) askTitle: 4–7 words, addressed to the seeker's friends/network; contains the seeker’s first name when natural.
+Rules:
+— Titles must be 4–7 words (count words, not characters).
+— Avoid sensationalism; be clear and credible.
+`;
+
+export const getQuestTitleAndDescription = defineServerFunction({
+  id: "getQuestTitleAndDescription",
+  scope: "global::llm",
+  handler: async (messasges: CreateQuestChatMessage[]) => {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const response = await openai.responses.parse({
+      model: "gpt-5-nano",
+      reasoning: { effort: "minimal" },
+      input: [
+        { role: "system", content: getQuestTitleAndDescriptionSystemPrompt },
+        {
+          role: "user",
+          content:
+            "Return only the JSON. Here is the data:\n" +
+            JSON.stringify(messasges, null, 2),
+        },
+      ],
+      text: {
+        format: zodTextFormat(
+          z
+            .object({
+              title: z.string(),
+              description: z.string(),
+              askTitle: z.string(),
+            })
+            .strict(),
+          "specs",
+        ),
+      },
+    });
+    return response.output_parsed;
+  },
+});
 
 /*
 const titleGenerationPrompt =

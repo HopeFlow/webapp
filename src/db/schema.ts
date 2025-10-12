@@ -16,8 +16,11 @@ import {
   linkTypeDef,
   messageStatusDef,
   nodeStatusDef,
+  type QuestMedia,
   questStatusDef,
   questTypeDef,
+  type ScreeningAnswer,
+  type ScreeningQuestion,
   socialMediaNames,
   updateTypeDef,
 } from "./constants";
@@ -32,14 +35,6 @@ const primaryKey = () =>
     .$defaultFn(() => crypto.randomUUID());
 const timestamp = () => integer({ mode: "timestamp" });
 const boolean = () => integer({ mode: "boolean" });
-
-export type ScreeningQuestion = {
-  question: string;
-  answerRequired: boolean;
-  answer: string;
-};
-
-export type ScreeningAnswer = { questionIndex: number; answer: string };
 
 /**
  * ==========================
@@ -68,15 +63,7 @@ export const questTable = sqliteTable(
     status: text({ enum: questStatusDef }).notNull().default("active"),
     farewellMessage: text(),
 
-    media: text({ mode: "json" }).$type<
-      {
-        url: string;
-        width: number;
-        height: number;
-        alt: string;
-        type: "image" | "video";
-      }[]
-    >(),
+    media: text({ mode: "json" }).$type<QuestMedia[]>(),
 
     screeningQuestions: text({ mode: "json" }).$type<ScreeningQuestion[]>(),
 
