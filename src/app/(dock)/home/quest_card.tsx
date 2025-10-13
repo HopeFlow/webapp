@@ -7,7 +7,14 @@ import Image from "next/image";
 import { ContributorQuestCardNodes, StarterQuestCardNodes } from "./card_nodes";
 import { ShareIcon } from "@/components/icons/share";
 
-type QuestState = "Young" | "Thriving" | "Stable" | "Withering";
+type QuestState = "Young" | "Thriving" | "Stable" | "Fading" | "Withering";
+const questStatesIcons: Record<QuestState, string> = {
+  Young: "🌱",
+  Thriving: "🌳",
+  Stable: "🌿",
+  Fading: "🍂",
+  Withering: "🍁",
+};
 
 export function StarterQuestCard({
   title,
@@ -88,7 +95,8 @@ export function StarterQuestCard({
               } as React.CSSProperties
             }
           >
-            {questState} <Leaf className="inline h-4 md:h-6" />
+            {questState} <Leaf className="inline h-4 md:h-6" />{" "}
+            {questStatesIcons[questState]}
           </span>
         </div>
         <div
@@ -151,7 +159,7 @@ export function ContributorQuestCard({
   return (
     <div className="max-w-4xl flex-1 h-auto flex flex-col gap-2 py-4 border-b">
       <div className="h-auto flex-1 flex flex-row gap-2">
-        <div className="w-8 md:w-12 flex flex-col items-center gap-1 text-neutral-500">
+        <div className="w-8 md:w-12 flex flex-col items-center text-neutral-500">
           <ShareIcon />
           <h2>{nodes.length - 1}</h2>
         </div>
@@ -202,7 +210,8 @@ export function ContributorQuestCard({
                 } as React.CSSProperties
               }
             >
-              {questState} <Leaf className="inline h-4 md:h-6" />
+              {questState} <Leaf className="inline h-4 md:h-6" />{" "}
+              {questStatesIcons[questState]}
             </span>
           </div>
           <div

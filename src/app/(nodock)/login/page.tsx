@@ -19,7 +19,6 @@ export default publicPage(
   withParamsAndUser(
     async function LoginPage({ url, user }) {
       const headerList = await headers();
-      const clerkClient = await clerkClientNoThrow();
       const currentUrl =
         headerList.get(X_CUR_URL_HEADER) || "http://hopeflow.org/login";
 
