@@ -16,6 +16,10 @@ import { ReflowIcon } from "@/components/icons/reflow";
 import { BookmarkIcon } from "@/components/icons/bookmark";
 import { MediatorsIcon } from "@/components/icons/mediators";
 import { ReflowModal, showReflowModal } from "@/modals/reflow_modal";
+import {
+  showSubmitAnswerModal,
+  SubmitAnswerModal,
+} from "@/modals/submit_answer_modal";
 
 export function LinkMain() {
   return (
@@ -119,9 +123,21 @@ export function LinkMain() {
               </Button>
               <ReflowModal />
               <div className="flex w-full flex-row gap-2 items-stretch justify-between">
-                <Button buttonType="secondary" className="flex-1">
+                <Button
+                  buttonType="secondary"
+                  className="flex-1"
+                  onClick={() => {
+                    showSubmitAnswerModal();
+                  }}
+                >
                   <BulbIcon size={18} /> I&apos;ve seen it
                 </Button>
+                <SubmitAnswerModal
+                  questions={[
+                    { question: "Some question", answerRequired: true },
+                    { question: "Some other question", answerRequired: false },
+                  ]}
+                />
                 <Button
                   buttonType="neutral"
                   buttonStyle="soft"
@@ -161,9 +177,9 @@ export function LinkMain() {
             </div>
             <div className="collapse-content text-justify">
               <p>
-                <i>$950</i> has been allocated for the quest. If{" "}
-                <i>you</i> solve it directly, you&apos;ll receive <b>half</b>{" "}
-                which is <b>$425</b>.
+                <i>$950</i> has been allocated for the quest. If <i>you</i>{" "}
+                solve it directly, you&apos;ll receive <b>half</b> which is{" "}
+                <b>$425</b>.
               </p>
               <p>
                 If your pass the word on, rewards then flow through a{" "}

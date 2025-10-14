@@ -8,7 +8,7 @@ import { PencilSquareIcon } from "@/components/icons/pencil_square";
 import { TrashIcon } from "@/components/icons/trash";
 import { MediaCarousel } from "@/components/media_carousel";
 import { Modal, showModal } from "@/components/modal";
-import { QuestMedia } from "@/db/constants";
+import type { QuestMedia } from "@/db/constants";
 import { loadFileFromUrl, loadImageFromBlob } from "@/helpers/client/common";
 import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
 import { useFileUpload } from "@/helpers/client/hooks";

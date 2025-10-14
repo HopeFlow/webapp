@@ -7,7 +7,7 @@ import { Step2 } from "./step2";
 import { Step3 } from "./step3";
 import { Steps } from "@/components/steps";
 import { Step4 } from "./step4";
-import { QuestMedia, ScreeningAnswer, ScreeningQuestion } from "@/db/constants";
+import type { QuestMedia, ScreeningAnswer, ScreeningQuestion } from "@/db/constants";
 import { Step5 } from "./step5";
 import { Step6 } from "./step6";
 
