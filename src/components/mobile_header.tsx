@@ -20,6 +20,7 @@ export const MobileHeader = ({
   >
     <Image
       src="/img/wordmark.svg"
+      src="/img/wordmark.svg"
       alt="Home"
       width={118}
       height={32}

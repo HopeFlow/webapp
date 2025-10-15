@@ -7,7 +7,14 @@ import Image from "next/image";
 import { ContributorQuestCardNodes, StarterQuestCardNodes } from "./card_nodes";
 import { ShareIcon } from "@/components/icons/share";
 
-type QuestState = "Young" | "Thriving" | "Stable" | "Withering";
+type QuestState = "Young" | "Thriving" | "Stable" | "Fading" | "Withering";
+const questStatesIcons: Record<QuestState, string> = {
+  Young: "🌱",
+  Thriving: "🌳",
+  Stable: "🌿",
+  Fading: "🍂",
+  Withering: "🍁",
+};
 
 export function StarterQuestCard({
   title,
@@ -19,10 +26,10 @@ export function StarterQuestCard({
 }: {
   title: string;
   coverMedia: readonly {
-    imageUrl: string;
+    url: string;
     alt?: string;
-    imageWidth: number;
-    imageHeight: number;
+    width: number;
+    height: number;
   }[];
   bounty: number;
   numberOfLeads: number;
@@ -31,8 +38,8 @@ export function StarterQuestCard({
     name: string;
     activityDate: Date;
     imageUrl: string;
-    imageWidth: number;
-    imageHeight: number;
+    imageWidth?: number;
+    imageHeight?: number;
   }>;
 }) {
   const questStateColorBase =
@@ -64,7 +71,7 @@ export function StarterQuestCard({
         </MediaCarousel>
         <div className="w-full flex flex-row">
           <span className="h-full inline-flex flex-row items-center gap-2">
-            $ +{Math.max(0, bounty)}
+            +{Math.max(0, bounty)}
           </span>
           <span className="flex-1"></span>
           <span
@@ -88,7 +95,8 @@ export function StarterQuestCard({
               } as React.CSSProperties
             }
           >
-            {questState} <Leaf className="inline h-4 md:h-6" />
+            {questState} <Leaf className="inline h-4 md:h-6" />{" "}
+            {questStatesIcons[questState]}
           </span>
         </div>
         <div
@@ -124,10 +132,10 @@ export function ContributorQuestCard({
 }: {
   title: string;
   coverMedia: readonly {
-    imageUrl: string;
+    url: string;
     alt?: string;
-    imageWidth: number;
-    imageHeight: number;
+    width: number;
+    height: number;
   }[];
   bounty: number;
   numberOfLeads: number;
@@ -136,8 +144,8 @@ export function ContributorQuestCard({
     name: string;
     activityDate: Date;
     imageUrl: string;
-    imageWidth: number;
-    imageHeight: number;
+    imageWidth?: number;
+    imageHeight?: number;
   }>;
 }) {
   const questStateColorBase =
@@ -151,7 +159,7 @@ export function ContributorQuestCard({
   return (
     <div className="max-w-4xl flex-1 h-auto flex flex-col gap-2 py-4 border-b">
       <div className="h-auto flex-1 flex flex-row gap-2">
-        <div className="w-8 md:w-12 flex flex-col items-center gap-1 text-neutral-500">
+        <div className="w-8 md:w-12 flex flex-col items-center text-neutral-500">
           <ShareIcon />
           <h2>{nodes.length - 1}</h2>
         </div>
@@ -178,7 +186,7 @@ export function ContributorQuestCard({
         <div className="flex-1 flex flex-col gap-2">
           <div className="w-full flex flex-row">
             <span className="h-full inline-flex flex-row items-center gap-2">
-              $ +{Math.max(0, bounty)}
+              +{Math.max(0, bounty)}
             </span>
             <span className="flex-1"></span>
             <span
@@ -202,7 +210,8 @@ export function ContributorQuestCard({
                 } as React.CSSProperties
               }
             >
-              {questState} <Leaf className="inline h-4 md:h-6" />
+              {questState} <Leaf className="inline h-4 md:h-6" />{" "}
+              {questStatesIcons[questState]}
             </span>
           </div>
           <div

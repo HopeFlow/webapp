@@ -3,7 +3,6 @@
 import Image from "next/image";
 import { GhostButton } from "./button";
 import { BellIcon } from "./icons/bell";
-import { ChatBubbleIcon } from "./icons/chat_bubble";
 import { HomeIcon } from "./icons/home";
 import { PlusIcon } from "./icons/plus";
 import { TrophyIcon } from "./icons/trophy";
@@ -18,6 +17,7 @@ import {
   useGotoTrophies,
 } from "@/helpers/client/routes";
 import { ReactNode, useMemo } from "react";
+import { ChatBubbleIcon } from "./icons/chat_bubble";
 
 type SidebarItem = {
   id: string;

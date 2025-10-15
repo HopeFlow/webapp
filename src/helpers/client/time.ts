@@ -10,3 +10,30 @@ export const getBrowserTimeZone = () => {
   const guessed = moment.tz.guess();
   return moment.tz.names().includes(guessed) ? guessed : "UTC";
 };
+
+export const elapsedTime2String = (startTime: Date, newText?: string) => {
+  let startTimeValue = startTime.getTime();
+  const seconds = Math.ceil(Date.now() - startTimeValue) / 1000;
+  let timeStr = "";
+
+  if (seconds > 60 * 60 * 24 * 365) {
+    const years = Math.round(seconds / (60 * 60 * 24 * 365));
+    timeStr = years === 1 ? "1 year" : `${years} years`;
+  } else if (seconds > 60 * 60 * 24 * 30) {
+    const months = Math.round(seconds / (60 * 60 * 24 * 30));
+    timeStr = months === 1 ? "1 month" : `${months} months`;
+  } else if (seconds > 60 * 60 * 24) {
+    const days = Math.round(seconds / (60 * 60 * 24));
+    timeStr = days === 1 ? "1 day" : `${days} days`;
+  } else if (seconds > 60 * 60) {
+    const hours = Math.round(seconds / (60 * 60));
+    timeStr = hours === 1 ? "1 hour" : `${hours} hours`;
+  } else if (seconds > 60) {
+    const minutes = Math.round(seconds / 60);
+    timeStr = minutes === 1 ? "1 minute" : `${minutes} minutes`;
+  } else {
+    return newText || "New";
+  }
+
+  return `${timeStr} ago`;
+};

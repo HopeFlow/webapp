@@ -104,6 +104,19 @@ export const questTable = sqliteTable(
       `,
       ),
 
+      //CoverPhoto aspect ratio 16:9 (enforce in app or via CHECK in raw SQL)
+      check(
+        "quest_coverphoto_aspect_ratio_chk",
+        sql`
+        json_type(${table.coverPhoto}, '$.width') IN ('integer','real') AND
+        json_type(${table.coverPhoto}, '$.height') IN ('integer','real') AND
+        json_extract(${table.coverPhoto}, '$.width') > 0 AND
+        json_extract(${table.coverPhoto}, '$.height') > 0 AND
+        (json_extract(${table.coverPhoto}, '$.width') * 9) =
+        (json_extract(${table.coverPhoto}, '$.height') * 16)
+      `,
+      ),
+
       // temporal sanity
       check(
         "quest_finished_after_create_chk",

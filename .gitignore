@@ -3,6 +3,7 @@
 # dependencies
 /node_modules
 /.pnp
+pnpm-workspace.yaml
 .pnp.js
 .yarn/install-state.gz
 
@@ -20,6 +21,7 @@
 # misc
 .DS_Store
 *.pem
+.backup
 
 # debug
 npm-debug.log*
