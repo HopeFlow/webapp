@@ -63,11 +63,13 @@ export const inList = (values: readonly string[]) =>
  * // ]
  */
 
-const shouldParse = (k: string, v: unknown) =>
-  typeof v === "string" &&
-  (/(?:date|time|timestamp)s?$/i.test(k) ||
+const shouldParse = (k: string, v: unknown) => {
+  return (
+    /(?:date|time|timestamp)s?$/i.test(k) ||
     /(?:^|_)at$/i.test(k) ||
-    /At$/.test(k));
+    /At$/.test(k)
+  );
+};
 
 export async function executeWithDateParsing<T>(
   query: SQL,
@@ -86,7 +88,19 @@ export async function executeWithDateParsing<T>(
           reconstructDates(value, shouldParse(key, value)),
         ]),
       );
-    if (typeof inputData === "string" && dateKey) return new Date(inputData);
+    if (
+      (typeof inputData === "string" || typeof inputData === "number") &&
+      dateKey
+    ) {
+      if (typeof inputData === "number") {
+        const epochMs = inputData < 1e12 ? inputData * 1000 : inputData;
+        return new Date(epochMs);
+      }
+      if (typeof inputData === "string") {
+        const ts = Date.parse(inputData);
+        if (Number.isFinite(ts)) return new Date(ts);
+      }
+    }
     return inputData;
   };
   return rows.map((r) => reconstructDates(r, false)) as T[];

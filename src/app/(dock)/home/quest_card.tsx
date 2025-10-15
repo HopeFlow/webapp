@@ -26,10 +26,10 @@ export function StarterQuestCard({
 }: {
   title: string;
   coverMedia: readonly {
-    imageUrl: string;
+    url: string;
     alt?: string;
-    imageWidth: number;
-    imageHeight: number;
+    width: number;
+    height: number;
   }[];
   bounty: number;
   numberOfLeads: number;
@@ -38,8 +38,8 @@ export function StarterQuestCard({
     name: string;
     activityDate: Date;
     imageUrl: string;
-    imageWidth: number;
-    imageHeight: number;
+    imageWidth?: number;
+    imageHeight?: number;
   }>;
 }) {
   const questStateColorBase =
@@ -56,22 +56,20 @@ export function StarterQuestCard({
       <div className="flex-1 flex flex-col gap-2 items-start">
         <h1>{title}</h1>
         <Carousel className="w-full h-48 md:h-96 flex flex-col items-center justify-center rounded-box overflow-hidden bg-base-content">
-          {coverMedia.map(
-            ({ imageUrl, alt, imageWidth, imageHeight }, index) => (
-              <Image
-                key={`cover-${index}`}
-                src={imageUrl}
-                alt={alt ?? title}
-                width={imageWidth}
-                height={imageHeight}
-                className="max-h-full w-auto object-contain"
-              />
-            ),
-          )}
+          {coverMedia.map(({ url, alt, width, height }, index) => (
+            <Image
+              key={`cover-${index}`}
+              src={url}
+              alt={alt ?? title}
+              width={width}
+              height={height}
+              className="max-h-full w-auto object-contain"
+            />
+          ))}
         </Carousel>
         <div className="w-full flex flex-row">
           <span className="h-full inline-flex flex-row items-center gap-2">
-            $ +{Math.max(0, bounty)}
+            +{Math.max(0, bounty)}
           </span>
           <span className="flex-1"></span>
           <span
@@ -132,10 +130,10 @@ export function ContributorQuestCard({
 }: {
   title: string;
   coverMedia: readonly {
-    imageUrl: string;
+    url: string;
     alt?: string;
-    imageWidth: number;
-    imageHeight: number;
+    width: number;
+    height: number;
   }[];
   bounty: number;
   numberOfLeads: number;
@@ -144,8 +142,8 @@ export function ContributorQuestCard({
     name: string;
     activityDate: Date;
     imageUrl: string;
-    imageWidth: number;
-    imageHeight: number;
+    imageWidth?: number;
+    imageHeight?: number;
   }>;
 }) {
   const questStateColorBase =
@@ -166,18 +164,16 @@ export function ContributorQuestCard({
         <div className="flex-1 flex flex-col gap-2 items-start">
           <h1>{title}</h1>
           <Carousel className="w-full h-48 md:h-96 flex flex-col items-center justify-center rounded-box overflow-hidden bg-base-content">
-            {coverMedia.map(
-              ({ imageUrl, alt, imageWidth, imageHeight }, index) => (
-                <Image
-                  key={`cover-${index}`}
-                  src={imageUrl}
-                  alt={alt ?? title}
-                  width={imageWidth}
-                  height={imageHeight}
-                  className="max-h-full w-auto object-contain"
-                />
-              ),
-            )}
+            {coverMedia.map(({ url, alt, width, height }, index) => (
+              <Image
+                key={`cover-${index}`}
+                src={url}
+                alt={alt ?? title}
+                width={width}
+                height={height}
+                className="max-h-full w-auto object-contain"
+              />
+            ))}
           </Carousel>
         </div>
       </div>
@@ -186,7 +182,7 @@ export function ContributorQuestCard({
         <div className="flex-1 flex flex-col gap-2">
           <div className="w-full flex flex-row">
             <span className="h-full inline-flex flex-row items-center gap-2">
-              $ +{Math.max(0, bounty)}
+              +{Math.max(0, bounty)}
             </span>
             <span className="flex-1"></span>
             <span

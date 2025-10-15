@@ -8,8 +8,8 @@ export type UserAvatarProps = {
 } & (
   | {
       imageUrl: string;
-      imageWidth: number;
-      imageHeight: number;
+      imageWidth?: number;
+      imageHeight?: number;
     }
   | {
       imageUrl?: undefined;

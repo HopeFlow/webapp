@@ -3,7 +3,7 @@
 import { quests } from "../../definitions/home/index";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
-export const useQuests = (...args: [number, number]) => {
+export const useQuests = (...args: [{ offset: number; limit: number; }]) => {
   const queryKey = ["quests", ...args];
   const queryClient = useQueryClient();
   const query = useQuery(
@@ -15,15 +15,15 @@ export const useQuests = (...args: [number, number]) => {
   );
   return query;
 };
-export const getQuestsQueryKey = (...args: [number, number]) => {
+export const getQuestsQueryKey = (...args: [{ offset: number; limit: number; }]) => {
   return ["quests", ...args] as const;
 };
-export const getQuestsQueryOptions = (...args: [number, number]) => {
+export const getQuestsQueryOptions = (...args: [{ offset: number; limit: number; }]) => {
   return {
     queryKey: getQuestsQueryKey(...args),
     queryFn: async () => quests(...args),
   } as const;
 };
-export const prefetchQuests = (...args: [number, number]) =>
+export const prefetchQuests = (...args: [{ offset: number; limit: number; }]) =>
   (qc: QueryClient) =>
     qc.prefetchQuery(getQuestsQueryOptions(...args));
