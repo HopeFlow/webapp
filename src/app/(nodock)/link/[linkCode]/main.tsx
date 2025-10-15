@@ -20,7 +20,7 @@ import {
   showSubmitAnswerModal,
   SubmitAnswerModal,
 } from "@/modals/submit_answer_modal";
-import { SafeUser } from "@/helpers/server/auth";
+import type { SafeUser } from "@/helpers/server/auth";
 
 export function LinkMain({ user }: { user?: SafeUser }) {
   return (

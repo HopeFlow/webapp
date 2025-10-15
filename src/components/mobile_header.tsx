@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { UserAvatarAndMenu } from "./useravatar_menu";
 import { cn } from "@/helpers/client/tailwind_helpers";
-import { SafeUser } from "@/helpers/server/auth";
+import type { SafeUser } from "@/helpers/server/auth";
 
 export const MobileHeader = ({
   inverseRole,

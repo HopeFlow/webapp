@@ -8,9 +8,12 @@ import Image from "next/image";
 import { Steps } from "@/components/steps";
 import { ArrowRightIcon } from "@/components/icons/arrow_right";
 import { debounce } from "@/helpers/client/functions";
+import { ModernFormModal } from "@/components/modern_form";
+
+const modalId = "global-modal-reflow";
 
 export const showReflowModal = () => {
-  showModal("global-modal-reflow");
+  showModal(modalId);
 };
 
 const Step1 = () => {
@@ -220,73 +223,15 @@ const Step4 = () => {
 
 export const ReflowModal = () => {
   const [stepIndex, setStepIndex] = useState(0);
-  const steps = [
-    <Step1 key="step1" />,
-    <Step2 key="step2" />,
-    <Step3 key="step3" />,
-    <Step4 key="step3" />,
-  ];
   return (
-    <Modal
-      id="global-modal-reflow"
-      header={
-        <Steps
-          currentStep={stepIndex}
-          numberOfSteps={steps.length}
-          onClick={(stepIndex) => setStepIndex(stepIndex)}
-        />
-      }
-      defaultButton={{
-        children:
-          stepIndex === steps.length - 1 ? (
-            "Submit"
-          ) : (
-            <>
-              Next <ArrowRightIcon size={18} />
-            </>
-          ),
-        onClick: () => setStepIndex((stepIndex + 1) % steps.length),
-      }}
-      cancelButton={{ children: "Cancel" }}
+    <ModernFormModal
+      modalId={modalId}
+      contentClassName="flex flex-col gap-4 w-full h-full p-2 items-stretch justify-start [&>label:not(.radio-label)]:text-2xl [&>label.radio-label]:text-sm"
     >
-      <div
-        className="w-full h-full carousel carousel-horizontal carousel-center"
-        onScroll={(e) => {
-          const carousel = e.currentTarget;
-          debounce(() => {
-            const { scrollLeft, clientWidth } = carousel;
-            const index = Math.round(scrollLeft / clientWidth);
-            setStepIndex(index);
-          }, 500)();
-        }}
-      >
-        {steps.map((node, index) => (
-          <div
-            key={`step-${index}`}
-            data-index={index}
-            className="flex flex-col gap-4 w-full h-full p-2 carousel-item items-stretch justify-start [&>label:not(.radio-label)]:text-2xl [&>label.radio-label]:text-sm"
-            ref={(stepContainer) => {
-              if (!stepContainer) return;
-              if (stepIndex === index) {
-                const x00 = stepContainer.offsetLeft;
-                const x01 =
-                  stepContainer.offsetLeft + stepContainer.clientWidth;
-                const x10 = stepContainer.parentElement!.scrollLeft;
-                const x11 =
-                  stepContainer.parentElement!.scrollLeft +
-                  stepContainer.parentElement!.clientWidth;
-                const overlap =
-                  Math.max(0, Math.min(x11, x01) - Math.max(x00, x10)) /
-                  (x01 - x00);
-                if (overlap > 0.5) return;
-                stepContainer.scrollIntoView({ behavior: "smooth" });
-              }
-            }}
-          >
-            {node}
-          </div>
-        ))}
-      </div>
-    </Modal>
+      <Step1 key="step1" />
+      <Step2 key="step2" />
+      <Step3 key="step3" />
+      <Step4 key="step4" />
+    </ModernFormModal>
   );
 };

@@ -9,7 +9,7 @@ import {
 } from "@/components/profile/emailSettings";
 import { ImagePicker } from "@/components/profile/imagePicker";
 import { useProfileFields } from "@/components/profile/useProfileFields";
-import { SafeUser } from "@/helpers/server/auth";
+import type { SafeUser } from "@/helpers/server/auth";
 import { useProfile } from "@/server_actions/client/profile/userProfileCrud";
 import { useEffect, useState } from "react";
 

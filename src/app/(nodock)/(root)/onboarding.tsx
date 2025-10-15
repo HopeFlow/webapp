@@ -1,7 +1,7 @@
 "use client";
 
 import { usePersistentState } from "@/app/(nodock)/(root)/persistent_state";
-import SplashScreen from "@/app/splashScreen";
+import SplashScreen from "@/app/splash_screen";
 import { Button, CloseButton, GhostButton } from "@/components/button";
 import { ArrowLeftIcon } from "@/components/icons/arrow_left";
 import { Steps } from "@/components/steps";

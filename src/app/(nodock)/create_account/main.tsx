@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/button";
 import { MobileHeader } from "@/components/mobile_header";
-import { SafeUser } from "@/helpers/server/auth";
+import type { SafeUser } from "@/helpers/server/auth";
 import { useProfileFields } from "@/components/profile/useProfileFields";
 import { ImagePicker } from "@/components/profile/imagePicker";
 import { BrowserNotificationsRow } from "@/components/profile/browserNotification";

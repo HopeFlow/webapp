@@ -29,12 +29,18 @@ const Step = ({
   return (
     <div className="flex-1 flex flex-col gap-4">
       <div>
-        {index === 1 && <h2 className="font-normal text-2xl">Please help us speed up the process by answering these questions</h2>}
-        <h3 className="font-normal">Question {index}: </h3>
-        <label>
-          {question.question}
-          {question.answerRequired && <span className="text-error">*</span>}
-        </label>
+        {index === 1 && (
+          <h2 className="font-normal text-2xl">
+            Please help us speed up the process by answering these questions
+          </h2>
+        )}
+        <h3 className="font-normal">
+          Question {index}:{" "}
+          {question.answerRequired && (
+            <span className="text-error">(required)</span>
+          )}
+        </h3>
+        <label>{question.question}</label>
       </div>
       <textarea className="textarea h-36 w-full text-lg resize-none" />
     </div>

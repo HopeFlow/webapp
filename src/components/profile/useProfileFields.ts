@@ -1,4 +1,4 @@
-import { SafeUser } from "@/helpers/server/auth";
+import type { SafeUser } from "@/helpers/server/auth";
 import { useEffect, useState } from "react";
 
 export function useProfileFields(user?: SafeUser | null) {

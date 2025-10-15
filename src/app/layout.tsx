@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import Providers from "./providers";
 import "./daisyui.css";
 import "./globals.css";
-import SplashScreen from "./splashScreen";
+import SplashScreen from "./splash_screen";
 
 const geistSans = Geist({
   variable: "--font-hopeflow-sans",

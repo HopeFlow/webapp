@@ -16,6 +16,7 @@ export type ModernFormModalProps = {
   onNextButtonClick?: (stepIndex: number, close: () => void) => void;
   onCancelButtonClick?: (stepIndex: number, close: () => void) => void;
   modalId?: string;
+  contentClassName?: string;
   ref?: React.Ref<HTMLDialogElement | null>;
 };
 
@@ -26,8 +27,10 @@ export const ModernFormModal = ({
   onNextButtonClick,
   onCancelButtonClick,
   children,
+  contentClassName,
   ref,
 }: ModernFormModalProps) => {
+  console.log({ children })
   const [stepIndex, setStepIndex] = useState(0);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   return (
@@ -80,6 +83,7 @@ export const ModernFormModal = ({
           setStepIndex(itemIndex);
           setActiveStepIndex(itemIndex);
         }}
+        childClassName={contentClassName}
       >
         {children}
       </Carousel>

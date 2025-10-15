@@ -2,7 +2,7 @@
 
 import { useGotoProfile } from "@/helpers/client/routes";
 import { cn } from "@/helpers/client/tailwind_helpers";
-import { SafeUser } from "@/helpers/server/auth";
+import type { SafeUser } from "@/helpers/server/auth";
 import { useClerk } from "@clerk/nextjs";
 import Image from "next/image";
 

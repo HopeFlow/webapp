@@ -9,11 +9,7 @@ import { PlusIcon } from "./icons/plus";
 import { TrophyIcon } from "./icons/trophy";
 import { UserIcon } from "./icons/user";
 import { UserAvatarAndMenu } from "./useravatar_menu";
-import {
-  CreateQuestModal,
-  showCreateQuestModal,
-} from "@/modals/create_quest_modal";
-import { SafeUser } from "@/helpers/server/auth";
+import type { SafeUser } from "@/helpers/server/auth";
 
 export const Sidebar = ({ user }: { user: SafeUser }) => (
   <div className="w-60 h-auto p-6 hidden md:flex flex-col items-center border-r-2 bg-base-100 border-base-300">
@@ -43,11 +39,10 @@ export const Sidebar = ({ user }: { user: SafeUser }) => (
       </GhostButton>
       <GhostButton
         className="font-thin flex flex-row gap-2 justify-start"
-        onClick={() => showCreateQuestModal()}
+        onClick={() => {}}
       >
         <PlusIcon /> Create a quest
       </GhostButton>
-      <CreateQuestModal />
     </div>
     <div className="w-full flex-1"></div>
     <div className="w-full flex flex-col gap-4 [&>*]:w-full pl-4">
