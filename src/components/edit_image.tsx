@@ -43,14 +43,6 @@ const applyTransformAndConvertToPng = async (
   const dh = image.height * scale;
   const dx = 0.5 * (offsetX - dw + sizeW);
   const dy = 0.5 * (offsetY - dh + sizeH);
-  console.log({
-    dx,
-    dy,
-    dw,
-    dh,
-    rotation,
-    scale,
-  });
   switch (rotation / 90) {
     case 0:
       context.translate(dx, dy);

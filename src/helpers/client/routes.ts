@@ -40,6 +40,12 @@ export const useGotoSample = () => {
   return useCallback(() => router.push("/sample"), [router]);
 };
 
+// Corresponding to src/app/(dock)/create_quest/page.tsx
+export const useGotoCreateQuest = () => {
+  const router = useRouter();
+  return useCallback(() => router.push("/create_quest"), [router]);
+};
+
 // Corresponding to src/app/(dock)/home/page.tsx
 export const useGotoHome = () => {
   const router = useRouter();
@@ -113,12 +119,6 @@ export const useGotoQuest = () => {
       ),
     [router],
   );
-};
-
-// Corresponding to src/app/(dock)/quest/create/page.tsx
-export const useGotoQuestCreate = () => {
-  const router = useRouter();
-  return useCallback(() => router.push("/quest/create"), [router]);
 };
 
 // Corresponding to src/app/(nodock)/link/[linkCode]/page.tsx

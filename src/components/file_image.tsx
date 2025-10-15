@@ -21,17 +21,11 @@ export function FileImage({
     if (!src) return;
     prevSource = src;
     const objectUrl = src && URL.createObjectURL(src);
-    if (alt !== "Edit Photo")
-      console.log("FileImage setting srcUrl", { srcUrl: objectUrl });
     setSrcUrl(objectUrl);
     return () => {
-      if (alt !== "Edit Photo")
-        console.log("FileImage revoking srcUrl", { srcUrl: objectUrl });
       URL.revokeObjectURL(objectUrl);
     };
   }, [src]);
-  if (alt !== "Edit Photo")
-    console.log("FileImage render", { prev, src, same: prev === src, srcUrl });
   return srcUrl === "" ? (
     <div
       className={cn(

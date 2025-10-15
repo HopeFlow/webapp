@@ -30,7 +30,6 @@ export const ModernFormModal = ({
   contentClassName,
   ref,
 }: ModernFormModalProps) => {
-  console.log({ children })
   const [stepIndex, setStepIndex] = useState(0);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   return (

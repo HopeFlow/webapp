@@ -38,6 +38,9 @@ const toSearchParams = <T extends { [key: string]: unknown }>(
 // Corresponding to src/app/sample/page.tsx
 export const redirectToSample = (): never => redirect("/sample");
 
+// Corresponding to src/app/(dock)/create_quest/page.tsx
+export const redirectToCreateQuest = (): never => redirect("/create_quest");
+
 // Corresponding to src/app/(dock)/home/page.tsx
 export const redirectToHome = (): never => redirect("/home");
 
@@ -80,9 +83,6 @@ export const redirectToQuest = (props: { questId: string }): never =>
     ].join("/"),
   );
 
-// Corresponding to src/app/(dock)/quest/create/page.tsx
-export const redirectToQuestCreate = (): never => redirect("/quest/create");
-
 // Corresponding to src/app/(nodock)/link/[linkCode]/page.tsx
 export const redirectToLink = (props: { linkCode: string }): never =>
   redirect(
@@ -102,7 +102,7 @@ export const redirectToChat = (props: { questId: string, nodeId: string }): neve
   );
 
 const routeSpecs: Map<
-  "Sample" | "Home" | "Notifications" | "Profile" | "Trophies" | "Index" | "CreateAccount" | "Login" | "Quest" | "QuestCreate" | "Link" | "Chat",
+  "Sample" | "CreateQuest" | "Home" | "Notifications" | "Profile" | "Trophies" | "Index" | "CreateAccount" | "Login" | "Quest" | "Link" | "Chat",
   {
     pathRegExp: RegExp;
     paramsTypeDef?: z.AnyZodObject;
@@ -111,6 +111,7 @@ const routeSpecs: Map<
   }
 > = new Map([
   ["Sample", { pathRegExp: /^\/sample$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
+  ["CreateQuest", { pathRegExp: /^\/create_quest$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
   ["Home", { pathRegExp: /^\/home$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
   ["Notifications", { pathRegExp: /^\/notifications$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
   ["Profile", { pathRegExp: /^\/profile$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
@@ -123,7 +124,6 @@ const routeSpecs: Map<
   }],
   ["Login", { pathRegExp: /^\/login$/, paramsTypeDef: undefined, searchParamsTypeDef: z.object({ url: z.string().optional() }), isPublic: true }],
   ["Quest", { pathRegExp: /^\/quest\/(?<questId>[^/]+)$/, paramsTypeDef: z.object({ questId: z.string() }), searchParamsTypeDef: undefined, isPublic: false }],
-  ["QuestCreate", { pathRegExp: /^\/quest\/create$/, paramsTypeDef: undefined, searchParamsTypeDef: undefined, isPublic: false }],
   ["Link", { pathRegExp: /^\/link\/(?<linkCode>[^/]+)$/, paramsTypeDef: z.object({ linkCode: z.string() }), searchParamsTypeDef: undefined, isPublic: false }],
   ["Chat", {
     pathRegExp: /^\/chat\/(?<questId>[^/]+)\/(?<nodeId>[^/]+)$/, paramsTypeDef: z.object({
@@ -174,6 +174,7 @@ export const redirectTo = (urlString: string): never => {
   const props = { ...params, ...searchParams };
   switch (routeName) {
     case "Sample": return redirectToSample();
+    case "CreateQuest": return redirectToCreateQuest();
     case "Home": return redirectToHome();
     case "Notifications": return redirectToNotifications();
     case "Profile": return redirectToProfile();
@@ -182,7 +183,6 @@ export const redirectTo = (urlString: string): never => {
     case "CreateAccount": return redirectToCreateAccount(props as any);
     case "Login": return redirectToLogin(props as any);
     case "Quest": return redirectToQuest(props as any);
-    case "QuestCreate": return redirectToQuestCreate();
     case "Link": return redirectToLink(props as any);
     case "Chat": return redirectToChat(props as any);
   }

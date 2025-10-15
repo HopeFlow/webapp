@@ -21,8 +21,7 @@ import type {
   EmailCodeFactor,
   OAuthStrategy,
 } from "@clerk/types";
-
-const toast = (msg: string) => console.log("[toast]", msg);
+import { useToast } from "@/components/toast";
 
 type VerificationStage =
   | "prepare_token"
@@ -41,6 +40,7 @@ export function LoginEmail({ url }: { url?: string }) {
     setActive: setSignUpActive,
   } = useSignUp();
 
+  const addToast = useToast();
   const [stage, setStage] = useState<VerificationStage>("prepare_token");
   const [verifying, setVerifying] = useState(false);
   const [email, setEmail] = useState("");
@@ -71,9 +71,17 @@ export function LoginEmail({ url }: { url?: string }) {
   const handleClerkError = (e: unknown) => {
     if (isClerkAPIResponseError(e)) {
       const err = e.errors?.[0];
-      toast(`${err?.code}: ${err?.longMessage || err?.message}`);
+      addToast({
+        type: "error",
+        title: "Authentication Error",
+        description: `${err?.code}: ${err?.longMessage ?? err?.message}`,
+      });
     } else {
-      toast(`Unexpected error: ${e}`);
+      addToast({
+        type: "error",
+        title: "Authentication Error",
+        description: `Unexpected error: ${e}`,
+      });
     }
   };
 
@@ -81,7 +89,11 @@ export function LoginEmail({ url }: { url?: string }) {
   const startEmailFlow = async () => {
     if (!isSignInLoaded || !isSignUpLoaded || !signIn || !signUp) return;
     if (!email) {
-      toast("Please enter a valid email.");
+      addToast({
+        type: "error",
+        title: "Invalid email",
+        description: "Please enter a valid email.",
+      });
       return;
     }
 
@@ -139,7 +151,11 @@ export function LoginEmail({ url }: { url?: string }) {
   const verify = async () => {
     const code = otp.join("");
     if (code.length !== 6) {
-      toast("Please enter the 6-digit code.");
+      addToast({
+        type: "error",
+        title: "Invalid code",
+        description: "Please enter the 6-digit code.",
+      });
       return;
     }
 
@@ -155,7 +171,11 @@ export function LoginEmail({ url }: { url?: string }) {
           if (url) goto(url);
           else gotoHome();
         } else {
-          toast(`Sign-in not complete: ${attempt.status}`);
+          addToast({
+            type: "error",
+            title: "Signin Error",
+            description: `Sign-in not complete: ${attempt.status}`,
+          });
         }
       } else if (stage === "verify_signup_token") {
         const attempt = await signUp!.attemptEmailAddressVerification({ code });
@@ -164,10 +184,18 @@ export function LoginEmail({ url }: { url?: string }) {
           if (url) goto(url);
           else gotoHome();
         } else {
-          toast(`Sign-up not complete: ${attempt.status}`);
+          addToast({
+            type: "error",
+            title: "Signup Error",
+            description: `Sign-up not complete: ${attempt.status}`,
+          });
         }
       } else {
-        toast("Please request a code first.");
+        addToast({
+          type: "error",
+          title: "Invalid operation",
+          description: "Please request a code first.",
+        });
       }
     } catch (e) {
       handleClerkError(e);
@@ -213,19 +241,19 @@ export function LoginEmail({ url }: { url?: string }) {
   };
 
   return (
-    <div className="flex-1 w-full p-6 flex flex-col gap-4 items-center justify-center">
-      <div className="h-96 max-w-lg md:w-lg card shadow-2xl overflow-hidden">
+    <div className="flex w-full flex-1 flex-col items-center justify-center gap-4 p-6">
+      <div className="card h-96 max-w-lg overflow-hidden shadow-2xl md:w-lg">
         <div
           className={cn(
-            "absolute left-0 top-0 w-full h-full p-6 flex flex-col gap-4 bg-base-100 items-center opacity-100 transition-opacity duration-700",
-            verifying && "opacity-0 pointer-events-none",
+            "bg-base-100 absolute top-0 left-0 flex h-full w-full flex-col items-center gap-4 p-6 opacity-100 transition-opacity duration-700",
+            verifying && "pointer-events-none opacity-0",
           )}
         >
-          <div className="flex flex-col gap-4 items-center justify-center mb-4">
+          <div className="mb-4 flex flex-col items-center justify-center gap-4">
             <HopeflowLogo size={48} />
-            <h1 className="font-normal text-4xl">Login or Signup</h1>
+            <h1 className="text-4xl font-normal">Login or Signup</h1>
           </div>
-          <div className="flex flex-col gap-4 w-full">
+          <div className="flex w-full flex-col gap-4">
             <label className="text-lg font-medium">Your email address</label>
             <input
               type="email"
@@ -255,15 +283,15 @@ export function LoginEmail({ url }: { url?: string }) {
         </div>
         <div
           className={cn(
-            "absolute left-0 top-0 w-full h-full p-6 flex flex-col gap-4 bg-base-100 items-center opacity-100  transition-opacity duration-700",
-            !verifying && "opacity-0 pointer-events-none",
+            "bg-base-100 absolute top-0 left-0 flex h-full w-full flex-col items-center gap-4 p-6 opacity-100 transition-opacity duration-700",
+            !verifying && "pointer-events-none opacity-0",
           )}
         >
-          <div className="flex flex-col gap-4 items-center justify-center mb-4">
+          <div className="mb-4 flex flex-col items-center justify-center gap-4">
             <HopeflowLogo size={48} />
-            <h1 className="font-normal text-4xl">Login or Signup</h1>
+            <h1 className="text-4xl font-normal">Login or Signup</h1>
           </div>
-          <div className="flex flex-col gap-4 items-center-safe">
+          <div className="flex flex-col items-center-safe gap-4">
             <label className="text-lg font-medium">Check your email</label>
             <div className="join" onPaste={handlePaste}>
               {otp.map((value, i) => (
@@ -274,7 +302,7 @@ export function LoginEmail({ url }: { url?: string }) {
                   }}
                   type="text"
                   maxLength={1}
-                  className="input input-bordered w-12 text-center join-item"
+                  className="input input-bordered join-item w-12 text-center"
                   value={value}
                   onChange={(e: ChangeEvent<HTMLInputElement>) =>
                     handleOtpChange(i, e.target.value)
@@ -285,9 +313,9 @@ export function LoginEmail({ url }: { url?: string }) {
                 />
               ))}
             </div>
-            <div className="text-sm text-center text-base-content/50 w-full">
+            <div className="text-base-content/50 w-full text-center text-sm">
               We emailed a 6-digit code to{" "}
-              <span className="font-bold text-base-content">{email}</span>.
+              <span className="text-base-content font-bold">{email}</span>.
               <br />
               <button
                 className="link text-sm"
