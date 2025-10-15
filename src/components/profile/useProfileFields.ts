@@ -1,6 +1,7 @@
 import type { SafeUser } from "@/helpers/server/auth";
 import { useEffect, useState } from "react";
 
+// TODO: Revisit thise hook
 export function useProfileFields(user?: SafeUser | null) {
   const [name, setName] = useState<string>(
     user ? [user.firstName, user.lastName].filter(Boolean).join(" ") : "",
@@ -14,6 +15,7 @@ export function useProfileFields(user?: SafeUser | null) {
     let revoked: string | null = null;
     if (file) {
       const url = URL.createObjectURL(file);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPreviewUrl(url);
       revoked = url;
     }

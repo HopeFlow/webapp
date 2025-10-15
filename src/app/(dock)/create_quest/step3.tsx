@@ -1,7 +1,7 @@
 import { Button } from "@/components/button";
-import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
+// import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
 import { cn } from "@/helpers/client/tailwind_helpers";
-import Image from "next/image";
+// import Image from "next/image";
 import { useState, type Dispatch, type SetStateAction } from "react";
 
 export const Step3 = ({

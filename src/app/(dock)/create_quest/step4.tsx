@@ -6,19 +6,18 @@ import { FileImage } from "@/components/file_image";
 import { ArrowUpTrayIcon } from "@/components/icons/arrow_up_tray";
 import { PencilSquareIcon } from "@/components/icons/pencil_square";
 import { loadFileFromUrl } from "@/helpers/client/common";
-import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
+// import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
 import { useFileUpload } from "@/helpers/client/hooks";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import {
   useEffect,
-  useMemo,
   useState,
   type Dispatch,
   type SetStateAction,
 } from "react";
 
 export const Step4 = ({
-  title,
+  // title,
   coverImage,
   setCoverImage,
   continueToNextStep,

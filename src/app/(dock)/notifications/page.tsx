@@ -24,7 +24,7 @@ export default function Notifications() {
           <div className="flex-shrink-0 md:flex-1 flex flex-col">
             <h1 className="font-bold">Chat message from Jacob</h1>
             <h2 className="text-sm mb-4">
-              from <i>"Help Jacob find his stolen bicycle"</i>
+              from <i>&ldquo;Help Jacob find his stolen bicycle&rdquo;</i>
             </h2>
             <div className="flex-1"></div>
             <p>I think what you found is actually my bicycle</p>

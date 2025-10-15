@@ -7,9 +7,12 @@ interface SpeechRecognition extends EventTarget {
   start(): void;
   stop(): void;
   abort(): void;
-  onerror?: (this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any;
-  onresult?: (this: SpeechRecognition, ev: SpeechRecognitionEvent) => any;
-  onend?: (this: SpeechRecognition, ev: Event) => any;
+  onerror?: (
+    this: SpeechRecognition,
+    ev: SpeechRecognitionErrorEvent,
+  ) => unknown;
+  onresult?: (this: SpeechRecognition, ev: SpeechRecognitionEvent) => unknown;
+  onend?: (this: SpeechRecognition, ev: Event) => unknown;
 }
 
 interface SpeechRecognitionConstructor {
@@ -86,7 +89,6 @@ export const useSpeechRecognitionEngine = (
     let processedItemCount = 0;
     let totalItemCount = 0;
     if (!asr) return;
-    setAsrAvailable(true);
     asr.onresult = (e) => {
       let finalTranscript = "";
       let interimTranscript = "";
@@ -128,16 +130,19 @@ export const useSpeechRecognitionEngine = (
     asr.onend = () => {
       setIsListening(false);
     };
-    setStart(() => (startValue: string) => {
-      setIsListening(true);
-      baseValue = startValue;
-      asr.start();
+    Promise.resolve().then(() => {
+      setAsrAvailable(true);
+      setStart(() => (startValue: string) => {
+        setIsListening(true);
+        baseValue = startValue;
+        asr.start();
+      });
+      setStop(() => () => asr.stop());
+      setReset(() => (startValue: string) => {
+        baseValue = startValue;
+        processedItemCount = totalItemCount;
+      });
     });
-    setStop(() => () => asr.stop());
-    setReset(() => (startValue: string) => {
-      baseValue = startValue;
-      processedItemCount = totalItemCount;
-    });
-  }, []);
+  }, [onChange]);
   return [asrAvailable, isListening, start, stop, reset] as const;
 };

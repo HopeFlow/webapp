@@ -233,25 +233,25 @@ export function LinkMain({ user }: { user?: SafeUser }) {
                 {
                   name: "Jacob",
                   imageUrl: "/img/avatar2.jpeg",
-                  timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000),
+                  timestamp: new Date(1760525835746 - 48 * 60 * 60 * 1000),
                   type: "started the quest",
                 },
                 {
                   name: "Jacob",
                   imageUrl: "/img/avatar2.jpeg",
-                  timestamp: new Date(Date.now() - 35 * 60 * 60 * 1000),
+                  timestamp: new Date(1760525835746 - 35 * 60 * 60 * 1000),
                   type: "reflowed the quest",
                 },
                 {
                   name: "Martha",
                   imageUrl: "/img/avatar4.jpeg",
-                  timestamp: new Date(Date.now() - 28 * 60 * 60 * 1000),
+                  timestamp: new Date(1760525835746 - 28 * 60 * 60 * 1000),
                   type: "reflowed the quest",
                 },
                 {
                   name: "Martha",
                   imageUrl: "/img/avatar4.jpeg",
-                  timestamp: new Date(Date.now() - 22 * 60 * 60 * 1000),
+                  timestamp: new Date(1760525835746 - 22 * 60 * 60 * 1000),
                   type: "commented on the quest",
                   description:
                     "I hope you will find your bike and get it back safely.",
@@ -259,7 +259,7 @@ export function LinkMain({ user }: { user?: SafeUser }) {
                 {
                   name: "Behrooz",
                   imageUrl: "/img/behrooz.jpeg",
-                  timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000),
+                  timestamp: new Date(1760525835746 - 12 * 60 * 60 * 1000),
                   type: "reflowed the quest",
                   description:
                     "Saeed is in the neighborhood and knows bikes well. He likes to help people as much as I do",

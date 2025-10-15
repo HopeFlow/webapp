@@ -10,16 +10,12 @@ import {
   redirectToHome,
 } from "@/helpers/server/routes";
 import { X_CUR_URL_HEADER } from "@/helpers/server/constants";
-import { clerkClientNoThrow } from "@/helpers/server/auth";
 import { AutoCompleteOAuth } from "./autoCompleteOAuth";
-// import { AutoCompleteOAuth } from "./autoCompleteOAuth";
-// import { clerkClientNoThrow } from "@/helpers/server/auth";
 
 export default publicPage(
   withParamsAndUser(
     async function LoginPage({ url, user }) {
       const headerList = await headers();
-      const clerkClient = await clerkClientNoThrow();
       const currentUrl =
         headerList.get(X_CUR_URL_HEADER) || "http://hopeflow.org/login";
 

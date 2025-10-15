@@ -1,6 +1,8 @@
 "use client";
 import { ReactNode, useMemo } from "react";
 import { LoadingElement } from "@/components/loading";
+import Image from "next/image";
+import { cn } from "@/helpers/client/tailwind_helpers";
 
 function AvatarContainer({
   children,
@@ -13,7 +15,7 @@ function AvatarContainer({
 }) {
   return (
     <div
-      className={`rounded-full bg-neutral text-neutral-content grid place-items-center font-medium shadow ${className}`}
+      className={`bg-neutral text-neutral-content grid place-items-center rounded-full font-medium shadow ${className}`}
       style={{ width: size, height: size }}
       aria-label="No profile picture"
     >
@@ -53,12 +55,15 @@ export function AvatarPreview({
   }
   if (src) {
     return (
-      <img
+      <Image
         src={src}
         alt="Profile picture"
         width={size}
         height={size}
-        className={`rounded-full object-cover shadow ${className}`}
+        className={cn(
+          "rounded-full`rounded-full object-cover shadow",
+          className,
+        )}
         style={{ width: size, height: size }}
       />
     );

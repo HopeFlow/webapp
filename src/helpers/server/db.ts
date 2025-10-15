@@ -63,7 +63,7 @@ export const inList = (values: readonly string[]) =>
  * // ]
  */
 
-const shouldParse = (k: string, v: unknown) => {
+const shouldParse = (k: string) => {
   return (
     /(?:date|time|timestamp)s?$/i.test(k) ||
     /(?:^|_)at$/i.test(k) ||
@@ -85,7 +85,7 @@ export async function executeWithDateParsing<T>(
       return Object.fromEntries(
         Object.entries(inputData).map(([key, value]) => [
           key,
-          reconstructDates(value, shouldParse(key, value)),
+          reconstructDates(value, shouldParse(key)),
         ]),
       );
     if (

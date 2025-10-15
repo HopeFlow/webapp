@@ -1,13 +1,10 @@
 "use client";
 
-import { Modal, showModal } from "@/components/modal";
-import React, { Fragment, useState } from "react";
+import { showModal } from "@/components/modal";
+import React, { useState } from "react";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { ExclamationCircleIcon } from "@/components/icons/exclamation_circle";
 import Image from "next/image";
-import { Steps } from "@/components/steps";
-import { ArrowRightIcon } from "@/components/icons/arrow_right";
-import { debounce } from "@/helpers/client/functions";
 import { ModernFormModal } from "@/components/modern_form";
 
 const modalId = "global-modal-reflow";
@@ -43,10 +40,10 @@ const Step1 = () => {
         />{" "}
         Broadcast
       </label>
-      <div className="h-20 sm:h-32 overflow-hidden bg-base-300 rounded-box relative">
+      <div className="bg-base-300 rounded-box relative h-20 overflow-hidden sm:h-32">
         <div
           className={cn(
-            "absolute left-0 top-0 w-full h-full flex flex-row items-center justify-center transition-opacity duration-700 opacity-100",
+            "absolute top-0 left-0 flex h-full w-full flex-row items-center justify-center opacity-100 transition-opacity duration-700",
             type !== "targeted" && "opacity-0",
           )}
         >
@@ -60,7 +57,7 @@ const Step1 = () => {
         </div>
         <div
           className={cn(
-            "absolute left-0 top-0 w-full h-full flex flex-row items-center justify-between transition-opacity duration-700 opacity-100",
+            "absolute top-0 left-0 flex h-full w-full flex-row items-center justify-between opacity-100 transition-opacity duration-700",
             type !== "broadcast" && "opacity-0",
           )}
         >
@@ -81,19 +78,19 @@ const Step1 = () => {
         </div>
       </div>
       <p
-        className={cn("text-sm text-success", type !== "targeted" && "hidden")}
+        className={cn("text-success text-sm", type !== "targeted" && "hidden")}
       >
         In targeted reflow, you create a one-time link that includes name of the
         person you invite. The content of the link will be addressin that very
         person
       </p>
       <p
-        className={cn("text-sm text-success", type !== "broadcast" && "hidden")}
+        className={cn("text-success text-sm", type !== "broadcast" && "hidden")}
       >
         In broadcase reflow, the link will not specifically address anyone. It
         is suitable for sharing with small groups or communities
       </p>
-      <p className="p-4 text-sm bg-warning text-warning-content rounded-box">
+      <p className="bg-warning text-warning-content rounded-box p-4 text-sm">
         <ExclamationCircleIcon className="inline-block align-bottom" /> We
         encourage targeted reflow as it strengthens the trust and minimizes
         mis-communication
@@ -107,7 +104,7 @@ const Step2 = () => {
     <>
       <label>What is the name of the person you want to invite?</label>
       <input className="input w-full" />
-      <div className="h-20 sm:h-32 overflow-hidden bg-base-300 rounded-box flex flex-row items-start justify-between">
+      <div className="bg-base-300 rounded-box flex h-20 flex-row items-start justify-between overflow-hidden sm:h-32">
         <Image
           src="/img/man_filling_name.png"
           width={488}
@@ -115,7 +112,7 @@ const Step2 = () => {
           alt="man filling name"
           className="max-h-full w-auto object-contain"
         />
-        <div className="flex-1 h-1/2 border-b-[3px] border-[#2bf1e8]"></div>
+        <div className="h-1/2 flex-1 border-b-[3px] border-[#2bf1e8]"></div>
         <Image
           src="/img/man_link_sent_to.png"
           width={302}
@@ -124,7 +121,7 @@ const Step2 = () => {
           className="max-h-full w-auto object-contain"
         />
       </div>
-      <p className="text-sm text-success">
+      <p className="text-success text-sm">
         This name will be used in targeted reflow both in the URL and contents
         of the page. In broadcase this will be included in URL if provided (can
         be empty)
@@ -168,7 +165,7 @@ const Step3 = () => {
             </label>
             <div
               className={cn(
-                "text-sm text-accent/30",
+                "text-accent/30 text-sm",
                 connectionStrength === index && "text-accent",
               )}
             >
@@ -177,7 +174,7 @@ const Step3 = () => {
           </div>
         ),
       )}
-      <div className="h-20 sm:h-32 overflow-hidden bg-base-300 rounded-box flex flex-row items-start justify-between">
+      <div className="bg-base-300 rounded-box flex h-20 flex-row items-start justify-between overflow-hidden sm:h-32">
         <Image
           src="/img/man_holding_papers.png"
           width={303}
@@ -193,7 +190,7 @@ const Step3 = () => {
           className="max-h-full w-auto object-contain"
         />
       </div>
-      <p className="text-sm text-success">
+      <p className="text-success text-sm">
         This information is used to proivde crystall clear transparency for
         passing the trust down the sharing tree
       </p>
@@ -205,8 +202,8 @@ const Step4 = () => {
   return (
     <>
       <label>Endorsement note</label>
-      <textarea className="textarea h-36 w-full text-lg resize-none" />
-      <p className="text-sm text-success">
+      <textarea className="textarea h-36 w-full resize-none text-lg" />
+      <p className="text-success text-sm">
         Write a few words on why you believe this person (or group) would be a
         great fit to help move this quest forward.
       </p>
@@ -222,7 +219,6 @@ const Step4 = () => {
 // };
 
 export const ReflowModal = () => {
-  const [stepIndex, setStepIndex] = useState(0);
   return (
     <ModernFormModal
       modalId={modalId}

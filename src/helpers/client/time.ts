@@ -12,7 +12,7 @@ export const getBrowserTimeZone = () => {
 };
 
 export const elapsedTime2String = (startTime: Date, newText?: string) => {
-  let startTimeValue = startTime.getTime();
+  const startTimeValue = startTime.getTime();
   const seconds = Math.ceil(Date.now() - startTimeValue) / 1000;
   let timeStr = "";
 

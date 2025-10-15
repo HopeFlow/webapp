@@ -7,6 +7,7 @@ import { userProfileTable } from "@/db/schema";
 import { transliterate } from "@/helpers/server/LLM";
 import { clerkClientNoThrow, currentUserNoThrow } from "@/helpers/server/auth";
 import { emailFrequencyDef } from "@/db/constants";
+import { EmailFrequency } from "@/components/profile/emailSettings";
 
 export type UserPreferences = {
   emailEnabled?: boolean;
@@ -76,19 +77,23 @@ export async function upsertUserProfile(
       })
       .where(eq(userProfileTable.userId, userId));
   } else {
-    await db.insert(userProfileTable).values({
-      userId,
-      emailEnabled: initializedProfile.emailEnabled,
-      emailFrequency: initializedProfile.emailFrequency,
-      timezone: initializedProfile.timezone,
-      asciiName: firstNameAscii,
-    });
+    await db
+      .insert(userProfileTable)
+      .values({
+        userId,
+        emailEnabled: initializedProfile.emailEnabled,
+        emailFrequency: initializedProfile.emailFrequency,
+        timezone: initializedProfile.timezone,
+        asciiName: firstNameAscii,
+      });
   }
 }
 
 /** Ensure publicMetadata.userProfileCreated = true */
 export async function ensureCreatedFlag(
-  clerkUsers: { updateUserMetadata: (id: string, data: any) => Promise<any> },
+  clerkUsers: NonNullable<
+    Awaited<ReturnType<typeof clerkClientNoThrow>>
+  >["users"],
   userId: string,
   already: unknown,
 ) {
@@ -204,7 +209,7 @@ export async function updateCurrentUserProfile(data: ProfileUpdateInput) {
         user.id,
         {
           emailEnabled: data.emailEnabled,
-          emailFrequency: data.emailFrequency as any,
+          emailFrequency: data.emailFrequency as EmailFrequency,
           timezone: data.timezone,
         },
         firstNameRaw,

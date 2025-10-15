@@ -65,7 +65,7 @@ export const Step1 = ({
     postUserMessage(value);
     textArea.value = "";
     textArea.style.height = "";
-  }, []);
+  }, [postUserMessage]);
   return (
     <div className="flex-1 flex flex-col items-center justify-center">
       <div

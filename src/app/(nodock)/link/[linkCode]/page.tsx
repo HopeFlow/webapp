@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { LinkMain } from "./main";
-import { withParams, withParamsAndUser } from "@/helpers/server/page_component";
+import { withParamsAndUser } from "@/helpers/server/page_component";
 import { user2SafeUser } from "@/helpers/server/auth";
 
 export default withParamsAndUser(

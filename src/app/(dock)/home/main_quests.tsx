@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuests } from "@/server_actions/client/home/quests";
-import { mockQuestProps } from "./mock_data";
 import { ContributorQuestCard, StarterQuestCard } from "./quest_card";
 
 export function HomeMain() {

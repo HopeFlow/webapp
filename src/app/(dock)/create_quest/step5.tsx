@@ -4,22 +4,18 @@ import { Button } from "@/components/button";
 import { FileImage } from "@/components/file_image";
 import { ArrowUpTrayIcon } from "@/components/icons/arrow_up_tray";
 import { FilmIcon } from "@/components/icons/film";
-import { PencilSquareIcon } from "@/components/icons/pencil_square";
+// import { PencilSquareIcon } from "@/components/icons/pencil_square";
 import { TrashIcon } from "@/components/icons/trash";
 import { MediaCarousel } from "@/components/media_carousel";
 import { Modal, showModal } from "@/components/modal";
 import type { QuestMedia } from "@/db/constants";
-import { loadFileFromUrl, loadImageFromBlob } from "@/helpers/client/common";
-import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
+import { loadImageFromBlob } from "@/helpers/client/common";
+// import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
 import { useFileUpload } from "@/helpers/client/hooks";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import {
-  useEffect,
-  useMemo,
   useRef,
   useState,
-  type Dispatch,
-  type SetStateAction,
 } from "react";
 
 export type MediaSource = Omit<QuestMedia, "type" | "url"> &

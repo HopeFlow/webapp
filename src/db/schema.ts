@@ -8,6 +8,7 @@ import {
   check,
   foreignKey,
   uniqueIndex,
+  SQLiteTableExtraConfigValue,
 } from "drizzle-orm/sqlite-core";
 
 import { relations, sql } from "drizzle-orm";
@@ -165,7 +166,7 @@ export const nodeTable = sqliteTable(
       .notNull()
       .$defaultFn(() => new Date()),
   },
-  (table): any[] => {
+  (table): SQLiteTableExtraConfigValue[] => {
     return [
       unique("quest_id_user_id_unique").on(table.questId, table.userId),
       // Composite FK to guarantee viewLink belongs to same quest

@@ -1,11 +1,10 @@
+/* eslint-disable @next/next/no-img-element */
 import { cn } from "@/helpers/client/tailwind_helpers";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 
 type ImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> & {
   src?: File;
 };
-
-let prevSource: File | undefined = undefined;
 
 export function FileImage({
   src,
@@ -15,17 +14,13 @@ export function FileImage({
   className,
   ...props
 }: ImageProps) {
-  const [srcUrl, setSrcUrl] = useState("");
-  const prev = prevSource;
+  const srcUrl = useMemo(() => src && URL.createObjectURL(src), [src]);
   useEffect(() => {
-    if (!src) return;
-    prevSource = src;
-    const objectUrl = src && URL.createObjectURL(src);
-    setSrcUrl(objectUrl);
+    if (!srcUrl) return;
     return () => {
-      URL.revokeObjectURL(objectUrl);
+      URL.revokeObjectURL(srcUrl);
     };
-  }, [src]);
+  }, [src, srcUrl]);
   return srcUrl === "" ? (
     <div
       className={cn(

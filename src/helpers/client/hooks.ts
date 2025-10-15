@@ -35,6 +35,6 @@ export const useFileUpload = ({
       document.body.removeChild(input);
       inputRef.current = null;
     };
-  }, []);
+  }, [accept, multiple]);
   return fileUpload;
 };

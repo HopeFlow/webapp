@@ -14,6 +14,12 @@ const eslintConfig = [
     ignores: ["src/3rdparty/**"],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    files: ["src/server_actions/client/create_account/**"],
+    rules: {
+      "eslint-comments/no-unused-disable": "off"
+    }
+  },
 ];
 
 export default eslintConfig;

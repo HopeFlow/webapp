@@ -1,13 +1,6 @@
 "use client";
 
-import { Modal, showModal } from "@/components/modal";
-import React, { Fragment, useState } from "react";
-import { cn } from "@/helpers/client/tailwind_helpers";
-import { ExclamationCircleIcon } from "@/components/icons/exclamation_circle";
-import Image from "next/image";
-import { Steps } from "@/components/steps";
-import { ArrowRightIcon } from "@/components/icons/arrow_right";
-import { debounce } from "@/helpers/client/functions";
+import { showModal } from "@/components/modal";
 import type { ScreeningQuestion as ScreeningQuestionWithAnswer } from "@/db/constants";
 import { ModernFormModal } from "@/components/modern_form";
 

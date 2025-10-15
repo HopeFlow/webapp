@@ -1,5 +1,5 @@
 // middleware.ts
-import { clerkClient, clerkMiddleware } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { isPublicUrl } from "@/helpers/server/routes"; // generated
 import { X_CUR_URL_HEADER } from "./helpers/server/constants";

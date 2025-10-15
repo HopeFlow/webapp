@@ -20,7 +20,10 @@ export type CrudOptimisticConfig<
   U,
   D,
   P extends unknown[],
-  VMap extends Record<string, { result: unknown; args: unknown[] }> = {},
+  VMap extends Record<string, { result: unknown; args: unknown[] }> = Record<
+    string,
+    { result: unknown; args: unknown[] }
+  >,
 > = {
   create?: {
     read?: Updater<R, { data: C; args: P }>;

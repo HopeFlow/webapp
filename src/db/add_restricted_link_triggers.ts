@@ -53,14 +53,14 @@ export async function up(db: DrizzleD1Database<Record<string, unknown>>) {
   `);
 }
 
-export async function down(db: any) {
-  await db.execute(
+export async function down(db: DrizzleD1Database<Record<string, unknown>>) {
+  await db.run(
     sql`DROP TRIGGER IF EXISTS trg_link_ins_restricted_only_targeted;`,
   );
-  await db.execute(
+  await db.run(
     sql`DROP TRIGGER IF EXISTS trg_link_upd_restricted_only_targeted;`,
   );
-  await db.execute(
+  await db.run(
     sql`DROP TRIGGER IF EXISTS trg_quest_restrict_block_existing_broadcast;`,
   );
 }

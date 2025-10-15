@@ -20,8 +20,7 @@ export const MobileHeader = ({
   >
     <Image
       src="/img/wordmark.svg"
-      src="/img/wordmark.svg"
-      alt="Home"
+      alt="HopeFlow"
       width={118}
       height={32}
       className="h-8 w-auto object-contain"

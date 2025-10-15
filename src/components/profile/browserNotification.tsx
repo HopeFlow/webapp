@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export function BrowserNotificationsRow() {
   const [permission, setPermission] =
@@ -7,18 +7,18 @@ export function BrowserNotificationsRow() {
 
   useEffect(() => {
     if (typeof Notification !== "undefined") {
-      setPermission(Notification.permission);
+      Promise.resolve(Notification.permission).then((p) => setPermission(p));
     }
   }, []);
 
-  const requestPermission = () => {
+  const requestPermission = useCallback(() => {
     if (typeof Notification !== "undefined") {
       Notification.requestPermission().then((perm) => setPermission(perm));
     }
-  };
+  }, []);
 
   return (
-    <div className="flex gap-2 justify-between w-full">
+    <div className="flex w-full justify-between gap-2">
       <div className="flex gap-2">
         <label className="font-light">Browser Notifications</label>
         <div className="flex">

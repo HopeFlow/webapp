@@ -1,6 +1,3 @@
-import { MobileDock } from "@/components/mobile_dock";
-import { MobileHeader } from "@/components/mobile_header";
-import { Sidebar } from "@/components/sidebar";
 import { cn } from "@/helpers/client/tailwind_helpers";
 
 interface TrophyCardProps {

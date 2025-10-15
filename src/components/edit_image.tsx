@@ -191,7 +191,16 @@ export function EditImage({
             type: "error",
           });
       });
-  }, [aspectRatioValue, addToast, scale, offsetX, offsetY, rotation, done]);
+  }, [
+    aspectRatioValue,
+    imageFileName,
+    offsetX,
+    offsetY,
+    rotation,
+    scale,
+    done,
+    addToast,
+  ]);
 
   useEffect(() => {
     if (!containerRef.current) return undefined;
@@ -360,24 +369,24 @@ export function EditImage({
   return (
     <div
       className={cn(
-        "fixed left-0 top-0 z-50 h-full w-full bg-base-100",
+        "bg-base-100 fixed top-0 left-0 z-50 h-full w-full",
         className,
         "flex flex-col items-stretch",
       )}
     >
-      <div className="h-12 px-6 py-2 gap-5 flex flex-row justify-center items-center">
-        <div className="p-1 rounded-lg justify-center items-center gap-3 inline-flex">
-          <div className="w-6 h-6 relative" />
+      <div className="flex h-12 flex-row items-center justify-center gap-5 px-6 py-2">
+        <div className="inline-flex items-center justify-center gap-3 rounded-lg p-1">
+          <div className="relative h-6 w-6" />
         </div>
-        <div className="flex-1 inline-flex flex-row justify-center items-center text-information-content-secondary text-[21px] font-bold font-body leading-loose tracking-wide">
+        <div className="text-information-content-secondary font-body inline-flex flex-1 flex-row items-center justify-center text-[21px] leading-loose font-bold tracking-wide">
           Edit photo
         </div>
-        <div className="p-1 rounded-lg justify-center items-center gap-3 inline-flex">
+        <div className="inline-flex items-center justify-center gap-3 rounded-lg p-1">
           <CloseButton onClick={() => done()} />
         </div>
       </div>
-      <div className="w-full flex-1 relative" ref={containerRef}>
-        <div className="absolute left-0 top-0 bottom-0 right-0 bg-information-content-secondary overflow-hidden pointer-events-none">
+      <div className="relative w-full flex-1" ref={containerRef}>
+        <div className="bg-information-content-secondary pointer-events-none absolute top-0 right-0 bottom-0 left-0 overflow-hidden">
           <FileImage
             src={image}
             onLoad={(e) => {
@@ -391,27 +400,27 @@ export function EditImage({
               });
             }}
             alt="Edit Photo"
-            className="absolute left-1/2 top-1/2 origin-center overflow-visible"
+            className="absolute top-1/2 left-1/2 origin-center overflow-visible"
             style={{
               transform: `translate(-50%, -50%) translate(${offsetX / 2}px,${
                 offsetY / 2
               }px) rotate(${rotation}deg) scale(${scale})`,
             }}
           />
-          <div className="absolute h-full w-full left-1/2 top-1/2 origin-center -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+          <div className="pointer-events-none absolute top-1/2 left-1/2 h-full w-full origin-center -translate-x-1/2 -translate-y-1/2">
             <div
               className={
-                "relative left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 max-h-full" +
+                "relative top-1/2 left-1/2 max-h-full -translate-x-1/2 -translate-y-1/2" +
                 (aspectRatio === "square"
                   ? " aspect-square "
                   : " aspect-video ") +
-                "shadow-[0_0_0_9999px_rgba(0,0,0,0.7)] pointer-events-none"
+                "pointer-events-none shadow-[0_0_0_9999px_rgba(0,0,0,0.7)]"
               }
             ></div>
           </div>
         </div>
       </div>
-      <div className="px-6 pb-10 pt-3 flex flex-row justify-between">
+      <div className="flex flex-row justify-between px-6 pt-3 pb-10">
         <Button
           buttonType="secondary"
           buttonSize="sm"

@@ -2,9 +2,8 @@
 
 import { Button } from "@/components/button";
 import { HopeflowLogo } from "@/components/logos/hopeflow";
-import { EmailLogo } from "@/components/logos/email";
 import { ArrowRightIcon } from "@/components/icons/arrow_right";
-import { useGoto, useGotoHome, useGotoIndex } from "@/helpers/client/routes";
+import { useGoto, useGotoHome } from "@/helpers/client/routes";
 import {
   useState,
   useRef,
@@ -12,6 +11,7 @@ import {
   KeyboardEvent,
   ClipboardEvent,
   useEffect,
+  useCallback,
 } from "react";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { useSignIn, useSignUp } from "@clerk/nextjs";
@@ -19,7 +19,6 @@ import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import type {
   SignInFirstFactor,
   EmailCodeFactor,
-  OAuthStrategy,
 } from "@clerk/types";
 import { useToast } from "@/components/toast";
 
@@ -59,6 +58,94 @@ export function LoginEmail({ url }: { url?: string }) {
     }
   }, [verifying]);
 
+  const handleClerkError = useCallback(
+    (e: unknown) => {
+      if (isClerkAPIResponseError(e)) {
+        const err = e.errors?.[0];
+        addToast({
+          type: "error",
+          title: "Authentication Error",
+          description: `${err?.code}: ${err?.longMessage ?? err?.message}`,
+        });
+      } else {
+        addToast({
+          type: "error",
+          title: "Authentication Error",
+          description: `Unexpected error: ${e}`,
+        });
+      }
+    },
+    [addToast],
+  );
+
+  const verify = useCallback(async () => {
+    const code = otp.join("");
+    if (code.length !== 6) {
+      addToast({
+        type: "error",
+        title: "Invalid code",
+        description: "Please enter the 6-digit code.",
+      });
+      return;
+    }
+
+    setIsVerifyingBtn(true);
+    try {
+      if (stage === "verify_login_token") {
+        const attempt = await signIn!.attemptFirstFactor({
+          strategy: "email_code",
+          code,
+        });
+        if (attempt.status === "complete") {
+          await setSignInActive!({ session: attempt.createdSessionId });
+          if (url) goto(url);
+          else gotoHome();
+        } else {
+          addToast({
+            type: "error",
+            title: "Signin Error",
+            description: `Sign-in not complete: ${attempt.status}`,
+          });
+        }
+      } else if (stage === "verify_signup_token") {
+        const attempt = await signUp!.attemptEmailAddressVerification({ code });
+        if (attempt.status === "complete") {
+          await setSignUpActive!({ session: attempt.createdSessionId });
+          if (url) goto(url);
+          else gotoHome();
+        } else {
+          addToast({
+            type: "error",
+            title: "Signup Error",
+            description: `Sign-up not complete: ${attempt.status}`,
+          });
+        }
+      } else {
+        addToast({
+          type: "error",
+          title: "Invalid operation",
+          description: "Please request a code first.",
+        });
+      }
+    } catch (e) {
+      handleClerkError(e);
+    } finally {
+      setIsVerifyingBtn(false);
+    }
+  }, [
+    addToast,
+    goto,
+    gotoHome,
+    handleClerkError,
+    otp,
+    setSignInActive,
+    setSignUpActive,
+    signIn,
+    signUp,
+    stage,
+    url,
+  ]);
+
   useEffect(() => {
     if (!verifying) return;
     const code = otp.join("");
@@ -66,24 +153,7 @@ export function LoginEmail({ url }: { url?: string }) {
     if (/^\d{6}$/.test(code) && !isVerifyingBtn) {
       verify();
     }
-  }, [otp, verifying, isVerifyingBtn]);
-
-  const handleClerkError = (e: unknown) => {
-    if (isClerkAPIResponseError(e)) {
-      const err = e.errors?.[0];
-      addToast({
-        type: "error",
-        title: "Authentication Error",
-        description: `${err?.code}: ${err?.longMessage ?? err?.message}`,
-      });
-    } else {
-      addToast({
-        type: "error",
-        title: "Authentication Error",
-        description: `Unexpected error: ${e}`,
-      });
-    }
-  };
+  }, [otp, verifying, isVerifyingBtn, verify]);
 
   // Start flow (sign-in first; if not found, sign-up)
   const startEmailFlow = async () => {
@@ -145,62 +215,6 @@ export function LoginEmail({ url }: { url?: string }) {
       }
     } finally {
       setIsPreparing(false);
-    }
-  };
-
-  const verify = async () => {
-    const code = otp.join("");
-    if (code.length !== 6) {
-      addToast({
-        type: "error",
-        title: "Invalid code",
-        description: "Please enter the 6-digit code.",
-      });
-      return;
-    }
-
-    setIsVerifyingBtn(true);
-    try {
-      if (stage === "verify_login_token") {
-        const attempt = await signIn!.attemptFirstFactor({
-          strategy: "email_code",
-          code,
-        });
-        if (attempt.status === "complete") {
-          await setSignInActive!({ session: attempt.createdSessionId });
-          if (url) goto(url);
-          else gotoHome();
-        } else {
-          addToast({
-            type: "error",
-            title: "Signin Error",
-            description: `Sign-in not complete: ${attempt.status}`,
-          });
-        }
-      } else if (stage === "verify_signup_token") {
-        const attempt = await signUp!.attemptEmailAddressVerification({ code });
-        if (attempt.status === "complete") {
-          await setSignUpActive!({ session: attempt.createdSessionId });
-          if (url) goto(url);
-          else gotoHome();
-        } else {
-          addToast({
-            type: "error",
-            title: "Signup Error",
-            description: `Sign-up not complete: ${attempt.status}`,
-          });
-        }
-      } else {
-        addToast({
-          type: "error",
-          title: "Invalid operation",
-          description: "Please request a code first.",
-        });
-      }
-    } catch (e) {
-      handleClerkError(e);
-    } finally {
-      setIsVerifyingBtn(false);
     }
   };
 

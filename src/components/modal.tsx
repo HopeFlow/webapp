@@ -46,7 +46,7 @@ export const Modal = ({
   ref,
 }: ModalProps) => {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
-  const close = useCallback(() => dialogRef.current?.close(), [id]);
+  const close = useCallback(() => dialogRef.current?.close(), []);
   return (
     <dialog
       ref={(dialog) => {

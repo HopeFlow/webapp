@@ -1,26 +1,13 @@
 "use client";
 
 import { Button, GhostButton } from "@/components/button";
-import { FileImage } from "@/components/file_image";
-import { ArrowUpTrayIcon } from "@/components/icons/arrow_up_tray";
-import { FilmIcon } from "@/components/icons/film";
 import { PencilSquareIcon } from "@/components/icons/pencil_square";
 import { PlusIcon } from "@/components/icons/plus";
 import { TrashIcon } from "@/components/icons/trash";
-import { MediaCarousel } from "@/components/media_carousel";
-import { Modal, showModal } from "@/components/modal";
-import { QuestMedia, ScreeningAnswer, ScreeningQuestion } from "@/db/constants";
-import { loadFileFromUrl, loadImageFromBlob } from "@/helpers/client/common";
-import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
-import { useFileUpload } from "@/helpers/client/hooks";
+import type { ScreeningAnswer, ScreeningQuestion } from "@/db/constants";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import {
-  useEffect,
-  useMemo,
-  useRef,
   useState,
-  type Dispatch,
-  type SetStateAction,
 } from "react";
 
 export const Step6 = ({
@@ -28,7 +15,7 @@ export const Step6 = ({
 }: {
   continueToNextStep: () => void;
 }) => {
-  const [screeningQuestions, setScreeningQuestions] = useState<
+  const [screeningQuestions] = useState<
     (ScreeningQuestion & Omit<ScreeningAnswer, "questionIndex">)[]
   >([
     {

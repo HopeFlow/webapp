@@ -1,20 +1,24 @@
 import { z } from "zod";
 import { withParams } from "@/helpers/server/page_component";
+import Image from "next/image";
 
 export default withParams(
   function Chat({}: { questId: string; nodeId: string }) {
     return (
-      <div className="p-4 md:p-8 flex-1 flex flex-col">
-        <h1 className="font-normal text-2xl">
-          Jacob's stolen sentimental bicycle &mdash; Jacob &amp; Obi-Wan{" "}
+      <div className="flex flex-1 flex-col p-4 md:p-8">
+        <h1 className="text-2xl font-normal">
+          Jacob&apos;s stolen sentimental bicycle &mdash; Jacob &amp;
+          Obi-Wan{" "}
         </h1>
-        <div className="w-full overflow-y-auto overflow-x-hidden">
+        <div className="w-full overflow-x-hidden overflow-y-auto">
           <div className="chat chat-start">
             <div className="chat-image avatar">
               <div className="w-10 rounded-full">
-                <img
-                  alt="Tailwind CSS chat bubble component"
+                <Image
+                  alt="Kenobee"
                   src="https://img.daisyui.com/images/profile/demo/kenobee@192.webp"
+                  width={192}
+                  height={192}
                 />
               </div>
             </div>
@@ -34,9 +38,11 @@ export default withParams(
             <div key={`m-${e}`} className="chat chat-end">
               <div className="chat-image avatar">
                 <div className="w-10 rounded-full">
-                  <img
-                    alt="Tailwind CSS chat bubble component"
+                  <Image
+                    alt="Anakeen"
                     src="https://img.daisyui.com/images/profile/demo/anakeen@192.webp"
+                    width={192}
+                    height={192}
                   />
                 </div>
               </div>
@@ -51,10 +57,5 @@ export default withParams(
       </div>
     );
   },
-  {
-    paramsTypeDef: z.object({
-      questId: z.string(),
-      nodeId: z.string(),
-    }),
-  },
+  { paramsTypeDef: z.object({ questId: z.string(), nodeId: z.string() }) },
 );

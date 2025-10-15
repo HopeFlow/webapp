@@ -1,23 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import { MobileHeader } from "@/components/mobile_header";
 import { Button, GhostButton } from "@/components/button";
 import { MediaCarousel } from "@/components/media_carousel";
-import { Avatar, AvatarGroup } from "@/components/user_avatar";
 import { ReadMore } from "@/components/read_more";
 import { ReflowTree } from "@/components/reflow_tree";
 import { Timeline } from "@/components/timeline";
-import { EyeIcon } from "@/components/icons/eye";
 import { BulbIcon } from "@/components/icons/bulb";
 import { ChatBubbleIcon } from "@/components/icons/chat_bubble";
 import { Leaf } from "@/components/leaf";
 import { ReflowIcon } from "@/components/icons/reflow";
-import { BookmarkIcon } from "@/components/icons/bookmark";
 import { MediatorsIcon } from "@/components/icons/mediators";
 import { ReflowModal, showReflowModal } from "@/modals/reflow_modal";
 import { PencilSquareIcon } from "@/components/icons/pencil_square";
-import { ArrowRightIcon } from "@/components/icons/arrow_right";
 
 export function QuestContributorView() {
   return (
@@ -93,7 +88,7 @@ export function QuestContributorView() {
                     className="bg-base-300 text-base-content border p-1 rounded-full"
                   />
                   <p className="text-sm">
-                    <span className="font-semibold">$1,000</span> Finder's Fee
+                    <span className="font-semibold">$1,000</span> Finder&apos;s Fee
                   </p>
                 </div>
                 <div className="flex flex-row gap-2 items-start text-sm">
@@ -167,25 +162,25 @@ export function QuestContributorView() {
                 {
                   name: "Jacob",
                   imageUrl: "/img/avatar2.jpeg",
-                  timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000),
+                  timestamp: new Date(1760525835746 - 48 * 60 * 60 * 1000),
                   type: "started the quest",
                 },
                 {
                   name: "Jacob",
                   imageUrl: "/img/avatar2.jpeg",
-                  timestamp: new Date(Date.now() - 35 * 60 * 60 * 1000),
+                  timestamp: new Date(1760525835746 - 35 * 60 * 60 * 1000),
                   type: "reflowed the quest",
                 },
                 {
                   name: "Martha",
                   imageUrl: "/img/avatar4.jpeg",
-                  timestamp: new Date(Date.now() - 28 * 60 * 60 * 1000),
+                  timestamp: new Date(1760525835746 - 28 * 60 * 60 * 1000),
                   type: "reflowed the quest",
                 },
                 {
                   name: "Martha",
                   imageUrl: "/img/avatar4.jpeg",
-                  timestamp: new Date(Date.now() - 22 * 60 * 60 * 1000),
+                  timestamp: new Date(1760525835746 - 22 * 60 * 60 * 1000),
                   type: "commented on the quest",
                   description:
                     "I hope you will find your bike and get it back safely.",
@@ -193,7 +188,7 @@ export function QuestContributorView() {
                 {
                   name: "Behrooz",
                   imageUrl: "/img/behrooz.jpeg",
-                  timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000),
+                  timestamp: new Date(1760525835746 - 12 * 60 * 60 * 1000),
                   type: "reflowed the quest",
                   description:
                     "Saeed is in the neighborhood and knows bikes well. He likes to help people as much as I do",

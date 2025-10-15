@@ -1,9 +1,6 @@
 "use client";
 
 import { useGotoProfile } from "@/helpers/client/routes";
-"use client";
-
-import { useGotoProfile } from "@/helpers/client/routes";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import type { SafeUser } from "@/helpers/server/auth";
 import { useClerk } from "@clerk/nextjs";

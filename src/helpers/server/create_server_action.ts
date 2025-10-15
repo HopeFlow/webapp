@@ -40,7 +40,8 @@ function toServerAction<P extends AnyArgs, R>(
   },
 ): ServerAction<P, R> {
   const action = (...args: P) => fn(...args);
-  const noOp = <S extends AnyArgs, T>(_a: ServerAction<S, T>, _b?: any) =>
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const noOp = <S extends AnyArgs, T>(_a: ServerAction<S, T>, _b?: unknown) =>
     void 0;
   return Object.assign(action, {
     id: meta.id,
@@ -63,7 +64,11 @@ export const createServerAction = <P extends AnyArgs, R>({
     buildArgs?: (...args: [R, ...P]) => S,
   ) => void;
 }): ServerAction<P, R> => {
-  const fn = defineServerFunction<P, R>({ id, scope, handler: execute });
+  const fn = defineServerFunction<P, R, Promise<R>>({
+    id,
+    scope,
+    handler: execute,
+  });
   return toServerAction<P, R>(fn, { id, scope, addInvalidation });
 };
 
@@ -79,7 +84,7 @@ export const createVariant = function <
 ) {
   const id = `${this.id}.${variantName}`;
   const scope = this.scope;
-  const fn = defineServerFunction<V, W>({ id, scope, handler: read });
+  const fn = defineServerFunction<V, W, Promise<W>>({ id, scope, handler: read });
   return toServerAction<V, W>(fn, {
     id,
     scope,
@@ -106,7 +111,8 @@ export const createCrudServerAction = <C, R, U, D, P extends AnyArgs>({
 }): CrudServerAction<C, R, U, D, P> => {
   const dispatcher = defineServerFunction<
     [CrudAction, C | U | D | undefined, ...P],
-    R | boolean
+    R | boolean,
+    Promise<R | boolean>
   >({
     id,
     scope,

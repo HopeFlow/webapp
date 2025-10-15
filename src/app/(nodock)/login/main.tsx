@@ -14,8 +14,8 @@ import type { OAuthStrategy } from "@clerk/types";
 import { useGoto, useGotoHome } from "@/helpers/client/routes";
 
 const LogoContainer = ({ children }: { children: React.ReactNode }) => (
-  <span className="flex items-center justify-center w-6 h-6 rounded-full border border-base-300 bg-gray-50">
-    <span className="w-5 h-5 flex items-center justify-center">{children}</span>
+  <span className="border-base-300 flex h-6 w-6 items-center justify-center rounded-full border bg-gray-50">
+    <span className="flex h-5 w-5 items-center justify-center">{children}</span>
   </span>
 );
 
@@ -27,16 +27,16 @@ function LoginOAuth({
   handleSigninWith: (strategy: OAuthStrategy) => Promise<void>;
 }) {
   return (
-    <div className="flex-1 w-full p-6 flex flex-col gap-4 items-center justify-center">
-      <div className="max-w-lg md:w-lg p-6 flex flex-col gap-4 card shadow-2xl bg-base-100">
-        <div className="flex flex-col gap-4 items-center justify-center">
+    <div className="flex w-full flex-1 flex-col items-center justify-center gap-4 p-6">
+      <div className="card bg-base-100 flex max-w-lg flex-col gap-4 p-6 shadow-2xl md:w-lg">
+        <div className="flex flex-col items-center justify-center gap-4">
           <HopeflowLogo size={48} />
-          <h1 className="font-normal text-4xl">Login or Signup</h1>
+          <h1 className="text-4xl font-normal">Login or Signup</h1>
         </div>
         <Button
           buttonType="neutral"
           buttonStyle="outline"
-          className="text-base-content hover:bg-base-300 w-full flex items-center justify-between gap-3"
+          className="text-base-content hover:bg-base-300 flex w-full items-center justify-between gap-3"
           onClick={() => handleSigninWith("oauth_google")}
         >
           <span className="justify-self-start">
@@ -46,12 +46,12 @@ function LoginOAuth({
           </span>
           <span className="flex-1 text-center">Login/Signup with Google</span>
           {/* reserve space for alignment */}
-          <span className="w-6 h-6" />
+          <span className="h-6 w-6" />
         </Button>
         <Button
           buttonType="neutral"
           buttonStyle="outline"
-          className="text-base-content hover:bg-base-300 w-full flex items-center justify-between gap-3"
+          className="text-base-content hover:bg-base-300 flex w-full items-center justify-between gap-3"
           onClick={() => handleSigninWith("oauth_facebook")}
         >
           <span className="justify-self-start">
@@ -61,12 +61,12 @@ function LoginOAuth({
           </span>
           <span className="flex-1 text-center">Login/Signup with Facebook</span>
           {/* reserve space for alignment */}
-          <span className="w-6 h-6" />
+          <span className="h-6 w-6" />
         </Button>
         <div className="divider">Or</div>
         <Button
           buttonType="neutral"
-          className="w-full flex items-center justify-between gap-3"
+          className="flex w-full items-center justify-between gap-3"
           onClick={() => onEmail()}
         >
           <span className="justify-self-start">
@@ -76,7 +76,7 @@ function LoginOAuth({
           </span>
           <span className="flex-1 text-center">Login/Signup with Email</span>
           <span className="justify-self-end">
-            <ArrowRightIcon className="w-4 h-4" />
+            <ArrowRightIcon className="h-4 w-4" />
           </span>
         </Button>
       </div>
@@ -93,8 +93,8 @@ const TransitionContainer = ({
 }) => (
   <div
     className={cn(
-      "absolute left-0 top-0 w-full h-full transition-opacity duration-700 flex flex-col",
-      !show && "opacity-0 pointer-events-none",
+      "absolute top-0 left-0 flex h-full w-full flex-col transition-opacity duration-700",
+      !show && "pointer-events-none opacity-0",
     )}
   >
     {children}
@@ -185,10 +185,11 @@ export function LoginMain({
     setSignUpActive,
     url,
     goto,
+    gotoHome,
   ]);
 
   return (
-    <div className="flex-1 w-full flex flex-col items-center justify-center relative">
+    <div className="relative flex w-full flex-1 flex-col items-center justify-center">
       <TransitionContainer show={!usingEmail}>
         <LoginOAuth
           onEmail={() => setUsingEmail(true)}
