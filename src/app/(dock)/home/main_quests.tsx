@@ -2,6 +2,7 @@
 
 import { useQuests } from "@/server_actions/client/home/quests";
 import { ContributorQuestCard, StarterQuestCard } from "./quest_card";
+import { HomeMain as HomeMainEmpty } from "./main";
 
 export function HomeMain() {
   const { data, isLoading, isError, error } = useQuests({
@@ -10,9 +11,9 @@ export function HomeMain() {
   });
   if (isLoading) return <div>Loading...</div>;
   if (isError) return <div>{error.message}</div>;
-  // console.log(data);
+  if (!data || data.length === 0) return <HomeMainEmpty />;
   return (
-    <div className="w-full p-4 md:p-8 overflow-y-auto">
+    <div className="w-full overflow-y-auto p-4 md:p-8">
       {/* {new Array(7)
         .fill(null)
         .map((_, i) =>
