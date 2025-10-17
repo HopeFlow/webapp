@@ -8,9 +8,7 @@ import { useSpeechRecognitionEngine } from "@/helpers/client/asr";
 import { timeout } from "@/helpers/client/common";
 import { useCreateQuestChat } from "@/helpers/client/LLM";
 import { cn } from "@/helpers/client/tailwind_helpers";
-import {
-  getQuestTitleAndDescription,
-} from "@/helpers/server/LLM";
+import { getQuestTitleAndDescription } from "@/helpers/server/LLM";
 import {
   type Dispatch,
   type SetStateAction,
@@ -19,6 +17,16 @@ import {
   useRef,
   useState,
 } from "react";
+
+let prevProps: {
+  setTitle: Dispatch<SetStateAction<string>>;
+  setDescription: Dispatch<SetStateAction<string>>;
+  continueToNextStep: () => void;
+} = {
+  setTitle: () => {},
+  setDescription: () => {},
+  continueToNextStep: () => {},
+};
 
 export const Step1 = ({
   setTitle,
@@ -29,14 +37,24 @@ export const Step1 = ({
   setDescription: Dispatch<SetStateAction<string>>;
   continueToNextStep: () => void;
 }) => {
+  console.log({
+    setTitle: setTitle === prevProps.setTitle,
+    setDescription: setDescription === prevProps.setDescription,
+    continueToNextStep: continueToNextStep === prevProps.continueToNextStep,
+  });
+  prevProps = { setTitle, setDescription, continueToNextStep };
   const discussionRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const [waiting, setWaiting] = useState(false);
+  console.log({ waiting });
   const [asrAvailable, isListening, start, stop, reset] =
-    useSpeechRecognitionEngine((value) => {
-      if (!textAreaRef.current) return;
-      textAreaRef.current.value = value;
-    });
+    useSpeechRecognitionEngine(
+      useCallback((value) => {
+        if (!textAreaRef.current) return;
+        textAreaRef.current.value = value;
+      }, []),
+    );
+  console.log({ asrAvailable, isListening });
   const [messages, thinking, thinkingMessage, clarity, postUserMessage] =
     useCreateQuestChat();
   useLayoutEffect(() => {
@@ -67,16 +85,16 @@ export const Step1 = ({
     textArea.style.height = "";
   }, [postUserMessage]);
   return (
-    <div className="flex-1 flex flex-col items-center justify-center">
+    <div className="flex flex-1 flex-col items-center justify-center">
       <div
         className={cn(
-          "w-full max-w-4xl p-4 md:p-8 flex-1 flex flex-col gap-4 justify-center",
+          "flex w-full max-w-4xl flex-1 flex-col justify-center gap-4 p-4 md:p-8",
           messages.length < 1 && "justify-center",
         )}
       >
         <div
           className={cn(
-            "transition-all grow-0 overflow-y-auto",
+            "grow-0 overflow-y-auto transition-all",
             messages.length >= 1 && "grow-1",
           )}
           ref={discussionRef}
@@ -90,30 +108,30 @@ export const Step1 = ({
                   content={message.content as string}
                   className={cn(
                     message.role === "user"
-                      ? "rounded-box p-4 bg-base-300"
+                      ? "rounded-box bg-base-300 p-4"
                       : "",
                   )}
                 />
               ))}
           </div>
           {thinking && (
-            <div className="p-4 flex items-center justify-center">
+            <div className="flex items-center justify-center p-4">
               <span className="loading loading-bars loading-xl"></span>{" "}
               {thinkingMessage}
             </div>
           )}
         </div>
         {messages.length < 1 && (
-          <h1 className="w-full text-center font-normal text-xl md:text-3xl">
+          <h1 className="w-full text-center text-xl font-normal md:text-3xl">
             Describe what you are looking for ...
           </h1>
         )}
-        <label className="textarea w-full resize-none flex-shrink-0 flex flex-row items-end">
+        <label className="textarea flex w-full flex-shrink-0 resize-none flex-row items-end">
           <textarea
             ref={textAreaRef}
             className={cn(
-              "resize-none flex-1 min-h-full",
-              messages.length < 1 ? "min-h-32 max-h-56" : "max-h-32",
+              "min-h-full flex-1 resize-none",
+              messages.length < 1 ? "max-h-56 min-h-32" : "max-h-32",
             )}
             onInput={(e) => {
               const textArea = e.target as HTMLTextAreaElement;
@@ -178,10 +196,10 @@ export const Step1 = ({
             {clarity > 95
               ? "high"
               : clarity > 75
-              ? "acceptable"
-              : clarity > 50
-              ? "borderline"
-              : "low"}{" "}
+                ? "acceptable"
+                : clarity > 50
+                  ? "borderline"
+                  : "low"}{" "}
             clarity)
           </Button>
         )}

@@ -38,13 +38,12 @@ export default function Create() {
     },
     [latestVisitedState, description, stepIndex, title],
   );
+  console.log([latestVisitedState, description, stepIndex, title]);
   const continueToNextStep = useCallback(() => {
-    setStepIndex((stepIndex) => {
-      const nextStepIndex = sanitizeStepIndex(stepIndex + 1);
-      setLatestVisitedState((s) => Math.max(s, nextStepIndex));
-      return nextStepIndex;
-    });
-  }, [sanitizeStepIndex]);
+    const nextStepIndex = sanitizeStepIndex(stableStepIndex + 1);
+    setLatestVisitedState((s) => Math.max(s, nextStepIndex));
+    setStepIndex(nextStepIndex);
+  }, [sanitizeStepIndex, stableStepIndex]);
   return (
     <div className="flex h-full w-full flex-col">
       <Steps
@@ -59,7 +58,6 @@ export default function Create() {
         itemIndex={stepIndex}
         onItemIndexChange={(index) => {
           setStableStepIndex(index);
-          setStepIndex(sanitizeStepIndex(index));
         }}
       >
         <Step1
@@ -68,21 +66,18 @@ export default function Create() {
           continueToNextStep={continueToNextStep}
           key="step1"
         />
-        ,
         <Step2
           description={description}
           setDescription={setDescription}
           continueToNextStep={continueToNextStep}
           key="step2"
         />
-        ,
         <Step3
           title={title}
           setTitle={setTitle}
           continueToNextStep={continueToNextStep}
           key="step3"
         />
-        ,
         <Step4
           title={title}
           coverImage={coverImage}
@@ -90,9 +85,8 @@ export default function Create() {
           continueToNextStep={continueToNextStep}
           key="step4"
         />
-        ,
-        <Step5 continueToNextStep={continueToNextStep} key="step5" />,
-        <Step6 continueToNextStep={continueToNextStep} key="step6" />,
+        <Step5 continueToNextStep={continueToNextStep} key="step5" />
+        <Step6 continueToNextStep={continueToNextStep} key="step6" />
       </ModernForm>
     </div>
   );

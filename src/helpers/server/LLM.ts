@@ -5,6 +5,10 @@ import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 import { defineServerFunction } from "./define_server_function";
 
+// const defineServerFunction = (params: object) => {
+//   return async () => {};
+// };
+
 const getTransliteratePrompt = (inputName: string) =>
   `
 transliterate "${inputName}" as a sequence of ASCII characters.
@@ -13,9 +17,7 @@ OUTPUT ONLY THE TRANSLITERATION WITHOUT ANY EXTRA TEXT OR INFORMATION.
 
 export const transliterate = defineServerFunction({
   handler: async (inputName: string) => {
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await openai.responses.create({
       model: "gpt-5-nano",
       input: getTransliteratePrompt(inputName),
@@ -68,13 +70,8 @@ export const createQuestChat = defineServerFunction({
     const stream = await openai.responses.create({
       model: "gpt-5-nano",
       input,
-      reasoning: {
-        effort: "low",
-        summary: "detailed",
-      },
-      text: {
-        format: { type: "text" },
-      },
+      reasoning: { effort: "low", summary: "detailed" },
+      text: { format: { type: "text" } },
       stream: true,
     });
 

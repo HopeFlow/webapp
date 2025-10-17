@@ -115,7 +115,7 @@ export const Carousel = ({
   useEffect(() => {
     handleScrollInternal();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [childArray.length]);
+  }, [childArray]);
 
   // Imperative scroll when the controlled prop changes
   useLayoutEffect(() => {
@@ -141,24 +141,32 @@ export const Carousel = ({
   return (
     <div
       className={cn(
-        "w-full h-full carousel carousel-horizontal carousel-center",
+        "carousel carousel-horizontal carousel-center h-full w-full",
         className,
       )}
       role="listbox"
       ref={containerRef}
       {...restProps}
     >
-      {childArray.map((child, index) => (
-        <div
-          role="option"
-          aria-selected={index === clampedPropIndex}
-          key={child.key ?? `${baseId}_item${index}`}
-          data-index={index}
-          className={cn("w-full relative carousel-item", childClassName)}
-        >
-          {child}
-        </div>
-      ))}
+      {childArray.map((child, index) => {
+        console.log({
+          index,
+          clampedPropIndex,
+          childKey: child.key,
+          key: `${baseId}_item${index}`,
+        });
+        return (
+          <div
+            role="option"
+            aria-selected={index === clampedPropIndex}
+            key={child.key ?? `${baseId}_item${index}`}
+            data-index={index}
+            className={cn("carousel-item relative w-full", childClassName)}
+          >
+            {child}
+          </div>
+        );
+      })}
     </div>
   );
 };
