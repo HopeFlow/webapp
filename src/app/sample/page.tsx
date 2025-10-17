@@ -4,9 +4,6 @@ import { useSimpleAction } from "@/server_actions/client/sample/simpleAction";
 import { useState } from "react";
 
 export default function SamplePage() {
-  // const asciiName = await transliterate("بهروز ودادیان");
-  // return <div>Hello {asciiName}</div>;
-
   const [itemId, setItemId] = useState(1);
   const { data: item, isLoading: isLoadingItem } = useManageItems(
     "getItemById",
@@ -25,12 +22,12 @@ export default function SamplePage() {
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">
+      <h1 className="mb-4 text-2xl font-bold">
         Sample Page for Server Action Hooks
       </h1>
 
       <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-2">useSimpleAction</h2>
+        <h2 className="mb-2 text-xl font-semibold">useSimpleAction</h2>
         <button className="btn" onClick={() => runSimpleAction()}>
           Run Simple Action
         </button>
@@ -40,13 +37,8 @@ export default function SamplePage() {
       </div>
 
       <div>
-        <h2 className="text-xl font-semibold mb-2">useManageItems</h2>
-        <p className="mb-4">
-          The create, update, and remove actions have an artificial 2-second
-          delay to simulate network latency. Notice how the UI updates instantly
-          when you perform an action, thanks to optimistic updates.
-        </p>
-        <div className="flex gap-2 mb-4">
+        <h2 className="mb-2 text-xl font-semibold">useManageItems</h2>
+        <div className="mb-4 flex gap-2">
           <button
             className="btn btn-primary"
             onClick={() =>
@@ -55,52 +47,49 @@ export default function SamplePage() {
                 description: "A new item created from the client",
               })
             }
-            disabled={create.isPending}
           >
-            {create.isPending ? "Creating..." : "Create Item"}
+            Create Item
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() =>
+              items &&
+              items.length > 0 &&
+              update.mutate({ ...items[0], name: "Updated Item Name" })
+            }
+            disabled={!items || items.length === 0}
+          >
+            Update First Item
+          </button>
+          <button
+            className="btn btn-accent"
+            onClick={() =>
+              items && items.length > 0 && remove.mutate({ id: items[0].id })
+            }
+            disabled={!items || items.length === 0}
+          >
+            Remove First Item
           </button>
         </div>
 
         {isLoadingItems && <p>Loading items...</p>}
 
-        <h3 className="text-lg font-semibold mt-4">All Items:</h3>
-        <ul className="list-disc list-inside space-y-2">
+        <h3 className="mt-4 text-lg font-semibold">All Items:</h3>
+        <ul className="list-inside list-disc">
           {items?.map((item) => (
-            <li key={item.id} className="flex items-center gap-4">
-              <span>
-                {item.name}: {item.description}
-              </span>
-              <button
-                className="btn btn-sm btn-secondary"
-                onClick={() =>
-                  update.mutate({ ...item, name: item.name + " (updated)" })
-                }
-                disabled={update.isPending}
-              >
-                {update.isPending && update.variables?.id === item.id
-                  ? "Updating..."
-                  : "Update"}
-              </button>
-              <button
-                className="btn btn-sm btn-accent"
-                onClick={() => remove.mutate({ id: item.id })}
-                disabled={remove.isPending}
-              >
-                {remove.isPending && remove.variables?.id === item.id
-                  ? "Removing..."
-                  : "Remove"}
-              </button>
+            <li key={item.id}>
+              {item.name}: {item.description}
             </li>
           ))}
         </ul>
 
         <div className="mt-8">
           <h3 className="text-lg font-semibold">Get Item by ID (variant)</h3>
-          <div className="flex items-center gap-2 mt-2">
+          <div className="mt-2 flex items-center gap-2">
             <input
-              type="text"
+              type="number"
               value={itemId}
-              onChange={(e) => setItemId(parseInt(e.target.value))}
+              onChange={(e) => setItemId(Number(e.target.value))}
               className="input input-bordered"
               placeholder="Enter Item ID"
             />
