@@ -46,37 +46,35 @@ export function StarterQuestCard({
     questState === "Young"
       ? "fuchsia"
       : questState === "Thriving"
-      ? "emerald"
-      : questState === "Stable"
-      ? "blue"
-      : "amber";
+        ? "emerald"
+        : questState === "Stable"
+          ? "blue"
+          : "amber";
   return (
-    <div className="max-w-4xl flex-1 h-auto flex flex-row gap-2 py-4 border-b">
+    <div className="flex h-auto max-w-4xl flex-1 flex-row gap-2 border-b py-4">
       <StarterQuestCardNodes nodes={nodes} />
-      <div className="flex-1 flex flex-col gap-2 items-start">
+      <div className="flex flex-1 flex-col items-start gap-2">
         <h1>{title}</h1>
-        <MediaCarousel className="w-full h-48 md:h-96 flex flex-col items-center justify-center rounded-box overflow-hidden bg-base-content">
-          {coverMedia.map(
-            ({ imageUrl, alt, imageWidth, imageHeight }, index) => (
-              <Image
-                key={`cover-${index}`}
-                src={imageUrl}
-                alt={alt ?? title}
-                width={imageWidth}
-                height={imageHeight}
-                className="max-h-full w-auto object-contain"
-              />
-            ),
-          )}
+        <MediaCarousel className="rounded-box bg-base-content flex h-48 w-full flex-col items-center justify-center overflow-hidden md:h-96">
+          {coverMedia.map(({ url, alt, width, height }, index) => (
+            <Image
+              key={`cover-${index}`}
+              src={url}
+              alt={alt ?? title}
+              width={width}
+              height={height}
+              className="max-h-full w-auto object-contain"
+            />
+          ))}
         </MediaCarousel>
-        <div className="w-full flex flex-row">
-          <span className="h-full inline-flex flex-row items-center gap-2">
+        <div className="flex w-full flex-row">
+          <span className="inline-flex h-full flex-row items-center gap-2">
             +{Math.max(0, bounty)}
           </span>
           <span className="flex-1"></span>
           <span
             className={cn(
-              "text-sm h-full inline-flex flex-row items-center gap-2",
+              "inline-flex h-full flex-row items-center gap-2 text-sm",
               // START HACK: Force Tailwind to add variables for these colors
               questState === "Young" && "text-fuchsia-300",
               questState === "Thriving" && "text-emerald-300",
@@ -107,7 +105,7 @@ export function StarterQuestCard({
         >
           {numberOfLeads === 0 ? "No leads yet" : `${numberOfLeads} leads`}
         </div>
-        <div className="w-full h-10 flex flex-row items-end justify-end">
+        <div className="flex h-10 w-full flex-row items-end justify-end">
           <Button
             buttonSize="sm"
             buttonType="base"
@@ -152,46 +150,44 @@ export function ContributorQuestCard({
     questState === "Young"
       ? "fuchsia"
       : questState === "Thriving"
-      ? "emerald"
-      : questState === "Stable"
-      ? "blue"
-      : "amber";
+        ? "emerald"
+        : questState === "Stable"
+          ? "blue"
+          : "amber";
   return (
-    <div className="max-w-4xl flex-1 h-auto flex flex-col gap-2 py-4 border-b">
-      <div className="h-auto flex-1 flex flex-row gap-2">
-        <div className="w-8 md:w-12 flex flex-col items-center text-neutral-500">
+    <div className="flex h-auto max-w-4xl flex-1 flex-col gap-2 border-b py-4">
+      <div className="flex h-auto flex-1 flex-row gap-2">
+        <div className="flex w-8 flex-col items-center text-neutral-500 md:w-12">
           <ShareIcon />
           <h2>{nodes.length - 1}</h2>
         </div>
-        <div className="flex-1 flex flex-col gap-2 items-start">
+        <div className="flex flex-1 flex-col items-start gap-2">
           <h1>{title}</h1>
-          <MediaCarousel className="w-full h-48 md:h-96 flex flex-col items-center justify-center rounded-box overflow-hidden bg-base-content">
-            {coverMedia.map(
-              ({ imageUrl, alt, imageWidth, imageHeight }, index) => (
-                <Image
-                  key={`cover-${index}`}
-                  src={imageUrl}
-                  alt={alt ?? title}
-                  width={imageWidth}
-                  height={imageHeight}
-                  className="max-h-full w-auto object-contain"
-                />
-              ),
-            )}
+          <MediaCarousel className="rounded-box bg-base-content flex h-48 w-full flex-col items-center justify-center overflow-hidden md:h-96">
+            {coverMedia.map(({ url, alt, width, height }, index) => (
+              <Image
+                key={`cover-${index}`}
+                src={url}
+                alt={alt ?? title}
+                width={width}
+                height={height}
+                className="max-h-full w-auto object-contain"
+              />
+            ))}
           </MediaCarousel>
         </div>
       </div>
-      <div className="h-auto flex-1 flex flex-row gap-2">
+      <div className="flex h-auto flex-1 flex-row gap-2">
         <ContributorQuestCardNodes nodes={nodes} />
-        <div className="flex-1 flex flex-col gap-2">
-          <div className="w-full flex flex-row">
-            <span className="h-full inline-flex flex-row items-center gap-2">
+        <div className="flex flex-1 flex-col gap-2">
+          <div className="flex w-full flex-row">
+            <span className="inline-flex h-full flex-row items-center gap-2">
               +{Math.max(0, bounty)}
             </span>
             <span className="flex-1"></span>
             <span
               className={cn(
-                "text-sm h-full inline-flex flex-row items-center gap-2",
+                "inline-flex h-full flex-row items-center gap-2 text-sm",
                 // START HACK: Force Tailwind to add variables for these colors
                 questState === "Young" && "text-fuchsia-300",
                 questState === "Thriving" && "text-emerald-300",
@@ -222,7 +218,7 @@ export function ContributorQuestCard({
           >
             {numberOfLeads === 0 ? "No leads yet" : `${numberOfLeads} leads`}
           </div>
-          <div className="w-full h-10 flex flex-row items-end justify-end">
+          <div className="flex h-10 w-full flex-row items-end justify-end">
             <Button
               buttonSize="sm"
               buttonType="base"
