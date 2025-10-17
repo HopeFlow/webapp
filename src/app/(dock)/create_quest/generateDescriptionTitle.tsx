@@ -1,7 +1,7 @@
 import { useGenerateDescriptionTitle } from "@/helpers/client/LLM";
 import { SafeUser } from "@/helpers/server/auth";
 import { CreateQuestChatMessage } from "@/helpers/server/LLM";
-import { Dispatch, SetStateAction, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export const GenerateDescriptionTitle = ({
   user,
@@ -13,8 +13,8 @@ export const GenerateDescriptionTitle = ({
 }: {
   user: SafeUser;
   messages: CreateQuestChatMessage[];
-  setTitle: Dispatch<SetStateAction<string>>;
-  setDescription: Dispatch<SetStateAction<string>>;
+  setTitle: (v: string) => void;
+  setDescription: (v: string) => void;
   active: boolean;
   continueToNextStep: () => void;
 }) => {

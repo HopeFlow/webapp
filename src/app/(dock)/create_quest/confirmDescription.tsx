@@ -1,6 +1,6 @@
 import { Button } from "@/components/button";
 import { cn } from "@/helpers/client/tailwind_helpers";
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useState } from "react";
 
 export const ConfirmDescription = ({
   description,
@@ -8,7 +8,7 @@ export const ConfirmDescription = ({
   continueToNextStep,
 }: {
   description: string;
-  setDescription: Dispatch<SetStateAction<string>>;
+  setDescription: (v: string) => void;
   continueToNextStep: () => void;
 }) => {
   const [value, setValue] = useState(description);

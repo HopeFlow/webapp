@@ -2,7 +2,7 @@ import { Button } from "@/components/button";
 // import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
 import { cn } from "@/helpers/client/tailwind_helpers";
 // import Image from "next/image";
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useState } from "react";
 
 export const ConfirmTitle = ({
   title,
@@ -10,7 +10,7 @@ export const ConfirmTitle = ({
   continueToNextStep,
 }: {
   title: string;
-  setTitle: Dispatch<SetStateAction<string>>;
+  setTitle: (v: string) => void;
   continueToNextStep: () => void;
 }) => {
   const [value, setValue] = useState(title);

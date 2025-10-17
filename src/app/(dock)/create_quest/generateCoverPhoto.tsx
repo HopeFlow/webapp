@@ -18,9 +18,7 @@ export const GenerateCoverPhoto = ({
 }: {
   active: boolean;
   description: string;
-  setCoverPhoto: Dispatch<
-    SetStateAction<InsertQuestData["coverPhoto"] | undefined>
-  >;
+  setCoverPhoto: (v: InsertQuestData["coverPhoto"]) => void;
   continueToNextStep: () => void;
 }) => {
   const [generationStarted, setGenerationStarted] = useState(false);

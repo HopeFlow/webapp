@@ -30,9 +30,7 @@ export const ConfirmCoverPhoto = ({
 }: {
   title: string;
   coverPhoto: InsertQuestData["coverPhoto"] | undefined;
-  setCoverPhoto: Dispatch<
-    SetStateAction<InsertQuestData["coverPhoto"] | undefined>
-  >;
+  setCoverPhoto: (v :InsertQuestData["coverPhoto"]) => void;
   continueToNextStep: () => void;
 }) => {
   const [image, setImage] = useState<File | undefined>();

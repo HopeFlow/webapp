@@ -24,15 +24,58 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
   const [chatMessages, setChatMessages] = useState<CreateQuestChatMessage[]>(
     [],
   );
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [coverPhoto, setCoverPhoto] = useState<InsertQuestData["coverPhoto"]>();
-  // const [media, setMedia] = useState<QuestMedia[]>();
-  // const [screeningQuestions, setScreeningQuestions] =
-  //   useState<(ScreeningQuestion & Omit<ScreeningAnswer, "questionIndex">)[]>();
+
+  const [
+    {
+      type,
+      title,
+      shareTitle,
+      description,
+      rewardAmount,
+      coverPhoto,
+      media,
+      farewellMessage,
+    },
+    setInserQuestData,
+  ] = useState<Partial<InsertQuestData>>({ rewardAmount: "10" });
+
+  const setType = useCallback(
+    (v: typeof type) => setInserQuestData((d) => ({ ...d, type: v })),
+    [],
+  );
+  const setTitle = useCallback(
+    (v: typeof title) => setInserQuestData((d) => ({ ...d, title: v })),
+    [],
+  );
+  const setShareTitle = useCallback(
+    (v: typeof shareTitle) =>
+      setInserQuestData((d) => ({ ...d, shareTitle: v })),
+    [],
+  );
+  const setDescription = useCallback(
+    (v: typeof description) =>
+      setInserQuestData((d) => ({ ...d, description: v })),
+    [],
+  );
+  const setCoverPhoto = useCallback(
+    (v: typeof coverPhoto) =>
+      setInserQuestData((d) => ({ ...d, coverPhoto: v })),
+    [],
+  );
+  const setMedia = useCallback(
+    (v: typeof media) => setInserQuestData((d) => ({ ...d, media: v })),
+    [],
+  );
+  const setFarewellMessage = useCallback(
+    (v: typeof farewellMessage) =>
+      setInserQuestData((d) => ({ ...d, farewellMessage: v })),
+    [],
+  );
+
   const continueToNextStep = useCallback(() => {
     setGotoNextStep(true);
   }, []);
+
   const formPartsAndSpecs: Array<ReactNode | [ReactNode, boolean]> = [
     <ChatWithLLM
       setMessages={setChatMessages}
@@ -52,13 +95,13 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
       false,
     ],
     <ConfirmDescription
-      description={description}
+      description={description ?? ""}
       setDescription={setDescription}
       continueToNextStep={continueToNextStep}
       key={`confirmDescription-${description}`}
     />,
     <ConfirmTitle
-      title={title}
+      title={title ?? ""}
       setTitle={setTitle}
       continueToNextStep={continueToNextStep}
       key={`confirmTitle-${title}`}
@@ -66,7 +109,7 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
     [
       <GenerateCoverPhoto
         active={stableStepIndex === 4 && stepIndex === 4}
-        description={description}
+        description={description ?? ""}
         setCoverPhoto={setCoverPhoto}
         continueToNextStep={continueToNextStep}
         key="generateCoverPhoto"
@@ -74,7 +117,7 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
       false,
     ],
     <ConfirmCoverPhoto
-      title={title}
+      title={title ?? ""}
       coverPhoto={coverPhoto}
       setCoverPhoto={setCoverPhoto}
       continueToNextStep={continueToNextStep}
