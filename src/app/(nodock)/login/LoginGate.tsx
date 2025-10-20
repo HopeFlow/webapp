@@ -17,6 +17,7 @@ type Props = {
 };
 
 export default function LoginGate({ intent, url, currentUrl }: Props) {
+  // Always call hooks in the same order — no conditional hooks
   const goto = useGoto();
   const gotoHome = useGotoHome();
   const gotoCreateAccount = useGotoCreateAccount();
