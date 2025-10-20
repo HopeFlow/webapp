@@ -4,6 +4,7 @@ import { ArrowRightIcon } from "@/components/icons/arrow_right";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import Image from "next/image";
 import { ContributorQuestCardNodes, StarterQuestCardNodes } from "./card_nodes";
+import { ShareIcon } from "@/components/icons/share";
 import { withLoading } from "@/helpers/client/HOCs";
 import { QuestCardSkeleton } from "./card_skeleton";
 
@@ -235,59 +236,12 @@ function ContributorQuestCard({
   questState: QuestState;
   nodes: Node[];
 }) {
-  const questStateColorBase =
-    questState === "Young"
-      ? "fuchsia"
-      : questState === "Thriving"
-        ? "emerald"
-        : questState === "Stable"
-          ? "blue"
-          : "amber";
   return (
-    <div className="flex h-auto max-w-4xl flex-1 flex-row gap-2 border-b py-4">
-      <StarterQuestCardNodes nodes={nodes} />
-      <div className="flex flex-1 flex-col items-start gap-2">
-        <h1>{title}</h1>
-        <MediaCarousel className="rounded-box bg-base-content flex h-48 w-full flex-col items-center justify-center overflow-hidden md:h-96">
-          {coverMedia.map(({ url, alt, width, height }, index) => (
-            <Image
-              key={`cover-${index}`}
-              src={url}
-              alt={alt ?? title}
-              width={width}
-              height={height}
-              className="max-h-full w-auto object-contain"
-            />
-          ))}
-        </MediaCarousel>
-        <div className="flex w-full flex-row">
-          <span className="inline-flex h-full flex-row items-center gap-2">
-            +{Math.max(0, bounty)}
-          </span>
-          <span className="flex-1"></span>
-          <span
-            className={cn(
-              "inline-flex h-full flex-row items-center gap-2 text-sm",
-              // START HACK: Force Tailwind to add variables for these colors
-              questState === "Young" && "text-fuchsia-300",
-              questState === "Thriving" && "text-emerald-300",
-              questState === "Stable" && "text-blue-300",
-              questState === "Withering" && "text-amber-300",
-              // END HACK
-              questState === "Young" && "text-fuchsia-700",
-              questState === "Thriving" && "text-emerald-700",
-              questState === "Stable" && "text-blue-700",
-              questState === "Withering" && "text-amber-700",
-            )}
-            style={
-              {
-                "--branch-color": `var(--color-${questStateColorBase}-700, #22c55e)`,
-                "--leaf-color": `var(--color-${questStateColorBase}-300, #22c55e)`,
-              } as React.CSSProperties
-            }
-          >
-            {questStatesIcons[questState]}
-          </span>
+    <div className="flex h-auto max-w-4xl flex-1 flex-col gap-2 border-b py-4">
+      <div className="flex h-auto flex-1 flex-row gap-2">
+        <div className="flex w-8 flex-col items-center text-neutral-500 md:w-12">
+          <ShareIcon />
+          <h2>{nodes.length - 1}</h2>
         </div>
         <div className="flex flex-1 flex-col items-start gap-2">
           <h1>{title}</h1>
