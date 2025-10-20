@@ -3,13 +3,12 @@
 import { useEffect } from "react";
 import { LoginMain } from "./main";
 import { AutoCompleteOAuth } from "./autoCompleteOAuth";
-
-// ⬇️ Adjust this import path to wherever your generated hooks live
 import {
   useGoto,
   useGotoHome,
   useGotoCreateAccount,
 } from "@/helpers/client/routes";
+import SplashScreen from "@/app/splashScreen";
 
 type Props = {
   intent: "show-login" | "go-home" | "complete-oauth" | "finish-profile";
@@ -18,7 +17,6 @@ type Props = {
 };
 
 export default function LoginGate({ intent, url, currentUrl }: Props) {
-  // Always call hooks in the same order — no conditional hooks
   const goto = useGoto();
   const gotoHome = useGotoHome();
   const gotoCreateAccount = useGotoCreateAccount();
@@ -49,9 +47,5 @@ export default function LoginGate({ intent, url, currentUrl }: Props) {
   }
 
   // "go-home" and "finish-profile" — we’re navigating in an effect
-  return (
-    <div className="text-muted-foreground flex h-dvh w-full items-center justify-center text-sm">
-      Redirecting…
-    </div>
-  );
+  return <SplashScreen />;
 }
