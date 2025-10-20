@@ -2,20 +2,9 @@ import { cn } from "@/helpers/client/tailwind_helpers";
 import Image from "next/image";
 import { useId } from "react";
 
-export type UserAvatarProps = {
-  name: string;
-  className?: string;
-} & (
-  | {
-      imageUrl: string;
-      imageWidth?: number;
-      imageHeight?: number;
-    }
-  | {
-      imageUrl?: undefined;
-      imageWidth?: undefined;
-      imageHeight?: undefined;
-    }
+export type UserAvatarProps = { name: string; className?: string } & (
+  | { imageUrl: string; imageWidth?: number; imageHeight?: number }
+  | { imageUrl?: undefined; imageWidth?: undefined; imageHeight?: undefined }
 );
 
 export const Avatar = ({
@@ -26,13 +15,13 @@ export const Avatar = ({
   imageHeight,
 }: UserAvatarProps) => (
   <div className="avatar">
-    <div className={cn("w-12", className)}>
+    <div className={cn("w-12", "bg-white", className)}>
       <Image
         src={imageUrl ?? "/img/generic_user_image.webp"}
         alt={name}
         width={imageWidth ?? 48}
         height={imageHeight ?? 48}
-        className="max-w-full h-auto object-contain"
+        className="rounded-full object-cover shadow"
       />
     </div>
   </div>
