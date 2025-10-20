@@ -14,7 +14,7 @@ import { useProfile } from "@/server_actions/client/profile/userProfileCrud";
 import { useState } from "react";
 
 export function ProfileMain({ user }: { user: SafeUser }) {
-  const { name, setName, file, setFile, previewUrl, loadingImage } =
+  const { name, setName, file, setFile, previewUrl, loadingImage, hasImage } =
     useProfileFields(user);
   const { data, update } = useProfile();
   const defaults = useEmailDefaults();
@@ -58,6 +58,7 @@ export function ProfileMain({ user }: { user: SafeUser }) {
                 disabled={isSubmitting || loadingImage}
                 loadingImage={loadingImage}
                 onPick={(f) => setFile(f)}
+                hasImage={hasImage}
               />
             </div>
             <div className="flex flex-1 flex-col items-start gap-2">

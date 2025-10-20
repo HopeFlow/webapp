@@ -16,10 +16,7 @@ import {
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { useSignIn, useSignUp } from "@clerk/nextjs";
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
-import type {
-  SignInFirstFactor,
-  EmailCodeFactor,
-} from "@clerk/types";
+import type { SignInFirstFactor, EmailCodeFactor } from "@clerk/types";
 import { useToast } from "@/components/toast";
 
 type VerificationStage =
@@ -40,23 +37,19 @@ export function LoginEmail({ url }: { url?: string }) {
   } = useSignUp();
 
   const addToast = useToast();
+  const goto = useGoto();
+  const gotoHome = useGotoHome();
+
   const [stage, setStage] = useState<VerificationStage>("prepare_token");
   const [verifying, setVerifying] = useState(false);
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState(new Array(6).fill(""));
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [isPreparing, setIsPreparing] = useState(false);
   const [isVerifyingBtn, setIsVerifyingBtn] = useState(false);
-  const goto = useGoto();
-  const gotoHome = useGotoHome();
 
-  useEffect(() => {
-    if (verifying) {
-      setOtp(new Array(6).fill(""));
-      // focus first box
-      requestAnimationFrame(() => inputRefs.current[0]?.focus());
-    }
-  }, [verifying]);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const submittingRef = useRef(false);
+  const submittedCodeRef = useRef<string | null>(null);
 
   const handleClerkError = useCallback(
     (e: unknown) => {
@@ -80,12 +73,17 @@ export function LoginEmail({ url }: { url?: string }) {
 
   const verify = useCallback(async () => {
     const code = otp.join("");
+
+    if (submittingRef.current) return; // already in-flight
+    submittingRef.current = true; // lock
+
     if (code.length !== 6) {
       addToast({
         type: "error",
         title: "Invalid code",
         description: "Please enter the 6-digit code.",
       });
+      submittingRef.current = false; // unlock on early-return
       return;
     }
 
@@ -100,6 +98,7 @@ export function LoginEmail({ url }: { url?: string }) {
           await setSignInActive!({ session: attempt.createdSessionId });
           if (url) goto(url);
           else gotoHome();
+          return;
         } else {
           addToast({
             type: "error",
@@ -131,6 +130,8 @@ export function LoginEmail({ url }: { url?: string }) {
       handleClerkError(e);
     } finally {
       setIsVerifyingBtn(false);
+      submittingRef.current = false; // unlock
+      submittedCodeRef.current = otp.join(""); // remember last tried code
     }
   }, [
     addToast,
@@ -146,14 +147,27 @@ export function LoginEmail({ url }: { url?: string }) {
     url,
   ]);
 
+  // Auto-submit when 6 digits are entered
   useEffect(() => {
     if (!verifying) return;
     const code = otp.join("");
-    // only run when exactly 6 digits and we're not already verifying
-    if (/^\d{6}$/.test(code) && !isVerifyingBtn) {
+    if (
+      /^\d{6}$/.test(code) &&
+      submittedCodeRef.current !== code && // don't resubmit same code
+      !submittingRef.current
+    ) {
       verify();
     }
-  }, [otp, verifying, isVerifyingBtn, verify]);
+  }, [otp, verifying, verify]);
+
+  // Focus first input when switching to verification
+  useEffect(() => {
+    if (verifying) {
+      setOtp(new Array(6).fill(""));
+      // focus first box
+      requestAnimationFrame(() => inputRefs.current[0]?.focus());
+    }
+  }, [verifying]);
 
   // Start flow (sign-in first; if not found, sign-up)
   const startEmailFlow = async () => {
