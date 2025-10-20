@@ -9,7 +9,7 @@ export function useProfileFields(user?: SafeUser | null) {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const loadingImage = !!user?.imageUrl && !file && !previewUrl;
-
+  const hasImage = !!user?.hasImage;
   // load existing user image (turn URL into a File so server receives multipart file)
   useEffect(() => {
     let revoked: string | null = null;
@@ -54,5 +54,6 @@ export function useProfileFields(user?: SafeUser | null) {
     previewUrl,
     setPreviewUrl,
     loadingImage,
+    hasImage,
   };
 }

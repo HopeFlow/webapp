@@ -27,11 +27,7 @@ export type QuestCard = {
   numberOfLeads: number;
   questStatus: (typeof questStatusDef)[number];
   nodes: Array<Node>;
-  coverMedia: Array<{
-    url: string;
-    width: number;
-    height: number;
-  }>;
+  coverMedia: Array<{ url: string; width: number; height: number }>;
   farewellMessage?: string;
   questHealthState: string;
 };
@@ -77,27 +73,27 @@ const getAllParentNodesForManyQuests = (questIds: string[], userId: string) => {
       FROM ${nodeTable} AS n
       WHERE ${qualify("n", nodeTable.userId)} = ${userId}
         AND ${qualify("n", nodeTable.questId)} IN (${sql.join(
-    questIds,
-    sql`, `,
-  )})
+          questIds,
+          sql`, `,
+        )})
     ),
     upward AS (
       SELECT p.*, -1 AS depth
       FROM ${nodeTable} AS p
       JOIN user_node AS u
         ON ${qualify("p", nodeTable.id)} = ${sql.raw(
-    `u."${nodeTable.parentId.name}"`,
-  )}
+          `u."${nodeTable.parentId.name}"`,
+        )}
       UNION ALL
       SELECT p.*, (u.depth - 1) AS depth
       FROM upward AS u
       JOIN ${nodeTable} AS p
         ON ${qualify("p", nodeTable.id)} = ${sql.raw(
-    `u."${nodeTable.parentId.name}"`,
-  )}
+          `u."${nodeTable.parentId.name}"`,
+        )}
        AND ${qualify("p", nodeTable.questId)} = ${sql.raw(
-    `u."${nodeTable.questId.name}"`,
-  )}
+         `u."${nodeTable.questId.name}"`,
+       )}
     ),
     branch AS (
       SELECT * FROM upward
@@ -110,18 +106,24 @@ const getAllParentNodesForManyQuests = (questIds: string[], userId: string) => {
   `;
 };
 
+export type QuestsPage = {
+  items: QuestCard[];
+  hasMore: boolean;
+  nextOffset?: number;
+};
+
 export const quests = createServerAction({
   id: "quests",
   scope: "home",
   execute: async (params: {
     offset: number;
     limit: number;
-  }): Promise<QuestCard[]> => {
+  }): Promise<QuestsPage> => {
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Unauthenticated");
     const db = await getHopeflowDatabase();
-    // 1) Get ALL relations for this user (page)
-    const relations = await db
+    // 1) // fetch limit+1 to detect more
+    const relationsPlusOne = await db
       .select({
         questId: questUserRelationTable.questId,
         createdAt: questUserRelationTable.createdAt,
@@ -130,10 +132,16 @@ export const quests = createServerAction({
       .where(eq(questUserRelationTable.userId, user.id))
       .orderBy(desc(questUserRelationTable.createdAt))
       .offset(params.offset)
-      .limit(params.limit);
+      .limit(params.limit + 1);
 
-    if (relations.length === 0) return [];
-    const questIds = [...new Set(relations.map((r) => r.questId))];
+    const hasMore = relationsPlusOne.length > params.limit;
+    const pageRelations = relationsPlusOne.slice(0, params.limit);
+
+    if (pageRelations.length === 0) {
+      return { items: [], hasMore: false, nextOffset: undefined };
+    }
+
+    const questIds = [...new Set(pageRelations.map((r) => r.questId))];
 
     // 2) Fetch all quests
     const quests = await db
@@ -221,7 +229,7 @@ export const quests = createServerAction({
     const clerkMap = await getClerkUserMap([...userIdsForProfiles]);
 
     const cards: QuestCard[] = [];
-    for (const rel of relations) {
+    for (const rel of pageRelations) {
       const q = questsById.get(rel.questId);
       if (!q) continue;
 
@@ -265,6 +273,9 @@ export const quests = createServerAction({
       });
     }
 
-    return cards;
+    const nextOffset = hasMore
+      ? params.offset + pageRelations.length
+      : undefined;
+    return { items: cards, hasMore, nextOffset };
   },
 });

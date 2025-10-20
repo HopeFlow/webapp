@@ -14,11 +14,13 @@ export function ImagePicker({
   disabled,
   previewUrl,
   loadingImage,
+  hasImage,
 }: {
   onPick: (file: File) => void;
   disabled?: boolean;
   previewUrl?: string | null;
   loadingImage?: boolean;
+  hasImage?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,14 +56,14 @@ export function ImagePicker({
           onChange={(e) => handleChosenFile(e.target.files?.[0] ?? null)}
           // capture="user" // consider removing on desktop
         />
-        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+        <div className="absolute -bottom-3 left-1/2 flex -translate-x-1/2 gap-2">
           <Button
             buttonType="secondary"
             buttonSize="sm"
             onClick={() => inputRef.current?.click()}
             disabled={disabled}
           >
-            {previewUrl ? "Change" : "Upload"}
+            {hasImage ? "Change" : "Upload"}
           </Button>
         </div>
       </div>
@@ -70,7 +72,7 @@ export function ImagePicker({
       <p className="text-xs opacity-70">
         Upload an image (max {MAX_IMAGE_MB}MB)
       </p>
-      {error && <p className="text-xs text-error">{error}</p>}
+      {error && <p className="text-error text-xs">{error}</p>}
     </div>
   );
 }

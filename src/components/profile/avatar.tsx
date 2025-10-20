@@ -60,10 +60,7 @@ export function AvatarPreview({
         alt="Profile picture"
         width={size}
         height={size}
-        className={cn(
-          "rounded-full`rounded-full object-cover shadow",
-          className,
-        )}
+        className={cn("rounded-full object-cover shadow", className)}
         style={{ width: size, height: size }}
       />
     );

@@ -32,7 +32,7 @@ export function AutoCompleteOAuth({ url }: { url?: string }) {
   }, [goto, gotoHome, update, url]);
 
   return (
-    <div className="w-full h-dvh flex items-center justify-center">
+    <div className="flex h-dvh w-full items-center justify-center">
       <LoadingElement />
     </div>
   );
