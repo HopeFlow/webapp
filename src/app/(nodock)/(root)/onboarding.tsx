@@ -1,7 +1,7 @@
 "use client";
 
 import { usePersistentState } from "@/app/(nodock)/(root)/persistent_state";
-import SplashScreen from "@/app/splash_screen";
+import SplashScreen from "@/app/splashScreen";
 import { Button, CloseButton, GhostButton } from "@/components/button";
 import { ArrowLeftIcon } from "@/components/icons/arrow_left";
 import { Steps } from "@/components/steps";
@@ -91,8 +91,8 @@ export default function Onboarding() {
     onboardingSteps[clampedIndex];
 
   return (
-    <div className="flex-1 flex flex-col p-6 items-center justify-start w-full h-full">
-      <div className="flex w-full flex-row gap-4 items-center h-12">
+    <div className="flex h-full w-full flex-1 flex-col items-center justify-start p-6">
+      <div className="flex h-12 w-full flex-row items-center gap-4">
         <GhostButton
           onClick={() =>
             setOnboardingStepIndex(clampedIndex > 0 ? clampedIndex - 1 : 0)
@@ -115,10 +115,10 @@ export default function Onboarding() {
           }}
         />
       </div>
-      <div className="flex-1 flex flex-col p-6 items-center justify-start max-w-5xl">
-        <div className="flex-1 flex w-full max-h-full overflow-auto flex-col-reverse md:flex-row gap-2 md:gap-16 justify-end items-center md:items-start">
-          <div className="flex-1 flex w-full flex-col gap-2 items-start">
-            <h1 className="text-4xl md:text-5xl font-normal mb-2 md:mb-4">
+      <div className="flex max-w-5xl flex-1 flex-col items-center justify-start p-6">
+        <div className="flex max-h-full w-full flex-1 flex-col-reverse items-center justify-end gap-2 overflow-auto md:flex-row md:items-start md:gap-16">
+          <div className="flex w-full flex-1 flex-col items-start gap-2">
+            <h1 className="mb-2 text-4xl font-normal md:mb-4 md:text-5xl">
               {title}
             </h1>
             <p className="md:hidden">{shortDescription}</p>
@@ -128,7 +128,7 @@ export default function Onboarding() {
               </p>
             ))}
           </div>
-          <div className="h-56 overflow-hidden md:max-w-1/2 md:h-full flex items-center justify-center">
+          <div className="flex h-56 items-center justify-center overflow-hidden md:h-full md:max-w-1/2">
             <Image
               src={image.src}
               alt={image.alt}
@@ -138,7 +138,7 @@ export default function Onboarding() {
             />
           </div>
         </div>
-        <div className="flex w-full flex-row gap-4 items-center justify-center h-12">
+        <div className="flex h-12 w-full flex-row items-center justify-center gap-4">
           {(clampedIndex === onboardingSteps.length - 1 && (
             <Button
               className="flex-1"

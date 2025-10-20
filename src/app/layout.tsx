@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import Providers from "./providers";
 import "./daisyui.css";
 import "./globals.css";
-import SplashScreen from "./splash_screen";
+import SplashScreen from "./splashScreen";
 
 const geistSans = Geist({
   variable: "--font-hopeflow-sans",
@@ -23,13 +23,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="w-full h-full">
+    <html lang="en" className="h-full w-full">
       <body
-        className={`w-full min-h-full flex flex-col ${geistSans.variable} ${geistMono.variable} antialiased bg-base-200 text-base-content text-lg font-light`}
+        className={`flex min-h-full w-full flex-col ${geistSans.variable} ${geistMono.variable} bg-base-200 text-base-content text-lg font-light antialiased`}
       >
         <Providers>
           <Suspense fallback={<SplashScreen />}>{children}</Suspense>
