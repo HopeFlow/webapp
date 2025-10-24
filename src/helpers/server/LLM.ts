@@ -29,15 +29,60 @@ export const transliterate = defineServerFunction({
 });
 
 const createQuestChatSystemPrompt = `
-You are an expert counselor who helps people clarify what they are looking for so they can efficiently leverage their social connections to find it.
-The user will describe what they are searching for. Do the following:
-1. Decide if the information so far is sufficient for another person to clearly understand the user's need.
-2. Consider a few possible clarifying questions.
-3. Ask exactly ONE best clarifying question (short and specific).
-4. If the quest is crystal clear, generate no questions and just report that the quest is clear
-IMPORTANT:
-- Follow each message  with four (4) empty lines and then a number between 0 and 100. This number designates a clarity score.
-- The tool is logging-only. Do NOT wait for any response from it
+You are a coach helping the user clarify a quest — something they are searching for and want to describe clearly for their extended social circle. Your goal is to help them articulate what they are looking for and, if possible, identify which expertise, skills, or locations might make someone more likely to help. This enables their network to assist directly or refer the request to others.
+🧭 Interaction Cycle
+You must follow this exact cycle for every turn:
+1️⃣ Clarify → Ask ONE clear question about the user’s quest.  - Multiple-choice questions are allowed.  - If multiple choice, put a blank line, then put every option in a new line starting with %%%%OB%%%% and ending with %%%%OE%%%%
+2️⃣ Recap & Confirm → Every third message (or when unsure), recap what you’ve learned so far and ask for confirmation of understanding.
+3️⃣ Respond briefly if the user is confused by your previous message.
+Do exactly one of these three actions per turn.
+🧱 Content Restrictions
+Only ask about:
+The description
+Information that can be shared as plain text / Unicode characters
+Do not ask for:
+Photo
+Document
+Other media
+Contact method
+Reward or incentive
+Permission for anything
+Do not generate the final description or search plans, and do not suggest plans of action.
+🪜 Output Format
+After your main response, you must include the following block exactly as shown:
+<your main message text here><four empty lines>CONFIDENCE: [ZERO | POOR | DOUBTFUL | GOOD | CONFIDENT | SURE] 
+Confidence reflects how complete and real the gathered information is for generating a 3+ paragraph description:
+ZERO: Mostly hallucinated text
+POOR: Some real info but still mostly hallucinated
+DOUBTFUL: Real info and hallucination are about equal
+GOOD: Good real info, some hallucination
+CONFIDENT: Great real info, little hallucination
+SURE: Strong two-way correlation between info and generated description
+If you ever forget to include the CONFIDENCE: block, treat your previous reply as invalid and correct yourself immediately.
+🧩 Example
+Example of correct output format,
+Example1:
+Got it! Could you tell me where you last saw the item?
+
+
+
+
+CONFIDENCE: GOOD 
+Example2:
+What is the purpose of acquiring the item?
+
+%%%%OB%%%% Research %%%%OE%%%%
+%%%%OB%%%% Personal collection %%%%OE%%%%
+%%%%OB%%%% Repairing my motor %%%%OE%%%%
+
+CONFIDENCE: POOR
+Example3:
+So, you are looking for a donor with O- blood type in Birmangham. Am I correct?
+
+CONFIDENCE: CONFIDENT
+
+✨ Tone
+Keep your tone positive, casual, and encouraging. Be concise and focus only on clarifying the user’s quest.
 `;
 
 export type CreateQuestChatMessage = {
@@ -45,18 +90,32 @@ export type CreateQuestChatMessage = {
   content: string;
 };
 
-type TextDeltaEvent = { type: "text-delta"; text: string };
-type SetClarityEvent = { type: "set-clarity"; level: number };
-type ReasoningEvent = { type: "reasoning-part"; title: string };
+const confidenceLevels = [
+  "ZERO",
+  "POOR",
+  "DOUBTFUL",
+  "GOOD",
+  "CONFIDENT",
+  "SURE",
+] as const;
+
+export type ConfidenceLevel = (typeof confidenceLevels)[number];
+
+export type TextDeltaEvent = { type: "text-delta"; text: string };
+export type OptionDeltaEvent = { type: "option-delta"; text: string };
+export type SetConfidenceEvent = {
+  type: "set-confidence";
+  level: ConfidenceLevel;
+};
+export type ReasoningEvent = { type: "reasoning-part"; title: string };
 
 export const createQuestChat = defineServerFunction({
   id: "createQuestChat",
   scope: "global::llm",
-
   handler: async function* (
     messages: CreateQuestChatMessage[],
   ): AsyncGenerator<
-    ReasoningEvent | TextDeltaEvent | SetClarityEvent,
+    ReasoningEvent | TextDeltaEvent | OptionDeltaEvent | SetConfidenceEvent,
     void,
     unknown
   > {
@@ -67,6 +126,7 @@ export const createQuestChat = defineServerFunction({
       ...messages.map((m) => ({ role: m.role, content: m.content })),
     ];
 
+    yield { type: "reasoning-part", title: "Thinking ..." };
     const stream = await openai.responses.create({
       model: "gpt-5-nano",
       input,
@@ -75,41 +135,91 @@ export const createQuestChat = defineServerFunction({
       stream: true,
     });
 
-    yield { type: "reasoning-part", title: "Thinking to better be at service" };
-    let populatedText = "";
-    let populatedReasoning = "";
-    let consumedLength = 0;
+    let done = false;
+    let deltaTextBuffer = "";
+    let deltaReasonBuffer = "";
+
+    const confidenceLevelRegExp = new RegExp(
+      `(${confidenceLevels.join("|")})`,
+      "si",
+    );
+    const createPermissivePattern = (str: string) =>
+      str
+        .split("")
+        .map((c) => `(?:${c}|$)`)
+        .join("");
+    const confidenceEndingRegExp = new RegExp(
+      `\n(${createPermissivePattern("CONFIDENCE:")}\\s*(${confidenceLevels
+        .map((c) => createPermissivePattern(c))
+        .join("|")}))[\\.\\;]?\\s*$`,
+      "si",
+    );
+    const optionStartRegExp = new RegExp(
+      `^${createPermissivePattern("%%%%OB%%%%")}`,
+      "si",
+    );
+
     for await (const event of stream) {
-      let done = false;
       switch (event.type) {
         case "response.output_text.delta": {
-          populatedText += event.delta;
-          const m = populatedText.match(/^(.*)(?:\s*\n){4,}(\d+)$/);
-          if (m) {
-            done = true;
-            const delta = m[1].slice(consumedLength);
-            if (delta) yield { type: "text-delta", text: delta };
-            yield { type: "set-clarity", level: parseInt(m[2]) };
-            break;
-          } else {
-            const delta = populatedText.slice(consumedLength);
-            if (!/^[\s\n]+$/.test(delta)) {
-              yield { type: "text-delta", text: event.delta };
-              consumedLength = populatedText.length;
+          deltaTextBuffer += event.delta;
+          const confidenceEndingMatch = deltaTextBuffer.match(
+            confidenceEndingRegExp,
+          );
+          let consumableText = deltaTextBuffer;
+          deltaTextBuffer = "";
+          if (confidenceEndingMatch && confidenceEndingMatch[0] !== "") {
+            deltaTextBuffer = consumableText.slice(confidenceEndingMatch.index);
+            consumableText = consumableText.slice(
+              0,
+              confidenceEndingMatch.index,
+            );
+            const confidenceLevelMatch = confidenceEndingMatch[1].match(
+              confidenceLevelRegExp,
+            );
+            if (confidenceLevelMatch) {
+              done = true;
+              yield {
+                type: "set-confidence",
+                level: confidenceLevelMatch[1].toUpperCase(),
+              } as SetConfidenceEvent;
             }
+          }
+          if (consumableText !== "") {
+            const incompleteLines: string[] = [];
+            for (const line of consumableText.split("\n")) {
+              const optionMatch = line.match(/%%%%OB%%%%(.*?)%%%%OE%%%%/);
+              if (optionMatch) {
+                if (!/please specify/i.test(optionMatch[1])) {
+                  yield {
+                    type: "option-delta",
+                    text: optionMatch[1].trim(),
+                  } as OptionDeltaEvent;
+                }
+              } else {
+                const optionStartMatch = line.match(optionStartRegExp);
+                if (optionStartMatch && optionStartMatch[0] !== "") {
+                  incompleteLines.push(line);
+                } else
+                  yield {
+                    type: "text-delta",
+                    text: line.replace(/%%%%O\w%%%%/g, ","),
+                  } as TextDeltaEvent;
+              }
+            }
+            deltaTextBuffer = incompleteLines.join("\n") + deltaTextBuffer;
           }
           break;
         }
         case "response.reasoning_summary_text.delta": {
-          populatedReasoning += event.delta;
+          deltaReasonBuffer += event.delta;
           const m =
-            populatedReasoning.match(/\*\*\s*(.+?)\s*\*\*/) ??
-            populatedReasoning.match(/#+\s*(.+?)\s*\n/);
+            deltaReasonBuffer.match(/\*\*\s*(.+?)\s*\*\*/) ??
+            deltaReasonBuffer.match(/#+\s*(.+?)\s*\n/);
           if (m) {
-            populatedReasoning = "";
-            yield { type: "reasoning-part", title: m[1] };
+            deltaReasonBuffer = "";
+            yield { type: "reasoning-part", title: m[1] } as ReasoningEvent;
           }
-          break;
         }
       }
       if (done) break;

@@ -149,12 +149,6 @@ export const Carousel = ({
       {...restProps}
     >
       {childArray.map((child, index) => {
-        console.log({
-          index,
-          clampedPropIndex,
-          childKey: child.key,
-          key: `${baseId}_item${index}`,
-        });
         return (
           <div
             role="option"

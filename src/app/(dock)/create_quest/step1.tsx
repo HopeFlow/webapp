@@ -2,11 +2,12 @@
 
 import { Button } from "@/components/button";
 import { ArrowUpIcon } from "@/components/icons/arrow_up";
+import { CheckIcon } from "@/components/icons/check";
 import { MicIcon } from "@/components/icons/microphone";
 import MarkdownViewer from "@/components/markdown/view";
 import { useSpeechRecognitionEngine } from "@/helpers/client/asr";
 import { timeout } from "@/helpers/client/common";
-import { useCreateQuestChat } from "@/helpers/client/LLM";
+import { isOptionsMessage, useCreateQuestChat } from "@/helpers/client/LLM";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { getQuestTitleAndDescription } from "@/helpers/server/LLM";
 import {
@@ -18,16 +19,6 @@ import {
   useState,
 } from "react";
 
-let prevProps: {
-  setTitle: Dispatch<SetStateAction<string>>;
-  setDescription: Dispatch<SetStateAction<string>>;
-  continueToNextStep: () => void;
-} = {
-  setTitle: () => {},
-  setDescription: () => {},
-  continueToNextStep: () => {},
-};
-
 export const Step1 = ({
   setTitle,
   setDescription,
@@ -37,16 +28,9 @@ export const Step1 = ({
   setDescription: Dispatch<SetStateAction<string>>;
   continueToNextStep: () => void;
 }) => {
-  console.log({
-    setTitle: setTitle === prevProps.setTitle,
-    setDescription: setDescription === prevProps.setDescription,
-    continueToNextStep: continueToNextStep === prevProps.continueToNextStep,
-  });
-  prevProps = { setTitle, setDescription, continueToNextStep };
   const discussionRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const [waiting, setWaiting] = useState(false);
-  console.log({ waiting });
   const [asrAvailable, isListening, start, stop, reset] =
     useSpeechRecognitionEngine(
       useCallback((value) => {
@@ -54,8 +38,7 @@ export const Step1 = ({
         textAreaRef.current.value = value;
       }, []),
     );
-  console.log({ asrAvailable, isListening });
-  const [messages, thinking, thinkingMessage, clarity, postUserMessage] =
+  const [messages, thinking, thinkingMessage, confidence, postUserMessage] =
     useCreateQuestChat();
   useLayoutEffect(() => {
     const el = discussionRef.current;
@@ -73,17 +56,20 @@ export const Step1 = ({
     observer.observe(el, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, []);
-  const commit = useCallback(() => {
-    const textArea = textAreaRef.current;
-    if (!textArea) return;
-    const value = textArea.value;
-    if (!value || value.trim() === "") {
-      return;
-    }
-    postUserMessage(value);
-    textArea.value = "";
-    textArea.style.height = "";
-  }, [postUserMessage]);
+  const commit = useCallback(
+    (directValue?: string) => {
+      const value = directValue ?? textAreaRef.current?.value;
+      if (!value || value.trim() === "") {
+        return;
+      }
+      postUserMessage(value);
+      if (textAreaRef.current) {
+        textAreaRef.current.value = "";
+        textAreaRef.current.style.height = "";
+      }
+    },
+    [postUserMessage],
+  );
   return (
     <div className="flex flex-1 flex-col items-center justify-center">
       <div
@@ -101,22 +87,37 @@ export const Step1 = ({
         >
           <div className="flex flex-col gap-4">
             {messages
-              .filter((m) => ["user", "assistant"].includes(m.role))
-              .map((message, i) => (
-                <MarkdownViewer
-                  key={`m-${i}`}
-                  content={message.content as string}
-                  className={cn(
-                    message.role === "user"
-                      ? "rounded-box bg-base-300 p-4"
-                      : "",
-                  )}
-                />
-              ))}
+              .filter((m) => ["user", "assistant", "options"].includes(m.role))
+              .map((message, i) =>
+                isOptionsMessage(message) ? (
+                  message.options.map((m, j) => (
+                    <Button
+                      key={`o-${i}-${j}`}
+                      buttonType="neutral"
+                      buttonStyle="outline"
+                      className="justify-start p-2 box-border w-fit border-gray-400 bg-transparent text-gray-500"
+                      onClick={() => commit(m)}
+                    >
+                      {m}
+                    </Button>
+                  ))
+                ) : (
+                  <MarkdownViewer
+                    key={`m-${i}`}
+                    content={message.content as string}
+                    className={cn(
+                      message.role === "user"
+                        ? "rounded-box bg-base-300 p-4"
+                        : "",
+                    )}
+                  />
+                ),
+              )}
           </div>
           {thinking && (
             <div className="flex items-center justify-center p-4">
-              <span className="loading loading-bars loading-xl"></span>{" "}
+              <span className="loading loading-bars loading-xl"></span>
+              <span className="inline-block w-3"></span>
               {thinkingMessage}
             </div>
           )}
@@ -174,13 +175,13 @@ export const Step1 = ({
         </label>
         {messages.length >= 1 && (
           <Button
-            disabled={clarity < 0 || waiting}
+            disabled={waiting}
             buttonType="primary"
             onClick={async () => {
               setWaiting(true);
               try {
                 const { description, title } =
-                  (await getQuestTitleAndDescription(messages)) ?? {};
+                  (await getQuestTitleAndDescription([])) ?? {};
                 if (title && description) {
                   if (title) setTitle(title);
                   if (description) setDescription(description);
@@ -192,15 +193,7 @@ export const Step1 = ({
               }
             }}
           >
-            Continue (with{" "}
-            {clarity > 95
-              ? "high"
-              : clarity > 75
-                ? "acceptable"
-                : clarity > 50
-                  ? "borderline"
-                  : "low"}{" "}
-            clarity)
+            Continue ({confidence})
           </Button>
         )}
       </div>
