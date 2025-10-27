@@ -21,7 +21,7 @@ import {
 export type MediaSource = Omit<QuestMedia, "type" | "url"> &
   ({ type: "video"; url: string } | { type: "image"; content: File });
 
-export const Step5 = ({
+export const UploadAdditionalMedia = ({
   continueToNextStep,
 }: {
   continueToNextStep: () => void;

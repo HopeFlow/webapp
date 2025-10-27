@@ -4,7 +4,7 @@ import { cn } from "@/helpers/client/tailwind_helpers";
 // import Image from "next/image";
 import { useState, type Dispatch, type SetStateAction } from "react";
 
-export const Step3 = ({
+export const ConfirmTitle = ({
   title,
   setTitle,
   continueToNextStep,

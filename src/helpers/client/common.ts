@@ -2,6 +2,17 @@ export const timeout = async (ms: number) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };
 
+export const getImageDataUrl = (image: HTMLImageElement) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const context = canvas.getContext("2d");
+  if (!context)
+    throw Error("getImageDataUrl: Error getting 2d context for the canvas");
+  context.drawImage(image, 0, 0);
+  return canvas.toDataURL("image/png");
+};
+
 export const loadImageFromUrl = (src: string): Promise<HTMLImageElement> => {
   return new Promise((resolve, reject) => {
     const img = new Image();

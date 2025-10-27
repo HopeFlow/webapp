@@ -2,35 +2,29 @@
 
 import { Button } from "@/components/button";
 import { ArrowUpIcon } from "@/components/icons/arrow_up";
-import { CheckIcon } from "@/components/icons/check";
 import { MicIcon } from "@/components/icons/microphone";
 import MarkdownViewer from "@/components/markdown/view";
 import { useSpeechRecognitionEngine } from "@/helpers/client/asr";
-import { timeout } from "@/helpers/client/common";
 import { isOptionsMessage, useCreateQuestChat } from "@/helpers/client/LLM";
 import { cn } from "@/helpers/client/tailwind_helpers";
-import { getQuestTitleAndDescription } from "@/helpers/server/LLM";
+import { CreateQuestChatMessage } from "@/helpers/server/LLM";
 import {
   type Dispatch,
   type SetStateAction,
   useCallback,
   useLayoutEffect,
   useRef,
-  useState,
 } from "react";
 
-export const Step1 = ({
-  setTitle,
-  setDescription,
+export const ChatWithLLM = ({
+  setMessages,
   continueToNextStep,
 }: {
-  setTitle: Dispatch<SetStateAction<string>>;
-  setDescription: Dispatch<SetStateAction<string>>;
+  setMessages: Dispatch<SetStateAction<CreateQuestChatMessage[]>>;
   continueToNextStep: () => void;
 }) => {
   const discussionRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
-  const [waiting, setWaiting] = useState(false);
   const [asrAvailable, isListening, start, stop, reset] =
     useSpeechRecognitionEngine(
       useCallback((value) => {
@@ -95,7 +89,7 @@ export const Step1 = ({
                       key={`o-${i}-${j}`}
                       buttonType="neutral"
                       buttonStyle="outline"
-                      className="justify-start p-2 box-border w-fit border-gray-400 bg-transparent text-gray-500"
+                      className="box-border w-fit justify-start border-gray-400 bg-transparent p-2 text-gray-500"
                       onClick={() => commit(m)}
                     >
                       {m}
@@ -163,37 +157,27 @@ export const Step1 = ({
             <MicIcon />
           </Button>
           <div className="w-1"></div>
-          <Button
-            buttonType="neutral"
-            className="p-2"
-            onClick={() => {
-              commit();
-            }}
-          >
+          <Button buttonType="neutral" className="p-2" onClick={() => commit()}>
             <ArrowUpIcon />
           </Button>
         </label>
         {messages.length >= 1 && (
           <Button
-            disabled={waiting}
+            disabled={
+              !["GOOD", "CONFIDENT", "SURE"].includes(confidence) &&
+              messages.filter((m) => m.role === "user").length < 3
+            }
             buttonType="primary"
-            onClick={async () => {
-              setWaiting(true);
-              try {
-                const { description, title } =
-                  (await getQuestTitleAndDescription([])) ?? {};
-                if (title && description) {
-                  if (title) setTitle(title);
-                  if (description) setDescription(description);
-                  await timeout(500);
-                  continueToNextStep();
-                }
-              } finally {
-                setWaiting(false);
-              }
+            onClick={() => {
+              setMessages(
+                messages.filter((m) =>
+                  ["user", "assistant"].includes(m.role),
+                ) as CreateQuestChatMessage[],
+              );
+              Promise.resolve().then(() => continueToNextStep());
             }}
           >
-            Continue ({confidence})
+            Continue ({confidence.toLowerCase()} clarity)
           </Button>
         )}
       </div>

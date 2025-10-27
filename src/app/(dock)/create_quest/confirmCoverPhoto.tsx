@@ -2,69 +2,72 @@
 
 import { Button } from "@/components/button";
 import { EditImage } from "@/components/edit_image";
-import { FileImage } from "@/components/file_image";
 import { ArrowUpTrayIcon } from "@/components/icons/arrow_up_tray";
 import { PencilSquareIcon } from "@/components/icons/pencil_square";
-import { loadFileFromUrl } from "@/helpers/client/common";
-// import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
 import { useFileUpload } from "@/helpers/client/hooks";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import {
   useEffect,
+  useMemo,
   useState,
   type Dispatch,
   type SetStateAction,
 } from "react";
+import type { InsertQuestData } from "./types";
+import Image from "next/image";
+import {
+  getImageDataUrl,
+  loadBlobFromUrl,
+  loadImageFromBlob,
+} from "@/helpers/client/common";
+import { FileImage } from "@/components/file_image";
 
-export const Step4 = ({
+export const ConfirmCoverPhoto = ({
   // title,
-  coverImage,
-  setCoverImage,
+  coverPhoto,
+  setCoverPhoto,
   continueToNextStep,
 }: {
   title: string;
-  coverImage: File | undefined;
-  setCoverImage: Dispatch<SetStateAction<File | undefined>>;
+  coverPhoto: InsertQuestData["coverPhoto"] | undefined;
+  setCoverPhoto: Dispatch<
+    SetStateAction<InsertQuestData["coverPhoto"] | undefined>
+  >;
   continueToNextStep: () => void;
 }) => {
-  // const imageDataUrl = coverImage ? undefined : useMemo(() => useGeneratedCoverImage(title), [title]);
-  const [image, setImage] = useState<File | undefined>(coverImage);
+  const [image, setImage] = useState<File | undefined>();
   const [isEditing, setIsEditing] = useState(false);
   const fileUpload = useFileUpload({ accept: "image/*", multiple: false });
   useEffect(() => {
+    if (!coverPhoto?.url) return undefined;
     (async () => {
-      const image = await loadFileFromUrl(
-        "https://pub-7027dcead7294deeacde6da1a50ed32f.r2.dev/trek-520-grando-51cm-v0.jpeg",
-        "trek-520-grando-51cm-v0.jpeg",
+      const file = new File(
+        [await loadBlobFromUrl(coverPhoto.url)],
+        coverPhoto.alt,
       );
-      // const image =
-      //   imageDataUrl === undefined
-      //     ? undefined
-      //     : await loadFileFromUrl(
-      //         imageDataUrl,
-      //         `cover-image-${Date.now()}.jpeg`,
-      //       );
-      setImage(image);
+      setImage(file);
     })();
-  }, []);
+  }, [coverPhoto?.url, coverPhoto?.alt]);
   return (
-    <div className="flex-1 flex flex-col items-center justify-center">
+    <div className="flex flex-1 flex-col items-center justify-center">
       <div
         className={cn(
-          "w-full max-w-4xl p-4 md:p-8 flex-1 flex flex-col gap-4 justify-center",
+          "flex w-full max-w-4xl flex-1 flex-col justify-center gap-4 p-4 md:p-8",
         )}
       >
-        <h1 className="font-normal text-2xl">
+        <h1 className="text-2xl font-normal">
           Is this a good cover image for your quest? if not, upload another one
         </h1>
-        <div className="w-full aspect-video card overflow-hidden relative">
+        <div className="card relative aspect-video w-full overflow-hidden">
           <div className="">
-            <FileImage
-              src={image}
-              alt="Cover Image"
-              className="left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 absolute w-full h-auto object-cover rounded"
-            />
-            <div className="absolute right-0 top-0 p-4 flex flex-row gap-2">
+            {image && (
+              <FileImage
+                src={image}
+                alt={image.name}
+                className="absolute top-1/2 left-1/2 h-auto w-full -translate-x-1/2 -translate-y-1/2 rounded object-cover"
+              />
+            )}
+            <div className="absolute top-0 right-0 flex flex-row gap-2 p-4">
               <Button
                 buttonType="neutral"
                 buttonStyle="soft"
@@ -89,8 +92,17 @@ export const Step4 = ({
         </div>
         <Button
           buttonType="primary"
-          onClick={() => {
-            setCoverImage(image);
+          onClick={async () => {
+            const loadedImage = image && (await loadImageFromBlob(image));
+            if (loadedImage) {
+              const url = getImageDataUrl(loadedImage);
+              setCoverPhoto({
+                url,
+                alt: image.name,
+                width: loadedImage.width,
+                height: loadedImage.height,
+              });
+            }
             continueToNextStep();
           }}
         >

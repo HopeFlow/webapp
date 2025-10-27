@@ -3,8 +3,9 @@ import {
   createQuestChat,
   type CreateQuestChatMessage,
   type ConfidenceLevel,
+  getQuestTitleAndDescription,
+  type GeneratedTitleAndDescription,
 } from "../server/LLM";
-import { late } from "zod";
 
 export type OptionsMessage = { role: "options"; options: string[] };
 
@@ -28,7 +29,12 @@ export const useCreateQuestChat = () => {
     (content: string) => {
       if (waitingForLLM || thinking) return;
       const newMessage: CreateQuestChatMessage = { role: "user", content };
+      setThinking(true);
       setMessages((m) => [...m, newMessage]);
+      // setTimeout(() => {
+      //   setMessages((m) => [...m, { ...newMessage, role: "assistant" }]);
+      //   setThinking(false);
+      // }, 1000);
       setWaitingForLLM(true);
     },
     [thinking, waitingForLLM],
@@ -36,7 +42,6 @@ export const useCreateQuestChat = () => {
   useEffect(() => {
     if (!waitingForLLM) return;
     setWaitingForLLM(false);
-    setThinking(true);
     (async () => {
       const prevMessages = messages;
       let newMessages: typeof messages = [];
@@ -99,5 +104,65 @@ export const useCreateQuestChat = () => {
     thinkingMessage,
     confidence,
     postUserMessage,
+  ] as const;
+};
+
+export const useGenerateDescriptionTitle = () => {
+  const [conversation, setConversationInternal] = useState("");
+  const [thinking, setThinking] = useState(false);
+  const [thinkingMessage, setThinkingMessage] = useState("");
+  const [descriptionTitle, setDescriptionTitle] =
+    useState<GeneratedTitleAndDescription>({
+      description: "",
+      contributorTitle: "",
+      seekerTitle: "",
+    });
+  const [waitingForLLM, setWaitingForLLM] = useState(false);
+  const setConversation = useCallback(
+    (newConversation: string) => {
+      if (waitingForLLM || thinking || conversation === newConversation) return;
+      setThinking(true);
+      setConversationInternal(newConversation);
+      setWaitingForLLM(true);
+    },
+    [conversation, thinking, waitingForLLM],
+  );
+  useEffect(() => {
+    if (!waitingForLLM || !conversation) return;
+    console.log({ h: "useGenerateDescriptionTitle", conversation });
+    setWaitingForLLM(false);
+    (async () => {
+      let descriptionTitle: GeneratedTitleAndDescription = {
+        description: "",
+        contributorTitle: "",
+        seekerTitle: "",
+      };
+      try {
+        for await (const event of await getQuestTitleAndDescription(
+          conversation,
+        )) {
+          switch (event.type) {
+            case "reasoning-part": {
+              setThinkingMessage(event.title);
+              break;
+            }
+            case "generated-title-and-description": {
+              descriptionTitle = event.value;
+              break;
+            }
+          }
+        }
+      } finally {
+        setThinking(false);
+        setThinkingMessage("");
+        setDescriptionTitle({ ...descriptionTitle });
+      }
+    })();
+  }, [conversation, waitingForLLM]);
+  return [
+    descriptionTitle,
+    thinking,
+    thinkingMessage,
+    setConversation,
   ] as const;
 };

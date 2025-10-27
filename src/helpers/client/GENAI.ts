@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getGenAIResponse } from "../server/GENAI";
 import { loadImageFromUrl } from "./common";
 
@@ -21,39 +21,48 @@ if (canvas) {
 }
 const canvasContext = canvas && canvas.getContext("2d");
 
-export const useGeneratedCoverImage = (title: string) => {
+export const useGeneratedCoverImage = () => {
+  const [description, setDescriptionInternal] = useState<string>();
+  const [generating, setGenerating] = useState(false);
   const [imageDataUrl, setImageDataUrl] = useState<string>();
+  const setDescription = useCallback(
+    (newDescription: string) => {
+      if (generating || description === newDescription) return;
+      setGenerating(true);
+      setDescriptionInternal(newDescription);
+    },
+    [description, generating],
+  );
   useEffect(() => {
-    if (!title || title.trim() === "") return;
-    const throttledCallTimeout = setTimeout(async () => {
-      const imageData = await getGenAIResponse(
-        getGeneratedCoverImagePrompt(title),
-      );
-      // if (imageData) setImageData(imageData);
-      // return;
-      if (imageData && canvas && canvasContext) {
-        const squareImage = await loadImageFromUrl(
-          `data:image/png;base64,${imageData}`,
+    if (!generating || !description) return;
+    (async () => {
+      try {
+        const imageData = await getGenAIResponse(
+          getGeneratedCoverImagePrompt(description),
         );
-        canvasContext.drawImage(
-          squareImage,
-          0,
-          224,
-          1024,
-          576,
-          0,
-          0,
-          1024,
-          576,
-        );
-        const resizedImageDataUrl = canvas.toDataURL("image/png");
-        setImageDataUrl(resizedImageDataUrl);
-      } else if (imageData)
-        setImageDataUrl(`data:image/png;base64,${imageData}`);
-    }, 4000);
-    return () => {
-      clearTimeout(throttledCallTimeout);
-    };
-  }, [title]);
-  return imageDataUrl;
+        if (imageData && canvas && canvasContext) {
+          const squareImage = await loadImageFromUrl(
+            `data:image/png;base64,${imageData}`,
+          );
+          canvasContext.drawImage(
+            squareImage,
+            0,
+            224,
+            1024,
+            576,
+            0,
+            0,
+            1024,
+            576,
+          );
+          const resizedImageDataUrl = canvas.toDataURL("image/png");
+          setImageDataUrl(resizedImageDataUrl);
+        } else if (imageData)
+          setImageDataUrl(`data:image/png;base64,${imageData}`);
+      } finally {
+        setGenerating(false);
+      }
+    })();
+  }, [description, generating]);
+  return [imageDataUrl, generating, setDescription] as const;
 };

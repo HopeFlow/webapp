@@ -2,7 +2,7 @@ import { Button } from "@/components/button";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { useState, type Dispatch, type SetStateAction } from "react";
 
-export const Step2 = ({
+export const ConfirmDescription = ({
   description,
   setDescription,
   continueToNextStep,

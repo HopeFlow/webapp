@@ -130,7 +130,7 @@ export const createQuestChat = defineServerFunction({
     const stream = await openai.responses.create({
       model: "gpt-5-nano",
       input,
-      reasoning: { effort: "low", summary: "detailed" },
+      reasoning: { effort: "minimal", summary: "detailed" },
       text: { format: { type: "text" } },
       stream: true,
     });
@@ -228,59 +228,150 @@ export const createQuestChat = defineServerFunction({
 });
 
 const getQuestTitleAndDescriptionSystemPrompt = `
-You are a concise copywriter.
-Task:
-— Read the conversation and infer exactly what the person is seeking.
-— Produce:
-   1) description: 1–4 paragraphs, plain language, specific, action-oriented, no fluff.
-   2) title: 4–7 words, shown to the seeker; vivid, concrete, respectful.
-   3) askTitle: 4–7 words, addressed to the seeker's friends/network; contains the seeker’s first name when natural.
-Rules:
-— Titles must be 4–7 words (count words, not characters).
-— Avoid sensationalism; be clear and credible.
-`;
+You are an expert clarity assistant helping to summarize and reframe a user’s “quest” — something they are seeking, researching, or trying to achieve — based on a short chat transcript between the user and an assistant.
+
+Your task:
+Given the full chat transcript, infer the user’s main goal, motivation, and context, then produce a concise JSON object describing their quest.
+
+### GUIDELINES
+
+**description**  
+- Write about 3 paragraphs in total.  
+- Use third person (“Joseph is looking for…”, “Helena wants to…”).  
+- Capture *why* they want it (motivation, curiosity, or purpose).  
+- Explain *what exactly* they are seeking.  
+- Mention any priorities, focus areas, or constraints.  
+- End with a sense of direction or next step (“They hope that by finding X, they can Y…”).
+
+**seekerTitle**  
+- A short, inspiring title (max ~5 words).  
+- For user, to easily remember what the quest is about summarizing their mission.  
+- Example: "Rare 17th-Century Translation"
+
+**contributorTitle**  
+- A clear, friendly, and engaging title for others who might help.  
+- Example: "Can You Help Malcom Find a 17th-Century English Arabian Nights?"
+
+### INPUT
+
+You’ll receive a transcript formatted like this:
+name:
+Malcom
+user: <user messages>
+bot: <assistant messages>
+user: <user messages>
+bot: <assistant messages>
+
+Combine all relevant information from the user’s turns to infer intent and motivation.  
+Ignore generic assistant prompts unless they clarify facts.
+
+### OUTPUT EXAMPLE
+
+\`\`\`json
+{
+  "description": "The user is seeking a 17th-century English translation of Arabian Nights. They are fascinated by how early translators adapted Asian cultural narratives into Western literary traditions. Their goal is to study how meaning, tone, and storytelling evolved through translation. By finding this rare edition, they hope to explore cultural exchange through language and contribute insights to historical translation research.",
+  "seekerTitle": "17th-Century Arabian Nights",
+  "contributorTitle": "Help Malcom Find a 17th-Century Arabian Nights"
+}
+\`\`\``;
+
+const generatedDescriptionTitle = z
+  .object({
+    description: z
+      .string()
+      .min(30, "Description must be at least 30 characters long")
+      .describe(
+        "Around 3 paragraphs describing what the user is trying to do.",
+      ),
+    seekerTitle: z
+      .string()
+      .min(3, "Title must be at least 3 characters long")
+      .max(120, "Title must be at most 120 characters long")
+      .describe("A short title addressed to the user."),
+    contributorTitle: z
+      .string()
+      .min(3, "Title must be at least 3 characters long")
+      .max(120, "Title must be at most 120 characters long")
+      .describe(
+        "A short title addressed to friends or the public asking for help.",
+      ),
+  })
+  .strict();
+
+export type GeneratedTitleAndDescription = z.infer<
+  typeof generatedDescriptionTitle
+>;
+export type GeneratedTitleAndDescriptionEvent = {
+  type: "generated-title-and-description";
+  value: GeneratedTitleAndDescription;
+};
 
 export const getQuestTitleAndDescription = defineServerFunction({
   id: "getQuestTitleAndDescription",
   scope: "global::llm",
-  handler: async (messasges: CreateQuestChatMessage[]) => {
+  handler: async function* (
+    conversation: string,
+  ): AsyncGenerator<
+    ReasoningEvent | GeneratedTitleAndDescriptionEvent,
+    void,
+    unknown
+  > {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const response = await openai.responses.parse({
+
+    console.log({ f: "getQuestTitleAndDescription", conversation });
+
+    const input = [
+      {
+        role: "system" as const,
+        content: getQuestTitleAndDescriptionSystemPrompt,
+      },
+      { role: "user" as const, content: conversation },
+    ];
+
+    yield { type: "reasoning-part", title: "Thinking ..." };
+    const stream = await openai.responses.create({
       model: "gpt-5-nano",
-      reasoning: { effort: "minimal" },
-      input: [
-        { role: "system", content: getQuestTitleAndDescriptionSystemPrompt },
-        {
-          role: "user",
-          content:
-            "Return only the JSON. Here is the data:\n" +
-            JSON.stringify(messasges, null, 2),
-        },
-      ],
+      input,
+      reasoning: { effort: "minimal", summary: "detailed" },
       text: {
         format: zodTextFormat(
-          z
-            .object({
-              title: z.string(),
-              description: z.string(),
-              askTitle: z.string(),
-            })
-            .strict(),
-          "specs",
+          generatedDescriptionTitle,
+          "generatedDescriptionTitle",
         ),
       },
+      stream: true,
     });
-    return response.output_parsed;
+
+    let deltaTextBuffer = "";
+    let deltaReasonBuffer = "";
+
+    for await (const event of stream) {
+      switch (event.type) {
+        case "response.output_text.delta": {
+          deltaTextBuffer += event.delta;
+          break;
+        }
+        case "response.reasoning_summary_text.delta": {
+          deltaReasonBuffer += event.delta;
+          const m =
+            deltaReasonBuffer.match(/\*\*\s*(.+?)\s*\*\*/) ??
+            deltaReasonBuffer.match(/#+\s*(.+?)\s*\n/);
+          if (m) {
+            deltaReasonBuffer = "";
+            yield { type: "reasoning-part", title: m[1] } as ReasoningEvent;
+          }
+        }
+      }
+    }
+
+    const generated = generatedDescriptionTitle.safeParse(
+      JSON.parse(deltaTextBuffer),
+    );
+    if (generated.success) {
+      yield {
+        type: "generated-title-and-description",
+        value: generated.data,
+      } as GeneratedTitleAndDescriptionEvent;
+    }
   },
 });
-
-/*
-const titleGenerationPrompt =
-  'You are an expert on literature and psychology. The user will give you a passage and title. You have to generate one 4-7 word sentence to ask the reader of the sentence to help the writer of passage reach his/her goal. Try to include key points of the passage that may affect help. The input will be in JSON format. "name" field holding name of the writer of passage and "passage" indicating the content of the passage. The sentence should be in third person voice e.g. `Help Nolan recover his stolen totem` or `Aid Susan find her beloved cat (Maggy)` or `Stand with John in search for "Arabian Nights"';
-
-const reasonGenerationPrompt =
-  'Given a reason to pass a request from a friend of you to someone you know or a group of people you know, convert it to a SMALL paragraph length text from the third person perspective addressing the reader. If no reason is provided, generate a general paragraph that is true implicitly and make it explicit. Do not add any unspecified claims. e.g. "Because he is in the neighborhood and knows cars well" to "Because you are in the neighborhood and know cars." or "Because she has a large connection pool with painters and artists" to "As you have vast connections with painters and art people". For empty reasons for example "Because he thinks you can help Mat find his stolen car".';
-
-const callForActionSentenceGenerationPrompt =
-  'The user will give you a passage containing description of a request for help and title. Generate 4 4-7 word sentences and output a JSON array. First sentence checking with reader if he has the answer, lead and can directly help e.g. "If you know where to find it". Second checking with reader if he knows someone that MAY be able to help or even pass the word e.g. "If you know someone who may help". Third sentence encoraging to connect with the starter of quest and providing them with answer. And finally fourth to encourage passing the word via Reflow. Reflow is a term used in the application. The first two sentences must be INCOMPLETE and must NOT be questions.';
-*/
