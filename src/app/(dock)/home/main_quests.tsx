@@ -18,29 +18,33 @@ export function HomeMain() {
 
   return (
     <div className="w-full space-y-2 overflow-y-auto p-4 md:p-8">
-      {items.map((quest, i) =>
-        quest.isUserSeeker ? (
-          <StarterQuestCard
-            key={quest.id ?? `q-${i}`}
-            bounty={parseFloat(quest.rewardAmount)}
-            coverMedia={quest.coverMedia}
-            nodes={quest.nodes}
-            title={quest.title}
-            numberOfLeads={quest.numberOfLeads}
-            questState="Young"
-          />
-        ) : (
-          <ContributorQuestCard
-            key={quest.id ?? `q-${i}`}
-            bounty={parseFloat(quest.rewardAmount)}
-            coverMedia={quest.coverMedia}
-            nodes={quest.nodes}
-            title={quest.title}
-            numberOfLeads={quest.numberOfLeads}
-            questState="Young"
-          />
-        ),
-      )}
+      {items
+        .filter((item) => !!item.id)
+        .map((quest, i) =>
+          quest.isUserSeeker ? (
+            <StarterQuestCard
+              key={quest.id ?? `q-${i}`}
+              bounty={parseFloat(quest.rewardAmount)}
+              coverMedia={quest.coverMedia}
+              nodes={quest.nodes}
+              title={quest.title}
+              numberOfLeads={quest.numberOfLeads}
+              questState="Young"
+              id={quest.id!}
+            />
+          ) : (
+            <ContributorQuestCard
+              key={quest.id ?? `q-${i}`}
+              bounty={parseFloat(quest.rewardAmount)}
+              coverMedia={quest.coverMedia}
+              nodes={quest.nodes}
+              title={quest.title}
+              numberOfLeads={quest.numberOfLeads}
+              questState="Young"
+              id={quest.id!}
+            />
+          ),
+        )}
 
       {(isLoading || isFetchingNextPage) &&
         new Array(3)

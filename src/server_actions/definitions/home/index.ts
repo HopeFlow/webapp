@@ -2,6 +2,7 @@
 import { getHopeflowDatabase } from "@/db";
 import { questStatusDef } from "@/db/constants";
 import {
+  linkTable,
   nodeTable,
   proposedAnswerTable,
   questTable,
@@ -21,6 +22,7 @@ type Node = {
 };
 
 export type QuestCard = {
+  id?: string;
   title: string;
   isUserSeeker: boolean;
   rewardAmount: string;
@@ -127,6 +129,7 @@ export const quests = createServerAction({
       .select({
         questId: questUserRelationTable.questId,
         createdAt: questUserRelationTable.createdAt,
+        linkId: questUserRelationTable.linkId,
       })
       .from(questUserRelationTable)
       .where(eq(questUserRelationTable.userId, user.id))
@@ -158,6 +161,29 @@ export const quests = createServerAction({
       .where(inArray(questTable.id, questIds));
 
     const questsById = new Map(quests.map((q) => [q.id, q]));
+
+    const contributorLinkIds = [
+      ...new Set(
+        pageRelations
+          .map((rel) => {
+            const quest = questsById.get(rel.questId);
+            if (!quest || quest.seekerId === user.id) return;
+            return rel.linkId;
+          })
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+
+    const linkCodeById = new Map<string, string>();
+    if (contributorLinkIds.length > 0) {
+      const links = await db
+        .select({ id: linkTable.id, linkCode: linkTable.linkCode })
+        .from(linkTable)
+        .where(inArray(linkTable.id, contributorLinkIds));
+      links.forEach((link) => {
+        linkCodeById.set(link.id, link.linkCode);
+      });
+    }
 
     // 2) Count proposed answers per quest in one grouped query
     const counts = await db
@@ -234,6 +260,9 @@ export const quests = createServerAction({
       if (!q) continue;
 
       const isUserSeeker = q.seekerId === user.id;
+      const identifier = isUserSeeker
+        ? q.id
+        : (linkCodeById.get(rel.linkId) ?? undefined);
 
       let nodes: Node[] = [];
       if (isUserSeeker) {
@@ -261,6 +290,7 @@ export const quests = createServerAction({
         a.activityDate > b.activityDate ? 1 : -1,
       );
       cards.push({
+        id: identifier,
         title: q.title,
         isUserSeeker,
         rewardAmount: q.rewardAmount,
