@@ -1,7 +1,7 @@
 "use client";
 
 import { ModernForm } from "@/components/modern_form";
-import { useCallback, useEffect, useState } from "react";
+import { ReactNode, useCallback, useEffect, useState } from "react";
 import { ChatWithLLM } from "./chatWithLLM";
 import { ConfirmDescription } from "./confirmDescription";
 import { ConfirmTitle } from "./confirmTitle";
@@ -21,11 +21,17 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
   const [latestVisitedState, setLatestVisitedState] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
   const [stableStepIndex, setStableStepIndex] = useState(0);
-  const [chatMessages, setChatMessages] = useState<CreateQuestChatMessage[]>(
-    [],
+  const [chatMessages, setChatMessages] = useState<CreateQuestChatMessage[]>([
+    { role: "user", content: "A 17th-century physical copy of Arabian Nights" },
+    { role: "user", content: "A 17th-century physical copy of Arabian Nights" },
+    { role: "user", content: "A 17th-century physical copy of Arabian Nights" },
+  ]);
+  const [title, setTitle] = useState(
+    "Help Behrooz Find a 17th-Century English Arabian Nights",
   );
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(
+    "A 17th-century physical copy of Arabian Nights",
+  );
   const [coverPhoto, setCoverPhoto] = useState<InsertQuestData["coverPhoto"]>();
   // const [media, setMedia] = useState<QuestMedia[]>();
   // const [screeningQuestions, setScreeningQuestions] =
@@ -33,21 +39,24 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
   const continueToNextStep = useCallback(() => {
     setGotoNextStep(true);
   }, []);
-  const formParts = [
+  const formPartsAndSpecs: Array<ReactNode | [ReactNode, boolean]> = [
     <ChatWithLLM
       setMessages={setChatMessages}
       continueToNextStep={continueToNextStep}
       key="chatWithLLM"
     />,
-    <GenerateDescriptionTitle
-      user={user}
-      active={stableStepIndex === 1 && stepIndex === 1}
-      messages={chatMessages}
-      setTitle={setTitle}
-      setDescription={setDescription}
-      continueToNextStep={continueToNextStep}
-      key="generateDescriptionTitle"
-    />,
+    [
+      <GenerateDescriptionTitle
+        user={user}
+        active={stableStepIndex === 1 && stepIndex === 1}
+        messages={chatMessages}
+        setTitle={setTitle}
+        setDescription={setDescription}
+        continueToNextStep={continueToNextStep}
+        key="generateDescriptionTitle"
+      />,
+      false,
+    ],
     <ConfirmDescription
       description={description}
       setDescription={setDescription}
@@ -60,13 +69,16 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
       continueToNextStep={continueToNextStep}
       key={`confirmTitle-${title}`}
     />,
-    <GenerateCoverPhoto
-      active={stableStepIndex === 4 && stepIndex === 4}
-      description={description}
-      setCoverPhoto={setCoverPhoto}
-      continueToNextStep={continueToNextStep}
-      key="generateCoverPhoto"
-    />,
+    [
+      <GenerateCoverPhoto
+        active={stableStepIndex === 4 && stepIndex === 4}
+        description={description}
+        setCoverPhoto={setCoverPhoto}
+        continueToNextStep={continueToNextStep}
+        key="generateCoverPhoto"
+      />,
+      false,
+    ],
     <ConfirmCoverPhoto
       title={title}
       coverPhoto={coverPhoto}
@@ -83,6 +95,14 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
       key="confirmScreeningQuestions"
     />,
   ];
+  const formParts = formPartsAndSpecs.map((p) => (Array.isArray(p) ? p[0] : p));
+  const formPartIndexes = formPartsAndSpecs.reduce(
+    ({ lastIndex, result }, v) =>
+      Array.isArray(v) && !v[1]
+        ? { lastIndex: lastIndex, result: [...result, lastIndex] }
+        : { lastIndex: lastIndex + 1, result: [...result, lastIndex] },
+    { lastIndex: 0, result: [] } as { lastIndex: number; result: number[] },
+  ).result;
   const sanitizedSetStepIndex = useCallback(
     (targetStepIndex: number) => {
       let santizedTargetStepIndex = Math.max(
@@ -122,10 +142,11 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
   return (
     <div className="flex h-full w-full flex-col">
       <Steps
-        numberOfSteps={formParts.length}
-        currentStep={stableStepIndex}
+        numberOfSteps={formPartIndexes[formPartIndexes.length - 1] ?? 0}
+        currentStep={formPartIndexes[stableStepIndex]}
         onClick={(step: number) => {
-          sanitizedSetStepIndex(step);
+          const index = formPartIndexes.lastIndexOf(step);
+          sanitizedSetStepIndex(index);
         }}
       />
       <ModernForm

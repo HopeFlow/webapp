@@ -27,9 +27,16 @@ export const useGeneratedCoverImage = () => {
   const [imageDataUrl, setImageDataUrl] = useState<string>();
   const setDescription = useCallback(
     (newDescription: string) => {
-      if (generating || description === newDescription) return;
-      setGenerating(true);
-      setDescriptionInternal(newDescription);
+      if (generating) return;
+      if (description === newDescription) {
+        setImageDataUrl((urlCopy) => {
+          setTimeout(() => setImageDataUrl(urlCopy), 250);
+          return undefined;
+        });
+      } else {
+        setGenerating(true);
+        setDescriptionInternal(newDescription);
+      }
     },
     [description, generating],
   );

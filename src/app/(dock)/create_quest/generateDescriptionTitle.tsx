@@ -37,16 +37,13 @@ export const GenerateDescriptionTitle = ({
   const [descriptionTitle, thinking, thinkingMessage, setConversation] =
     useGenerateDescriptionTitle();
   useEffect(() => {
-    console.log({ active });
     if (!active) return;
     Promise.resolve().then(() => {
-      console.log({ f: "useEffect::active", conversation });
       setGenerationStarted(true);
       setConversation(conversation);
     });
   }, [active, conversation, setConversation]);
   useEffect(() => {
-    console.log({ active, generationStarted, thinking });
     if (!active || !generationStarted || thinking) return;
     Promise.resolve().then(() => {
       setGenerationStarted(false);

@@ -318,8 +318,6 @@ export const getQuestTitleAndDescription = defineServerFunction({
   > {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    console.log({ f: "getQuestTitleAndDescription", conversation });
-
     const input = [
       {
         role: "system" as const,

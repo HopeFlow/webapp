@@ -1,7 +1,14 @@
-import { loadImageFromUrl } from "@/helpers/client/common";
+import { loadImageFromUrl, timeout } from "@/helpers/client/common";
 import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
-import { type Dispatch, type SetStateAction, useEffect, useState } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 import type { InsertQuestData } from "./types";
+import { useDebouncedEffect } from "@/helpers/client/hooks";
 
 export const GenerateCoverPhoto = ({
   active,
@@ -18,39 +25,31 @@ export const GenerateCoverPhoto = ({
 }) => {
   const [generationStarted, setGenerationStarted] = useState(false);
   const [imageDataUrl, generating, setDescription] = useGeneratedCoverImage();
-  useEffect(() => {
-    console.log({ active });
-    if (!active) return;
-    Promise.resolve().then(() => {
-      console.log({ f: "useEffectGenAI::active", description });
-      setGenerationStarted(true);
-      setDescription(description);
-    });
-  }, [active, description, setDescription]);
-  useEffect(() => {
-    console.log({ active, generationStarted, generating });
-    if (!active || !generationStarted || generating) return;
-    (async () => {
-      setGenerationStarted(false);
-      if (imageDataUrl) {
-        const image = await loadImageFromUrl(imageDataUrl);
-        setCoverPhoto({
-          url: imageDataUrl,
-          alt: "cover_photo.png",
-          width: image.width,
-          height: image.height,
-        });
-      }
+  const passGeneratedPhoto = useCallback(async () => {
+    setGenerationStarted(false);
+    if (imageDataUrl) {
+      const image = await loadImageFromUrl(imageDataUrl);
+      setCoverPhoto({
+        url: imageDataUrl,
+        alt: "cover_photo.png",
+        width: image.width,
+        height: image.height,
+      });
+    }
+    setTimeout(() => {
       continueToNextStep();
-    })();
-  }, [
-    active,
-    continueToNextStep,
-    generating,
-    generationStarted,
-    imageDataUrl,
-    setCoverPhoto,
-  ]);
+    }, 500);
+  }, [continueToNextStep, imageDataUrl, setCoverPhoto]);
+  useDebouncedEffect(() => {
+    if (!active) return;
+    setGenerationStarted(true);
+    setDescription(description);
+  }, [active, description, setDescription]);
+  useDebouncedEffect(() => {
+    if (!active || !generationStarted || generating) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    passGeneratedPhoto();
+  }, [active, generating, generationStarted, passGeneratedPhoto]);
   return (
     <div className="flex h-full w-full flex-col items-center justify-center">
       {generating && (

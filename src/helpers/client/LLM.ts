@@ -129,7 +129,6 @@ export const useGenerateDescriptionTitle = () => {
   );
   useEffect(() => {
     if (!waitingForLLM || !conversation) return;
-    console.log({ h: "useGenerateDescriptionTitle", conversation });
     setWaitingForLLM(false);
     (async () => {
       let descriptionTitle: GeneratedTitleAndDescription = {
