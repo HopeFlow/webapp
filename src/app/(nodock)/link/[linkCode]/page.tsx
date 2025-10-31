@@ -84,37 +84,48 @@ async function ContentsForUser({
 
   type LinkTreeNodeSource = (typeof nodesWithUserNameAndImage)[number];
 
-  const createNodeTree = (nodesForTree: LinkTreeNodeSource[]) => {
+  const createNodeTree = (
+    nodesForTree: LinkTreeNodeSource[],
+  ): ReFlowNodeSimple => {
     // Map a DB node to the shape expected by the tree component.
-    const toTreeNode = (node: LinkTreeNodeSource) => {
+    const toTreeNode = (
+      node: LinkTreeNodeSource,
+    ): Omit<ReFlowNodeSimple, "children"> => {
+      const rawId =
+        typeof node.id === "string" && node.id.trim() ? node.id.trim() : "";
+      const resolvedId =
+        rawId ||
+        (node.viewLinkId ? `link-${node.viewLinkId}` : undefined) ||
+        `pending-${node.parentId ?? "root"}-${Number(
+          new Date(node.createdAt),
+        )}`;
+      const hasRealId = Boolean(rawId);
       const commonFields = {
-        id: node.id,
+        id: resolvedId,
         title: node.name || undefined,
-        targetNode: node.id === userNode?.id || !node.id,
-        potentialNode: node.id === "" || !node.id,
+        targetNode: (hasRealId && node.id === userNode?.id) || !hasRealId,
+        potentialNode: !hasRealId,
         subtitle: elapsedTime2String(node.createdAt),
         imageUrl: node.userImageUrl || undefined,
         referer: node.parentId !== null ? node.referer : null,
       };
 
-      const rank = node.id ? winnerPathMap[node.id] : null;
+      const rank = hasRealId && node.id ? winnerPathMap[node.id] : null;
       return rank != null ? { ...commonFields, rank } : commonFields;
     };
 
     // Root node is the only entry without a parent.
-    const rootSourceNode = nodesForTree.find((n) => n.parentId === null)!;
+    const rootSourceNode = nodesForTree.find((n) => n.parentId === null);
 
     // Recursively build the nested tree for the UI.
-    const buildTree = (
-      sourceNode: LinkTreeNodeSource,
-    ): ReFlowNodeSimple & { id: string } => ({
+    const buildTree = (sourceNode: LinkTreeNodeSource): ReFlowNodeSimple => ({
       ...toTreeNode(sourceNode),
       children: nodesForTree
         .filter((candidate) => candidate.parentId === sourceNode.id)
         .map((child) => buildTree(child)),
     });
 
-    return buildTree(rootSourceNode);
+    return buildTree(rootSourceNode!);
   };
 
   if (quest.type === "restricted" && link.active) {
@@ -229,7 +240,7 @@ async function ContentsForUser({
       // coverYTVideoUrl={quest.coverYTVideoUrl}
       // starterView={starterView}
       // referer={referer}
-      // reflowTreeRoot={createNodeTree(nodesWithUserNameAndImage)}
+      reflowTreeRoot={createNodeTree(nodesWithUserNameAndImage)}
       // questStatus={quest.status}
     />
   );

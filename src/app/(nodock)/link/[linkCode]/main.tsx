@@ -19,6 +19,7 @@ import {
   LinkStoryContent,
   LinkReflowCard,
 } from "./components/LinkStorySection";
+import { ReFlowNodeSimple } from "./components/ReflowTree";
 import {
   LinkTimelineContent,
   LinkTimelineStats,
@@ -181,6 +182,7 @@ export function LinkMain({
   coverMedia,
   user,
   inviter,
+  reflowTreeRoot,
 }: {
   title: string;
   description: string;
@@ -189,6 +191,7 @@ export function LinkMain({
   coverMedia: QuestMedia[];
   user?: SafeUser;
   inviter: SerializedInviter;
+  reflowTreeRoot: ReFlowNodeSimple;
 }) {
   // Normalize inviter messaging so the UI always has readable names and copy.
   const inviterName = inviter.displayName?.trim() || "Someone";
@@ -276,7 +279,7 @@ export function LinkMain({
         </div>
         <div className="flex flex-col gap-4 md:flex-row md:gap-6">
           <LinkStoryContent description={description} />
-          <LinkReflowCard />
+          <LinkReflowCard treeRoot={reflowTreeRoot} />
         </div>
         <div className="flex flex-col items-start gap-4 md:flex-row md:gap-6">
           <LinkTimelineContent actions={TIMELINE_ACTIONS} />

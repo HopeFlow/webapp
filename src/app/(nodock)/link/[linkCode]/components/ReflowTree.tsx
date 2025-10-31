@@ -20,6 +20,7 @@ export type ReFlowNode = {
 };
 
 export type ReFlowNodeSimple = Omit<ReFlowNode, "icon" | "children"> & {
+  id: string;
   children: Array<ReFlowNodeSimple>;
   referer: SocialMediaName | null;
 };

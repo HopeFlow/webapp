@@ -1,7 +1,25 @@
 "use client";
 
+import { useState } from "react";
 import { ReadMore } from "@/components/read_more";
-import { ReflowTree } from "@/components/reflow_tree";
+import { ReflowTree, type ReflowTreeNode } from "@/components/reflow_tree";
+import { ReFlowNodeSimple } from "./ReflowTree";
+
+const toReflowTreeNode = (
+  node: ReFlowNodeSimple,
+  fallbackPrefix = "node",
+): ReflowTreeNode => {
+  const nodeId = node.id?.trim() ? node.id : fallbackPrefix;
+
+  return {
+    nodeId,
+    imageUrl: node.imageUrl ?? null,
+
+    children: node.children.map((child, index) =>
+      toReflowTreeNode(child, `${nodeId}-${index}`),
+    ),
+  };
+};
 
 export function LinkStoryContent({ description }: { description: string }) {
   return (
@@ -18,10 +36,25 @@ export function LinkStoryContent({ description }: { description: string }) {
   );
 }
 
-export function LinkReflowCard() {
+export function LinkReflowCard({ treeRoot }: { treeRoot: ReFlowNodeSimple }) {
+  const [activeNodeId, setActiveNodeId] = useState<string | undefined>(
+    undefined,
+  );
+
   return (
-    <div className="card bg-accent-content text-accent border-accent flex-1 items-center justify-center self-stretch border p-4 md:max-h-[15rem]">
-      <ReflowTree />
+    <div
+      className="card bg-accent-content text-accent border-accent flex-1 items-center justify-center self-stretch border p-4 md:max-h-[15rem]"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          setActiveNodeId(undefined);
+        }
+      }}
+    >
+      <ReflowTree
+        treeNodes={treeRoot}
+        activeNodeId={activeNodeId}
+        onNodeClick={setActiveNodeId}
+      />
     </div>
   );
 }

@@ -1,3 +1,7 @@
+import { useState } from "react";
+import { ReFlowNodeSimple } from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
+import { cn } from "@/helpers/client/tailwind_helpers";
+
 const MARGIN = 32;
 const NODE_RADIUS = 56;
 const NODE_SEPARATION = 95;
@@ -10,15 +14,62 @@ const EDGE_STROKE_WIDTH = 16;
 // const PAN_STEP = 50;
 // const BASE_FONT_SIZE = 11;
 
+const clamp = (value: number, min: number, max: number) => {
+  if (min > max) return min;
+  return Math.min(Math.max(value, min), max);
+};
+
 export type ReflowTreeNode = {
   nodeId: string;
+  imageUrl: string | null;
   children: ReflowTreeNode[];
+};
+
+// a random number for imageUrl between 1 and 9
+const getRandomImageUrl = () => {
+  const randomNum = 1 + Math.floor(Math.random() * 9);
+  return `/img/avatar${randomNum}.jpeg`;
+};
+
+const DEFAULT_REFLOW_TREE: ReflowTreeNode = {
+  nodeId: "root",
+  imageUrl: getRandomImageUrl(),
+  children: [
+    {
+      nodeId: "root-1",
+      imageUrl: getRandomImageUrl(),
+      children: [
+        { nodeId: "root-1-1", children: [], imageUrl: getRandomImageUrl() },
+        {
+          nodeId: "root-1-2",
+          imageUrl: getRandomImageUrl(),
+          children: [
+            {
+              nodeId: "root-1-2-1",
+              children: [],
+              imageUrl: getRandomImageUrl(),
+            },
+            {
+              nodeId: "root-1-2-2",
+              children: [],
+              imageUrl: getRandomImageUrl(),
+            },
+            {
+              nodeId: "root-1-2-3",
+              children: [],
+              imageUrl: getRandomImageUrl(),
+            },
+          ],
+        },
+      ],
+    },
+    { nodeId: "root-2", children: [], imageUrl: getRandomImageUrl() },
+  ],
 };
 
 type Point = readonly [number, number];
 
-type PlacedReFlowNode = {
-  nodeId: string;
+type PlacedReFlowNode = Omit<ReFlowNodeSimple, "children"> & {
   size: number;
   vertSize: number;
   coords: Point;
@@ -26,7 +77,7 @@ type PlacedReFlowNode = {
   children: PlacedReFlowNode[];
 };
 
-function computeTreeNodeWithPositions(root: PlacedReFlowNode) {
+function computeTreeNodeWithPositions(root: ReFlowNodeSimple) {
   const treeLayers: PlacedReFlowNode[][] = [];
   let queue = [root as PlacedReFlowNode];
   while (queue.length > 0) {
@@ -70,10 +121,7 @@ function computeTreeNodeWithPositions(root: PlacedReFlowNode) {
 
   const heightOf = (size: number) => 0.75 * size * NODE_SEPARATION;
 
-  treeLayers[0][0].coords = [
-    0.5 * widthOf(maxLayerSize),
-    NODE_RADIUS,
-  ];
+  treeLayers[0][0].coords = [0.5 * widthOf(maxLayerSize), NODE_RADIUS];
 
   const populateNodePositions = (
     parent: PlacedReFlowNode,
@@ -128,14 +176,28 @@ const createEdgePath = (start: Point, end: Point): string => {
           L ${x1} ${y1}`;
 };
 
-const getSvgNodes = (treeLayers: PlacedReFlowNode[][]) => {
-  let i = 0;
+const TOOLTIP_WIDTH = 300;
+const TOOLTIP_HEIGHT = 108;
+const TOOLTIP_GAP = 16;
+
+const formatReferer = (referer: PlacedReFlowNode["referer"]) => {
+  if (!referer) return "Direct";
+  const normalized = referer === "unknown" ? "Unknown" : referer;
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+};
+
+const getSvgNodes = (
+  treeLayers: PlacedReFlowNode[][],
+  activeNodeId: string | undefined,
+  onNodeClick: (nodeId: string) => void,
+  viewport: { width: number; height: number },
+) => {
   return [
     ...treeLayers.flatMap((layer, index) =>
-      layer.flatMap(({ coords: [x, y], children, nodeId }) =>
-        children.map(({ coords: [x1, y1], nodeId: childNodeId }) => (
+      layer.flatMap(({ coords: [x, y], children, id }) =>
+        children.map(({ coords: [x1, y1], id: childNodeId }) => (
           <path
-            key={`${nodeId}-${childNodeId}`}
+            key={`${id}-${childNodeId}`}
             d={createEdgePath([x, y], [x1, y1])}
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -147,81 +209,114 @@ const getSvgNodes = (treeLayers: PlacedReFlowNode[][]) => {
       ),
     ),
     treeLayers.flatMap((layer, index) =>
-      layer.map(({ coords: [x, y], nodeId }) => (
-        <g
-          key={`${nodeId}`}
-          className="fade z-10"
-          style={{ animationDelay: `${index * 500}ms` }}
-        >
-          <circle
-            cx={x}
-            cy={y}
-            r={NODE_RADIUS}
-            strokeWidth={EDGE_STROKE_WIDTH}
-            className="stroke-primary fill-primary"
-          />
-          <mask id={`mask-${nodeId}`}>
-            <circle
-              cx={x}
-              cy={y}
-              r={NODE_RADIUS}
-              strokeWidth={0}
-              fill="white"
-            />
-          </mask>
-          <image
-            x={x - NODE_RADIUS}
-            y={y - NODE_RADIUS}
-            width={2 * NODE_RADIUS}
-            height={2 * NODE_RADIUS}
-            href={`/img/avatar${1 + (i++ % 9)}.jpeg`}
-            mask={`url(#mask-${nodeId})`}
-          />
-        </g>
-      )),
+      layer.map(
+        ({
+          coords: [x, y],
+          id: nodeId,
+          imageUrl,
+          title,
+          subtitle,
+          referer,
+        }) => {
+          const imageHref =
+            typeof imageUrl === "string" && imageUrl.trim()
+              ? imageUrl
+              : undefined;
+          const isActive = nodeId === activeNodeId;
+          const displayTitle =
+            (typeof title === "string" && title.trim()) || "Unnamed node";
+          const displaySubtitle =
+            (typeof subtitle === "string" && subtitle.trim()) || "Date unknown";
+          const refererLabel = formatReferer(referer);
+          const tooltipX = clamp(
+            x - TOOLTIP_WIDTH / 2,
+            -MARGIN + 8,
+            viewport.width + MARGIN - TOOLTIP_WIDTH - 8,
+          );
+          const tooltipY = clamp(
+            y - NODE_RADIUS - TOOLTIP_HEIGHT - TOOLTIP_GAP,
+            -MARGIN + 8,
+            viewport.height + MARGIN - TOOLTIP_HEIGHT - 8,
+          );
+          return (
+            <g
+              key={`${nodeId}`}
+              className="fade z-10"
+              style={{ animationDelay: `${index * 500}ms`, cursor: "pointer" }}
+              onClick={(event) => {
+                event.stopPropagation();
+                onNodeClick(nodeId);
+              }}
+            >
+              <circle
+                cx={x}
+                cy={y}
+                r={NODE_RADIUS}
+                strokeWidth={
+                  isActive ? EDGE_STROKE_WIDTH + 4 : EDGE_STROKE_WIDTH
+                }
+                className={cn(
+                  "stroke-primary fill-primary transition-all duration-200",
+                  isActive && "drop-shadow-[0_0_12px_rgba(251,191,36,0.6)]",
+                )}
+              />
+              <mask id={`mask-${nodeId}`}>
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={NODE_RADIUS}
+                  strokeWidth={0}
+                  fill="white"
+                />
+              </mask>
+              <image
+                x={x - NODE_RADIUS}
+                y={y - NODE_RADIUS}
+                width={2 * NODE_RADIUS}
+                height={2 * NODE_RADIUS}
+                href={imageHref}
+                mask={`url(#mask-${nodeId})`}
+              />
+              {isActive ? (
+                <foreignObject
+                  x={tooltipX}
+                  y={tooltipY}
+                  width={TOOLTIP_WIDTH}
+                  height={TOOLTIP_HEIGHT}
+                  style={{ pointerEvents: "none" }}
+                >
+                  <div className="flex w-full max-w-[320px] min-w-[260px] flex-col gap-1 rounded-lg bg-gray-900/95 px-4 py-3 text-sm text-white shadow-xl">
+                    <span className="text-xl leading-tight font-semibold break-words whitespace-normal">
+                      {displayTitle}
+                    </span>
+                    <span className="text-xl leading-tight break-words whitespace-normal">
+                      {displaySubtitle}
+                    </span>
+                    <span className="text-lg leading-tight break-words whitespace-normal">
+                      Referer: {refererLabel}
+                    </span>
+                  </div>
+                </foreignObject>
+              ) : null}
+            </g>
+          );
+        },
+      ),
     ),
   ];
 };
 
-export const ReflowTree = () => {
-  const treeNodes = {
-    nodeId: "root",
-    children: [
-      {
-        nodeId: "root-1",
-        children: [
-          {
-            nodeId: "root-1-1",
-            children: [],
-          },
-          {
-            nodeId: "root-1-2",
-            children: [
-              {
-                nodeId: "root-1-2-1",
-                children: [],
-              },
-              {
-                nodeId: "root-1-2-2",
-                children: [],
-              },
-              {
-                nodeId: "root-1-2-3",
-                children: [],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        nodeId: "root-2",
-        children: [],
-      },
-    ],
-  };
-  const { treeLayers, ...dimensions } = computeTreeNodeWithPositions(
-    treeNodes as unknown as PlacedReFlowNode,
-  );
+export const ReflowTree = ({
+  treeNodes,
+  activeNodeId,
+  onNodeClick,
+}: {
+  treeNodes?: ReFlowNodeSimple;
+  activeNodeId?: string;
+  onNodeClick?: (nodeId: string | undefined) => void;
+}) => {
+  if (!treeNodes) return null;
+  const { treeLayers, ...dimensions } = computeTreeNodeWithPositions(treeNodes);
 
   return (
     <svg
@@ -230,7 +325,12 @@ export const ReflowTree = () => {
       }`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className="max-w-full max-h-full"
+      className="max-h-full max-w-full"
+      onClick={() => {
+        if (onNodeClick) {
+          onNodeClick(undefined);
+        }
+      }}
       ref={(svgRef) => {
         if (!svgRef) return;
         const observer = new IntersectionObserver(([entry]) => {
@@ -243,7 +343,26 @@ export const ReflowTree = () => {
         return () => observer.disconnect();
       }}
     >
-      {getSvgNodes(treeLayers)}
+      <rect
+        x={-MARGIN}
+        y={-MARGIN}
+        width={dimensions.width + 2 * MARGIN}
+        height={dimensions.height + 2 * MARGIN}
+        fill="transparent"
+        onClick={() => {
+          if (onNodeClick) {
+            onNodeClick(undefined);
+          }
+        }}
+      />
+      {getSvgNodes(
+        treeLayers,
+        activeNodeId,
+        (nodeId) => {
+          if (onNodeClick) onNodeClick(nodeId);
+        },
+        dimensions,
+      )}
     </svg>
   );
 };
