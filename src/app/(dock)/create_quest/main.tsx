@@ -21,17 +21,11 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
   const [latestVisitedState, setLatestVisitedState] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
   const [stableStepIndex, setStableStepIndex] = useState(0);
-  const [chatMessages, setChatMessages] = useState<CreateQuestChatMessage[]>([
-    { role: "user", content: "A 17th-century physical copy of Arabian Nights" },
-    { role: "user", content: "A 17th-century physical copy of Arabian Nights" },
-    { role: "user", content: "A 17th-century physical copy of Arabian Nights" },
-  ]);
-  const [title, setTitle] = useState(
-    "Help Behrooz Find a 17th-Century English Arabian Nights",
+  const [chatMessages, setChatMessages] = useState<CreateQuestChatMessage[]>(
+    [],
   );
-  const [description, setDescription] = useState(
-    "A 17th-century physical copy of Arabian Nights",
-  );
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [coverPhoto, setCoverPhoto] = useState<InsertQuestData["coverPhoto"]>();
   // const [media, setMedia] = useState<QuestMedia[]>();
   // const [screeningQuestions, setScreeningQuestions] =

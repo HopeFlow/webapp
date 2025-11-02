@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import { cn } from "@/helpers/client/tailwind_helpers";
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 
 type ImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> & {
   src?: File;
@@ -14,13 +14,13 @@ export function FileImage({
   className,
   ...props
 }: ImageProps) {
-  const srcUrl = useMemo(() => src && URL.createObjectURL(src), [src]);
+  const [srcUrl, setSrcUrl] = useState("");
   useEffect(() => {
-    if (!srcUrl) return;
-    return () => {
-      URL.revokeObjectURL(srcUrl);
-    };
-  }, [src, srcUrl]);
+    if (!src) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSrcUrl(URL.createObjectURL(src));
+    return () => URL.revokeObjectURL(srcUrl);
+  }, [src]);
   return srcUrl === "" ? (
     <div
       className={cn(
