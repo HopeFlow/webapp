@@ -7,6 +7,7 @@ export const GenerateDescriptionTitle = ({
   user,
   messages,
   setTitle,
+  setShareTitle,
   setDescription,
   active,
   continueToNextStep,
@@ -14,6 +15,7 @@ export const GenerateDescriptionTitle = ({
   user: SafeUser;
   messages: CreateQuestChatMessage[];
   setTitle: (v: string) => void;
+  setShareTitle: (v: string) => void;
   setDescription: (v: string) => void;
   active: boolean;
   continueToNextStep: () => void;
@@ -48,6 +50,7 @@ export const GenerateDescriptionTitle = ({
     Promise.resolve().then(() => {
       setGenerationStarted(false);
       setTitle(descriptionTitle.contributorTitle);
+      setShareTitle(descriptionTitle.seekerTitle);
       setDescription(descriptionTitle.description);
       continueToNextStep();
     });
@@ -57,6 +60,7 @@ export const GenerateDescriptionTitle = ({
     descriptionTitle,
     generationStarted,
     setDescription,
+    setShareTitle,
     setTitle,
     thinking,
   ]);

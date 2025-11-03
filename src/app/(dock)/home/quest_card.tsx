@@ -14,15 +14,6 @@ export type QuestState =
   | "Stable"
   | "Fading"
   | "Withering";
-import { withLoading } from "@/helpers/client/HOCs";
-import { QuestCardSkeleton } from "./card_skeleton";
-
-export type QuestState =
-  | "Young"
-  | "Thriving"
-  | "Stable"
-  | "Fading"
-  | "Withering";
 const questStatesIcons: Record<QuestState, string> = {
   Young: "🌱",
   Thriving: "🌳",

@@ -88,6 +88,7 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
         active={stableStepIndex === 1 && stepIndex === 1}
         messages={chatMessages}
         setTitle={setTitle}
+        setShareTitle={setShareTitle}
         setDescription={setDescription}
         continueToNextStep={continueToNextStep}
         key="generateDescriptionTitle"
@@ -102,7 +103,9 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
     />,
     <ConfirmTitle
       title={title ?? ""}
+      shareTitle={shareTitle ?? ""}
       setTitle={setTitle}
+      setShareTitle={setShareTitle}
       continueToNextStep={continueToNextStep}
       key={`confirmTitle-${title}`}
     />,
@@ -179,7 +182,9 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
   return (
     <div className="flex h-full w-full flex-col">
       <Steps
-        numberOfSteps={formPartIndexes[formPartIndexes.length - 1] ?? 0}
+        numberOfSteps={
+          formPartsAndSpecs.filter((v) => !Array.isArray(v) || v[1]).length
+        }
         currentStep={formPartIndexes[stableStepIndex]}
         onClick={(step: number) => {
           const index = formPartIndexes.lastIndexOf(step);
