@@ -25,7 +25,7 @@ const Step1 = () => {
           name="type"
           value="targeted"
           checked={type === "targeted"}
-          onChange={() => setType("targeted")}
+          onChange={(e) => e.target.checked && setType("targeted")}
         />{" "}
         Targeted
       </label>
@@ -36,7 +36,7 @@ const Step1 = () => {
           name="type"
           value="targeted"
           checked={type === "broadcast"}
-          onChange={() => setType("broadcast")}
+          onChange={(e) => e.target.checked && setType("broadcast")}
         />{" "}
         Broadcast
       </label>

@@ -15,29 +15,30 @@ import type { CreateQuestChatMessage } from "@/helpers/server/LLM";
 import { SafeUser } from "@/helpers/server/auth";
 import { GenerateCoverPhoto } from "./generateCoverPhoto";
 import type { InsertQuestData } from "./types";
+import { ConfirmQuestType } from "./confirmQuestType";
+import { Overview } from "./overview";
 
 export function CreateQuestMain({ user }: { user: SafeUser }) {
   const [gotoNextStep, setGotoNextStep] = useState(false);
   const [latestVisitedState, setLatestVisitedState] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
   const [stableStepIndex, setStableStepIndex] = useState(0);
-  const [chatMessages, setChatMessages] = useState<CreateQuestChatMessage[]>(
-    [],
-  );
+  const [chatMessages, setChatMessages] = useState<CreateQuestChatMessage[]>([
+    { role: "user", content: "Hello" },
+    { role: "user", content: "Hello" },
+    { role: "user", content: "Hello" },
+  ]);
 
   const [
-    {
-      type,
-      title,
-      shareTitle,
-      description,
-      rewardAmount,
-      coverPhoto,
-      media,
-      farewellMessage,
-    },
+    { type, title, shareTitle, description, rewardAmount, coverPhoto, media },
     setInserQuestData,
-  ] = useState<Partial<InsertQuestData>>({ rewardAmount: "10" });
+  ] = useState<Partial<InsertQuestData>>({
+    type: "unrestricted",
+    title: "Looking for a 17th-Century copy of Arabian Nights",
+    shareTitle: "Help Behrooz Find a 17th-Century English Arabian Nights",
+    description: "He is looking for a 17th-Century copy of Arabian Nights",
+    rewardAmount: "10",
+  });
 
   const setType = useCallback(
     (v: typeof type) => setInserQuestData((d) => ({ ...d, type: v })),
@@ -64,11 +65,6 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
   );
   const setMedia = useCallback(
     (v: typeof media) => setInserQuestData((d) => ({ ...d, media: v })),
-    [],
-  );
-  const setFarewellMessage = useCallback(
-    (v: typeof farewellMessage) =>
-      setInserQuestData((d) => ({ ...d, farewellMessage: v })),
     [],
   );
 
@@ -133,6 +129,19 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
     <ConfirmScreeningQuestions
       continueToNextStep={continueToNextStep}
       key="confirmScreeningQuestions"
+    />,
+    <ConfirmQuestType
+      continueToNextStep={continueToNextStep}
+      setType={setType}
+      type={type}
+      key="confirmQuestType"
+    />,
+    <Overview
+      coverPhoto={coverPhoto}
+      title={title ?? ""}
+      description={description ?? ""}
+      rewardAmount={rewardAmount ?? ""}
+      key="overview"
     />,
   ];
   const formParts = formPartsAndSpecs.map((p) => (Array.isArray(p) ? p[0] : p));
