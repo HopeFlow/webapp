@@ -13,6 +13,7 @@ import {
 
 import { relations, sql } from "drizzle-orm";
 import {
+  type CoverPhoto,
   emailFrequencyDef,
   linkTypeDef,
   messageStatusDef,
@@ -65,12 +66,7 @@ export const questTable = sqliteTable(
     farewellMessage: text(),
 
     coverPhoto: text({ mode: "json" })
-      .$type<{
-        url: string;
-        width: number;
-        height: number;
-        alt: string;
-      }>()
+      .$type<CoverPhoto>()
       .notNull(),
     media: text({ mode: "json" }).$type<QuestMedia[]>(),
 

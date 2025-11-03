@@ -1,4 +1,4 @@
-import type { InsertQuestData  } from "./types";
+import type { InsertQuestData } from "./types";
 
 export const Overview = ({
   title,
@@ -8,7 +8,7 @@ export const Overview = ({
 }: {
   title: string;
   description: string;
-  rewardAmount: string;
+  rewardAmount: number;
   coverPhoto?: InsertQuestData["coverPhoto"];
 }) => {
   return <div>Overview</div>;

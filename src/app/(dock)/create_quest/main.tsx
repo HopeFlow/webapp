@@ -37,7 +37,7 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
     title: "Looking for a 17th-Century copy of Arabian Nights",
     shareTitle: "Help Behrooz Find a 17th-Century English Arabian Nights",
     description: "He is looking for a 17th-Century copy of Arabian Nights",
-    rewardAmount: "10",
+    rewardAmount: 500,
   });
 
   const setType = useCallback(
@@ -123,6 +123,8 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
       key="confirmCoverPhoto"
     />,
     <UploadAdditionalMedia
+      media={media ?? []}
+      setMedia={setMedia}
       continueToNextStep={continueToNextStep}
       key="uploadAdditionalMedia"
     />,
@@ -133,14 +135,14 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
     <ConfirmQuestType
       continueToNextStep={continueToNextStep}
       setType={setType}
-      type={type}
+      type={type ?? "restricted"}
       key="confirmQuestType"
     />,
     <Overview
       coverPhoto={coverPhoto}
       title={title ?? ""}
       description={description ?? ""}
-      rewardAmount={rewardAmount ?? ""}
+      rewardAmount={rewardAmount ?? 0}
       key="overview"
     />,
   ];
