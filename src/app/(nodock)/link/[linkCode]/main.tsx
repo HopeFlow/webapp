@@ -278,12 +278,17 @@ export function LinkMain({
           <LinkRewardAccordion {...QUEST_REWARD_CONTENT} />
         </div>
         <div className="flex flex-col gap-4 md:flex-row md:gap-6">
-          <LinkStoryContent description={description} />
-          <LinkReflowCard treeRoot={reflowTreeRoot} />
-        </div>
-        <div className="flex flex-col items-start gap-4 md:flex-row md:gap-6">
-          <LinkTimelineContent actions={TIMELINE_ACTIONS} />
-          <LinkTimelineStats stats={TIMELINE_STATS} />
+          {/* Left stack */}
+          <div className="flex min-w-0 flex-col gap-4 md:w-2/3 md:gap-6">
+            <LinkStoryContent description={description} />
+            <LinkTimelineContent actions={TIMELINE_ACTIONS} user={user} />
+          </div>
+          {/* right stack */}
+          <div className="bg-secondary-content border-secondary card flex flex-1 flex-col border md:sticky md:top-6 md:w-1/3 md:flex-shrink-0 md:self-start">
+            <LinkTimelineStats stats={TIMELINE_STATS} />
+            <hr className="border-secondary mx-5 bg-transparent" />
+            <LinkReflowCard treeRoot={reflowTreeRoot} />
+          </div>
         </div>
         <LinkFooterSection
           name={seekerInfo.name}

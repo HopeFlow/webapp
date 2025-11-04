@@ -25,7 +25,7 @@ export function LinkStoryContent({ description }: { description: string }) {
   return (
     <ReadMore
       maxHeight="15rem"
-      className="card bg-base-100 self-stretch p-4 md:w-2/3"
+      className="card bg-base-100 min-h-[15rem] self-stretch p-4"
     >
       {description.split("\n").map((paragraph, index) => (
         <p key={index} className="mb-2 last:mb-0">
@@ -43,7 +43,7 @@ export function LinkReflowCard({ treeRoot }: { treeRoot: ReFlowNodeSimple }) {
 
   return (
     <div
-      className="card bg-accent-content text-accent border-accent flex-1 items-center justify-center self-stretch border p-4 md:max-h-[15rem]"
+      className="text-secondary flex-1 items-center justify-center self-stretch rounded-t-none p-4 pt-0"
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           setActiveNodeId(undefined);

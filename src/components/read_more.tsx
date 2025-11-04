@@ -63,11 +63,11 @@ export const ReadMore = ({
     }
     container.style.cursor = "default";
   }, [children, maxHeight]);
-
   return (
     <div
       className={cn(
-        "relative border-neutral-400 [&:not(:has(input:checked))]:border",
+        "relative border border-neutral-400",
+        // "[&:has(input:checked)]:border-neutral-800",
         className,
         "transition-[max-height] duration-1000",
         "data-[read-more-active='true']:overflow-hidden",
