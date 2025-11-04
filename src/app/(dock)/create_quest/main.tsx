@@ -37,6 +37,12 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
     title: "Looking for a 17th-Century copy of Arabian Nights",
     shareTitle: "Help Behrooz Find a 17th-Century English Arabian Nights",
     description: "He is looking for a 17th-Century copy of Arabian Nights",
+    coverPhoto: {
+      alt: "A stack of old books with ornate covers",
+      url: "https://pub-7027dcead7294deeacde6da1a50ed32f.r2.dev/cc39dd4dff87f2e29a5482f643d391a057f72d5f.png",
+      width: 720,
+      height: 480,
+    },
     rewardAmount: 500,
   });
 
@@ -141,6 +147,7 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
     <Overview
       coverPhoto={coverPhoto}
       title={title ?? ""}
+      shareTitle={shareTitle ?? ""}
       description={description ?? ""}
       rewardAmount={rewardAmount ?? 0}
       key="overview"
