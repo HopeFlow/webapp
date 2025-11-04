@@ -1,7 +1,9 @@
 @import "tailwindcss";
 
 @plugin "daisyui" {
-  themes: hopeflow-light --default, hopeflow-dark --prefersdark;
+  themes:
+    hopeflow-light --default,
+    hopeflow-dark --prefersdark;
 }
 
 @plugin "daisyui/theme" {
@@ -20,10 +22,10 @@
   --color-primary-content: oklch(98% 0.02 180); /* readable on teal */
 
   /* Complementary / supporting palette */
-  --color-secondary: oklch(70% 0.12 250);       /* calm blue-lavender */
+  --color-secondary: oklch(70% 0.12 250); /* calm blue-lavender */
   --color-secondary-content: oklch(96% 0.02 260);
 
-  --color-accent: oklch(75% 0.10 150);          /* soft aqua */
+  --color-accent: oklch(75% 0.1 150); /* soft aqua */
   --color-accent-content: oklch(30% 0.05 160);
 
   --color-neutral: oklch(14% 0.005 285.823);
@@ -32,7 +34,7 @@
   --color-info: oklch(74% 0.16 232.661);
   --color-info-content: oklch(29% 0.066 243.157);
 
-  --color-success: oklch(70% 0.12 170);         /* harmonious with brand */
+  --color-success: oklch(70% 0.12 170); /* harmonious with brand */
   --color-success-content: oklch(25% 0.05 180);
 
   --color-warning: oklch(82% 0.189 84.429);
@@ -40,6 +42,12 @@
 
   --color-error: oklch(71% 0.194 13.428);
   --color-error-content: oklch(27% 0.105 12.094);
+
+  --focus-ring-brand: color-mix(
+    in oklab,
+    var(--color-primary) 70%,
+    transparent
+  );
 
   --radius-selector: 0.5rem;
   --radius-field: 0.25rem;
@@ -58,7 +66,7 @@
   color-scheme: dark;
 
   /* Base layers */
-  --color-base-100: oklch(18% 0.005 285);  /* main surface */
+  --color-base-100: oklch(18% 0.005 285); /* main surface */
   --color-base-200: oklch(22% 0.005 285);
   --color-base-300: oklch(26% 0.005 285);
   --color-base-content: oklch(95% 0.01 285); /* text on dark bg */
@@ -68,10 +76,10 @@
   --color-primary-content: oklch(16% 0.03 170);
 
   /* Supporting palette */
-  --color-secondary: oklch(65% 0.13 250);       /* soft blue-lavender */
+  --color-secondary: oklch(65% 0.13 250); /* soft blue-lavender */
   --color-secondary-content: oklch(15% 0.02 260);
 
-  --color-accent: oklch(72% 0.11 150);          /* aqua accent */
+  --color-accent: oklch(72% 0.11 150); /* aqua accent */
   --color-accent-content: oklch(15% 0.03 160);
 
   --color-neutral: oklch(28% 0.008 285);
@@ -80,14 +88,20 @@
   --color-info: oklch(75% 0.17 235);
   --color-info-content: oklch(20% 0.05 235);
 
-  --color-success: oklch(70% 0.13 170);         /* aligns with brand hue */
+  --color-success: oklch(70% 0.13 170); /* aligns with brand hue */
   --color-success-content: oklch(18% 0.04 170);
 
   --color-warning: oklch(80% 0.19 84.429);
-  --color-warning-content: oklch(25% 0.10 60);
+  --color-warning-content: oklch(25% 0.1 60);
 
   --color-error: oklch(65% 0.19 13.428);
   --color-error-content: oklch(20% 0.09 10);
+
+  --focus-ring-brand: color-mix(
+    in oklab,
+    var(--color-primary) 78%,
+    transparent
+  );
 
   /* UI shape + depth */
   --radius-selector: 0.5rem;
@@ -100,7 +114,6 @@
   --noise: 0.02;
 }
 
-
 @layer base {
   /* * {
   box-sizing: border-box;
@@ -109,5 +122,44 @@
   .flex > * {
     min-width: 0;
     min-height: 0;
+  }
+}
+
+@layer utilities {
+  :where(.input) {
+    --focus-ring-current: color-mix(
+      in oklab,
+      var(--input-color, var(--focus-ring-brand, var(--color-primary))) 65%,
+      transparent
+    );
+    transition:
+      outline-color 180ms ease,
+      outline-offset 180ms ease,
+      outline-width 180ms ease,
+      border-color 180ms ease,
+      background-color 220ms ease;
+  }
+
+  :where(.input):focus,
+  :where(.input):focus-within {
+    outline-width: 0.5px;
+    outline-offset: 0px;
+  }
+
+  :where(.input):focus:not(.input-ghost),
+  :where(.input):focus-within:not(.input-ghost) {
+    outline-color: var(--focus-ring-current);
+    background-color: color-mix(
+      in oklab,
+      var(--focus-ring-current) 6%,
+      var(--color-base-100)
+    );
+  }
+
+  :where(.input):focus.input-ghost,
+  :where(.input):focus-within.input-ghost {
+    box-shadow: none;
+    background-color: var(--color-base-100);
+    outline-color: var(--focus-ring-current);
   }
 }

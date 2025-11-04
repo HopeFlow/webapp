@@ -11,7 +11,6 @@ import { Avatar } from "@/components/user_avatar";
 import { Tree } from "@dgreenheck/ez-tree";
 import {
   AmbientLight,
-  Clock,
   Box3,
   DirectionalLight,
   Mesh,
@@ -64,14 +63,11 @@ export function LinkTimelineContent({
             </div>
           )}
           <div className="flex flex-1 items-center gap-1 pr-1">
-            <label htmlFor={commentInputId} className="sr-only">
-              Leave a comment
-            </label>
             <input
               id={commentInputId}
               type="text"
               placeholder={user ? "Share your thoughts…" : "Sign in to comment"}
-              className="placeholder:text-base-content/50 flex-1 border-none bg-transparent text-sm outline-none"
+              className="input input-bordered input-sm bg-base-100 placeholder:text-base-content/60 flex-1 text-sm"
             />
             <Button type="button" buttonType="primary" buttonSize="sm">
               {user ? "Post" : "Sign in and Post"}
@@ -254,15 +250,90 @@ export function LinkTimelineStats({
 
     updateViewport();
 
-    let animationFrame = 0;
+    renderer.domElement.style.cursor = "grab";
+    renderer.domElement.style.touchAction = "none";
 
-    const renderScene = () => {
+    let animationFrame = 0;
+    let lastFrameTime: number | null = null;
+    const BASE_SPEED = 0.00006;
+    const MAX_USER_SPEED = 0.0012;
+    const PIXEL_TO_RADIANS = 0.004;
+    const SPEED_DECAY = 0.00001;
+
+    let userSpeed = 0;
+    let isDragging = false;
+    let lastPointerX: number | null = null;
+    let lastPointerTime: number | null = null;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      isDragging = true;
+      userSpeed = 0;
+      lastPointerX = event.clientX;
+      lastPointerTime = performance.now();
+      renderer.domElement.setPointerCapture?.(event.pointerId);
+      renderer.domElement.style.cursor = "grabbing";
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!isDragging || lastPointerX === null) {
+        return;
+      }
+      const now = performance.now();
+      const deltaX = event.clientX - lastPointerX;
+      const deltaTime = Math.max(now - (lastPointerTime ?? now), 1);
+      const rotationDelta = deltaX * PIXEL_TO_RADIANS;
+
+      tree.rotation.y += rotationDelta;
+
+      if (deltaTime > 0) {
+        const velocity = rotationDelta / deltaTime;
+        userSpeed = MathUtils.clamp(velocity, -MAX_USER_SPEED, MAX_USER_SPEED);
+      }
+
+      lastPointerX = event.clientX;
+      lastPointerTime = now;
+    };
+
+    const endDrag = (event: PointerEvent) => {
+      if (!isDragging) {
+        return;
+      }
+      isDragging = false;
+      lastPointerX = null;
+      lastPointerTime = null;
+      renderer.domElement.releasePointerCapture?.(event.pointerId);
+      renderer.domElement.style.cursor = "grab";
+    };
+
+    renderer.domElement.addEventListener("pointerdown", handlePointerDown);
+    renderer.domElement.addEventListener("pointermove", handlePointerMove);
+    renderer.domElement.addEventListener("pointerup", endDrag);
+    renderer.domElement.addEventListener("pointerleave", endDrag);
+    renderer.domElement.addEventListener("pointercancel", endDrag);
+
+    const renderScene = (time: number) => {
       animationFrame = requestAnimationFrame(renderScene);
-      tree.rotation.y += 0.001;
+
+      if (lastFrameTime === null) {
+        lastFrameTime = time;
+      }
+      const delta = Math.max(Math.min(time - lastFrameTime, 64), 0);
+      lastFrameTime = time;
+
+      if (!isDragging) {
+        if (userSpeed > 0) {
+          userSpeed = Math.max(userSpeed - SPEED_DECAY * delta, 0);
+        } else if (userSpeed < 0) {
+          userSpeed = Math.min(userSpeed + SPEED_DECAY * delta, 0);
+        }
+      }
+
+      const angularVelocity = isDragging ? 0 : BASE_SPEED + userSpeed;
+      tree.rotation.y += angularVelocity * delta;
       renderer.render(scene, camera);
     };
 
-    renderScene();
+    animationFrame = requestAnimationFrame(renderScene);
 
     const resizeObserver =
       typeof ResizeObserver !== "undefined"
@@ -294,6 +365,13 @@ export function LinkTimelineStats({
       if (renderer.domElement.parentNode === container) {
         container.removeChild(renderer.domElement);
       }
+      renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
+      renderer.domElement.removeEventListener("pointermove", handlePointerMove);
+      renderer.domElement.removeEventListener("pointerup", endDrag);
+      renderer.domElement.removeEventListener("pointerleave", endDrag);
+      renderer.domElement.removeEventListener("pointercancel", endDrag);
+      renderer.domElement.style.cursor = "";
+      renderer.domElement.style.touchAction = "";
     };
   }, []);
 
