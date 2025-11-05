@@ -17,34 +17,27 @@ import { GenerateCoverPhoto } from "./generateCoverPhoto";
 import type { InsertQuestData } from "./types";
 import { ConfirmQuestType } from "./confirmQuestType";
 import { Overview } from "./overview";
+import { useInsertQuest } from "@/server_actions/client/create_quest/insertQuest";
 
 export function CreateQuestMain({ user }: { user: SafeUser }) {
   const [gotoNextStep, setGotoNextStep] = useState(false);
   const [latestVisitedState, setLatestVisitedState] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
   const [stableStepIndex, setStableStepIndex] = useState(0);
-  const [chatMessages, setChatMessages] = useState<CreateQuestChatMessage[]>([
-    { role: "user", content: "Hello" },
-    { role: "user", content: "Hello" },
-    { role: "user", content: "Hello" },
-  ]);
+  const [chatMessages, setChatMessages] = useState<CreateQuestChatMessage[]>(
+    [],
+  );
 
   const [
     { type, title, shareTitle, description, rewardAmount, coverPhoto, media },
     setInserQuestData,
   ] = useState<Partial<InsertQuestData>>({
     type: "unrestricted",
-    title: "Looking for a 17th-Century copy of Arabian Nights",
-    shareTitle: "Help Behrooz Find a 17th-Century English Arabian Nights",
-    description: "He is looking for a 17th-Century copy of Arabian Nights",
-    coverPhoto: {
-      alt: "A stack of old books with ornate covers",
-      url: "https://pub-7027dcead7294deeacde6da1a50ed32f.r2.dev/cc39dd4dff87f2e29a5482f643d391a057f72d5f.png",
-      width: 720,
-      height: 480,
-    },
     rewardAmount: 500,
   });
+  const {
+    create: { mutateAsync: createQuest, isPending: isCreatingQuest },
+  } = useInsertQuest();
 
   const setType = useCallback(
     (v: typeof type) => setInserQuestData((d) => ({ ...d, type: v })),
@@ -77,6 +70,51 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
   const continueToNextStep = useCallback(() => {
     setGotoNextStep(true);
   }, []);
+
+  const canCreateQuest =
+    Boolean(
+      type &&
+        title?.trim() &&
+        shareTitle?.trim() &&
+        description?.trim() &&
+        coverPhoto,
+    ) && !isCreatingQuest;
+
+  const handleCreateQuest = useCallback(async () => {
+    if (
+      !type ||
+      !title?.trim() ||
+      !shareTitle?.trim() ||
+      !description?.trim() ||
+      !coverPhoto
+    ) {
+      console.warn("Attempted to create quest with incomplete data");
+      return;
+    }
+
+    try {
+      await createQuest({
+        type,
+        title: title.trim(),
+        shareTitle: shareTitle.trim(),
+        description: description.trim(),
+        rewardAmount: Number.isFinite(rewardAmount) ? Number(rewardAmount) : 0,
+        coverPhoto,
+        media: media ?? [],
+      });
+    } catch (error) {
+      console.error("Failed to create quest", error);
+    }
+  }, [
+    type,
+    title,
+    shareTitle,
+    description,
+    coverPhoto,
+    rewardAmount,
+    media,
+    createQuest,
+  ]);
 
   const formPartsAndSpecs: Array<ReactNode | [ReactNode, boolean]> = [
     <ChatWithLLM
@@ -150,6 +188,9 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
       shareTitle={shareTitle ?? ""}
       description={description ?? ""}
       rewardAmount={rewardAmount ?? 0}
+      onCreateQuest={handleCreateQuest}
+      disableCreate={!canCreateQuest}
+      isCreating={isCreatingQuest}
       key="overview"
     />,
   ];

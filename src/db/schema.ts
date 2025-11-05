@@ -65,9 +65,7 @@ export const questTable = sqliteTable(
     status: text({ enum: questStatusDef }).notNull().default("active"),
     farewellMessage: text(),
 
-    coverPhoto: text({ mode: "json" })
-      .$type<CoverPhoto>()
-      .notNull(),
+    coverPhoto: text({ mode: "json" }).$type<CoverPhoto>().notNull(),
     media: text({ mode: "json" }).$type<QuestMedia[]>(),
 
     screeningQuestions: text({ mode: "json" }).$type<ScreeningQuestion[]>(),
@@ -92,25 +90,13 @@ export const questTable = sqliteTable(
       check(
         "quest_coverphoto_aspect_ratio_chk",
         sql`
-        json_type(${table.coverPhoto}, '$.width') IN ('integer','real') AND
-        json_type(${table.coverPhoto}, '$.height') IN ('integer','real') AND
-        json_extract(${table.coverPhoto}, '$.width') > 0 AND
-        json_extract(${table.coverPhoto}, '$.height') > 0 AND
-        (json_extract(${table.coverPhoto}, '$.width') * 9) =
-        (json_extract(${table.coverPhoto}, '$.height') * 16)
-      `,
-      ),
-
-      //CoverPhoto aspect ratio 16:9 (enforce in app or via CHECK in raw SQL)
-      check(
-        "quest_coverphoto_aspect_ratio_chk",
-        sql`
-        json_type(${table.coverPhoto}, '$.width') IN ('integer','real') AND
-        json_type(${table.coverPhoto}, '$.height') IN ('integer','real') AND
-        json_extract(${table.coverPhoto}, '$.width') > 0 AND
-        json_extract(${table.coverPhoto}, '$.height') > 0 AND
-        (json_extract(${table.coverPhoto}, '$.width') * 9) =
-        (json_extract(${table.coverPhoto}, '$.height') * 16)
+        json_type(${table.coverPhoto}, '$.width') IN ('integer','real')
+        AND json_type(${table.coverPhoto}, '$.height') IN ('integer','real')
+        AND json_extract(${table.coverPhoto}, '$.width') > 0
+        AND json_extract(${table.coverPhoto}, '$.height') > 0
+        AND abs(
+          ((1.0 * json_extract(${table.coverPhoto}, '$.width')) / (1.0 * json_extract(${table.coverPhoto}, '$.height'))) - (16.0 / 9.0)
+        ) < 0.1
       `,
       ),
 
@@ -226,11 +212,11 @@ export const linkTable = sqliteTable(
         "link_relationship_strength_chk",
         sql`
       ( ${table.type} = ${lit(LinkType.targeted)} AND ${
-          table.relationshipStrength
-        } BETWEEN 1 AND 5 )
+        table.relationshipStrength
+      } BETWEEN 1 AND 5 )
       OR ( ${table.type} <> ${lit(LinkType.targeted)} AND ${
-          table.relationshipStrength
-        } IS NULL )
+        table.relationshipStrength
+      } IS NULL )
     `,
       ),
 
@@ -357,8 +343,8 @@ export const questHistoryTable = sqliteTable(
         "hist_ptr_proposal_chk",
         sql`
       ${table.type} NOT IN (${inList(proposalTypes)}) OR ${
-          table.proposedAnswerId
-        } IS NOT NULL
+        table.proposedAnswerId
+      } IS NOT NULL
     `,
       ),
     ];
@@ -484,9 +470,7 @@ export const notificationsTable = sqliteTable("notifications", {
   timestamp: timestamp().notNull(),
   questHistoryId: text().references(
     (): AnySQLiteColumn => questHistoryTable.id,
-    {
-      onDelete: "set null",
-    },
+    { onDelete: "set null" },
   ),
   emailedAt: timestamp(),
   status: text({ enum: messageStatusDef }).notNull().default("sent"),
@@ -538,9 +522,7 @@ export const nodeRelations = relations(nodeTable, ({ one, many }) => ({
     references: [linkTable.id],
     relationName: "viewLinkUsage",
   }),
-  ownedLinks: many(linkTable, {
-    relationName: "linkOwner",
-  }),
+  ownedLinks: many(linkTable, { relationName: "linkOwner" }),
   comments: many(commentTable),
   histories: many(questHistoryTable),
   proposedAnswers: many(proposedAnswerTable),
@@ -558,9 +540,7 @@ export const linkRelations = relations(linkTable, ({ one, many }) => ({
     references: [nodeTable.id],
     relationName: "linkOwner",
   }),
-  usedByNodes: many(nodeTable, {
-    relationName: "viewLinkUsage",
-  }),
+  usedByNodes: many(nodeTable, { relationName: "viewLinkUsage" }),
   histories: many(questHistoryTable),
   userRelations: many(questUserRelationTable),
 }));

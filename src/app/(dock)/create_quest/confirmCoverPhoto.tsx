@@ -30,22 +30,12 @@ export const ConfirmCoverPhoto = ({
 }: {
   title: string;
   coverPhoto: InsertQuestData["coverPhoto"] | undefined;
-  setCoverPhoto: (v :InsertQuestData["coverPhoto"]) => void;
+  setCoverPhoto: (v: InsertQuestData["coverPhoto"]) => void;
   continueToNextStep: () => void;
 }) => {
   const [image, setImage] = useState<File | undefined>();
   const [isEditing, setIsEditing] = useState(false);
   const fileUpload = useFileUpload({ accept: "image/*", multiple: false });
-  useEffect(() => {
-    if (!coverPhoto?.url) return undefined;
-    (async () => {
-      const file = new File(
-        [await loadBlobFromUrl(coverPhoto.url)],
-        coverPhoto.alt,
-      );
-      setImage(file);
-    })();
-  }, [coverPhoto?.url, coverPhoto?.alt]);
   return (
     <div className="flex flex-1 flex-col items-center justify-center">
       <div
@@ -93,9 +83,8 @@ export const ConfirmCoverPhoto = ({
           onClick={async () => {
             const loadedImage = image && (await loadImageFromBlob(image));
             if (loadedImage) {
-              const url = getImageDataUrl(loadedImage);
               setCoverPhoto({
-                url,
+                content: image,
                 alt: image.name,
                 width: loadedImage.width,
                 height: loadedImage.height,
