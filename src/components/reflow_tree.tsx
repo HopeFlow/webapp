@@ -15,6 +15,7 @@ import {
   TwitterLogo,
   WhatsAppLogo,
 } from "@/components/logos/socialMedia";
+import { AppTimeAgo } from "@/helpers/client/time";
 
 const MARGIN = 42;
 const NODE_RADIUS = 56;
@@ -39,48 +40,6 @@ export type ReflowTreeNode = {
   nodeId: string;
   imageUrl: string | null;
   children: ReflowTreeNode[];
-};
-
-// a random number for imageUrl between 1 and 9
-const getRandomImageUrl = () => {
-  const randomNum = 1 + Math.floor(Math.random() * 9);
-  return `/img/avatar${randomNum}.jpeg`;
-};
-
-const DEFAULT_REFLOW_TREE: ReflowTreeNode = {
-  nodeId: "root",
-  imageUrl: getRandomImageUrl(),
-  children: [
-    {
-      nodeId: "root-1",
-      imageUrl: getRandomImageUrl(),
-      children: [
-        { nodeId: "root-1-1", children: [], imageUrl: getRandomImageUrl() },
-        {
-          nodeId: "root-1-2",
-          imageUrl: getRandomImageUrl(),
-          children: [
-            {
-              nodeId: "root-1-2-1",
-              children: [],
-              imageUrl: getRandomImageUrl(),
-            },
-            {
-              nodeId: "root-1-2-2",
-              children: [],
-              imageUrl: getRandomImageUrl(),
-            },
-            {
-              nodeId: "root-1-2-3",
-              children: [],
-              imageUrl: getRandomImageUrl(),
-            },
-          ],
-        },
-      ],
-    },
-    { nodeId: "root-2", children: [], imageUrl: getRandomImageUrl() },
-  ],
 };
 
 type Point = readonly [number, number];
@@ -264,7 +223,7 @@ const getSvgNodes = (
           id: nodeId,
           imageUrl,
           title,
-          subtitle,
+          createdAt,
           referer,
           potentialNode,
           targetNode,
@@ -288,8 +247,8 @@ const getSvgNodes = (
         const strokeWidth = isActive ? baseStrokeWidth + 4 : baseStrokeWidth;
         const displayTitle =
           (typeof title === "string" && title.trim()) || "Unnamed node";
-        const displaySubtitle =
-          (typeof subtitle === "string" && subtitle.trim()) || "Date unknown";
+        // const displaySubtitle =
+        //   (typeof subtitle === "string" && subtitle.trim()) || "Date unknown";
         const showRankBadge =
           !isRootNode && typeof rank === "number" && Number.isFinite(rank);
         const badgeRadius = radius * 0.5;
@@ -413,7 +372,7 @@ const getSvgNodes = (
                     {displayTitle}
                   </span>
                   <span className="text-xl leading-tight break-words whitespace-normal">
-                    {displaySubtitle}
+                    <AppTimeAgo date={createdAt} />
                   </span>
                 </div>
               </foreignObject>

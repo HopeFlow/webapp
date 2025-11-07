@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { LinkMain } from "./main";
-import { publicPage, withParamsAndUser } from "@/helpers/server/page_component";
+import {
+  Prefetch,
+  publicPage,
+  withParamsAndUser,
+} from "@/helpers/server/page_component";
 import {
   currentUserNoThrow,
   deactivateLinkAndSetJwtToken,
@@ -13,15 +17,14 @@ import {
   getQuestAndNodesForLinkByLinkCode,
   getWinnerPathsForQuests,
 } from "@/server_actions/definitions/link/index.server";
+import { prefetchLinkTimeline } from "@/server_actions/client/link/linkTimeline";
 import AccessRestricted from "./components/accessRestricted";
 import { notFound } from "next/navigation";
 import QuestOwnerNotice from "./components/questOwnerNotice";
 import AlreadyContributorNotice from "./components/alreadyContributorNotice";
 import { socialMediaNames } from "@/db/constants";
-import { elapsedTime2String } from "@/helpers/client/time";
 import { ReFlowNodeSimple } from "./components/ReflowTree";
 import ErrorPreparingPage from "./components/ErrorPreparingPage";
-
 const isSocialMediaName = (
   value: unknown,
 ): value is (typeof socialMediaNames)[number] =>
@@ -31,17 +34,10 @@ const isSocialMediaName = (
 async function ContentsForUser({
   linkCode,
   referer,
-  headers: reqHeaders,
+  // headers: reqHeaders,
 }: { referer?: string; linkCode: string } & { headers: ReadonlyHeaders }) {
-  const {
-    seekerView,
-    anonymous,
-    link,
-    quest,
-    userNode,
-    nodes,
-    accessRestricted,
-  } = await getQuestAndNodesForLinkByLinkCode(linkCode);
+  const { seekerView, link, quest, userNode, nodes, accessRestricted } =
+    await getQuestAndNodesForLinkByLinkCode(linkCode);
   if (!quest) {
     if (accessRestricted) return <AccessRestricted />;
     else notFound();
@@ -66,11 +62,13 @@ async function ContentsForUser({
     imageUrl: "userImageUrl",
   });
 
+  type LinkTreeNodeSource = (typeof nodesWithUserNameAndImage)[number];
+
   nodesWithUserNameAndImage
     // Only adjust display labels for nodes tied to this link and
     // ensure the pending nodes always display a label, defaulting to the link name.
-    .filter((n) => n.viewLinkId === link.id)
-    .forEach((n) => {
+    .filter((n: LinkTreeNodeSource) => n.viewLinkId === link.id)
+    .forEach((n: LinkTreeNodeSource) => {
       if (!n.name) {
         n.name = link.name;
       }
@@ -81,8 +79,6 @@ async function ContentsForUser({
     const results = await getWinnerPathsForQuests([quest.id]);
     if (results) winnerPathMap = results[quest.id];
   }
-
-  type LinkTreeNodeSource = (typeof nodesWithUserNameAndImage)[number];
 
   const createNodeTree = (
     nodesForTree: LinkTreeNodeSource[],
@@ -105,7 +101,7 @@ async function ContentsForUser({
         title: node.name || undefined,
         targetNode: (hasRealId && node.id === userNode?.id) || !hasRealId,
         potentialNode: !hasRealId,
-        subtitle: elapsedTime2String(node.createdAt),
+        createdAt: node.createdAt,
         imageUrl: node.userImageUrl || undefined,
         referer: node.parentId !== null ? node.referer : null,
       };
@@ -221,28 +217,21 @@ async function ContentsForUser({
       imageUrl: imageUrl ?? undefined,
     })),
   };
+
   return (
-    <LinkMain
-      title={quest.title}
-      description={quest.description}
-      seekerInfo={{ name: seekerName, avatarSrc: seekerAvatarSrc }}
-      publishDate={publishDate}
-      // nodeId={userNode?.id}
-      // description={description}
-      // linkCode={linkCode}
-      // needsLogin={Boolean(anonymous)}
-      user={safeUser}
-      // needsDeactivating={quest.type === "restricted" && Boolean(link.active)}
-      // questId={quest.id}
-      coverMedia={coverMedia}
-      inviter={inviter}
-      // rewardAmount={quest.rewardAmount}
-      // coverYTVideoUrl={quest.coverYTVideoUrl}
-      // starterView={starterView}
-      // referer={referer}
-      reflowTreeRoot={createNodeTree(nodesWithUserNameAndImage)}
-      // questStatus={quest.status}
-    />
+    <Prefetch actions={[prefetchLinkTimeline({ linkCode })]}>
+      <LinkMain
+        title={quest.title}
+        description={quest.description}
+        seekerInfo={{ name: seekerName, avatarSrc: seekerAvatarSrc }}
+        publishDate={publishDate}
+        user={safeUser}
+        coverMedia={coverMedia}
+        inviter={inviter}
+        reflowTreeRoot={createNodeTree(nodesWithUserNameAndImage)}
+        linkCode={linkCode}
+      />
+    </Prefetch>
   );
 }
 
@@ -252,7 +241,7 @@ function ContentsForRobots() {
 
 export default publicPage(
   withParamsAndUser(
-    async function LinkPage({ linkCode, user, referer }) {
+    async function LinkPage({ linkCode, referer }) {
       // Allow social media bots like:
       // 'TelegramBot (like TwitterBot)',
       // 'WhatsApp/2.23.20.0',

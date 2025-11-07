@@ -25,15 +25,42 @@ export const ReadMore = ({
       return;
     }
 
-    container.style.maxHeight = maxHeight;
+    if (container.dataset.readMoreCollapsedValue !== maxHeight) {
+      container.dataset.readMoreCollapsedValue = maxHeight;
+      container.dataset.readMoreCollapsedHeightPx = "";
+    }
 
-    const computedMaxHeight = window.getComputedStyle(container).maxHeight;
-    const resolvedMaxHeight = Number.parseFloat(computedMaxHeight);
-    const hasFiniteMaxHeight = Number.isFinite(resolvedMaxHeight);
-    const effectiveMaxHeight = hasFiniteMaxHeight ? resolvedMaxHeight : 0;
+    const checkbox = container.querySelector<HTMLInputElement>(
+      "input[type='checkbox']",
+    );
+    const isExpanded = Boolean(checkbox?.checked);
 
+    let collapsedHeightPx = Number.parseFloat(
+      container.dataset.readMoreCollapsedHeightPx ?? "",
+    );
+
+    if (!Number.isFinite(collapsedHeightPx)) {
+      const previousTransition = container.style.transition;
+      const previousMaxHeight = container.style.maxHeight;
+      container.style.transition = "none";
+      container.style.maxHeight = maxHeight;
+
+      const computedMaxHeight = window.getComputedStyle(container).maxHeight;
+      collapsedHeightPx = Number.parseFloat(computedMaxHeight);
+
+      container.dataset.readMoreCollapsedHeightPx = Number.isFinite(
+        collapsedHeightPx,
+      )
+        ? collapsedHeightPx.toString()
+        : "";
+
+      container.style.maxHeight = previousMaxHeight;
+      container.style.transition = previousTransition;
+    }
+
+    const hasFiniteMaxHeight = Number.isFinite(collapsedHeightPx);
     const isOverflowing =
-      hasFiniteMaxHeight && container.scrollHeight - effectiveMaxHeight > 1;
+      hasFiniteMaxHeight && container.scrollHeight - collapsedHeightPx > 1;
 
     container.dataset.readMoreActive = isOverflowing ? "true" : "false";
     container.style.cursor = isOverflowing ? "pointer" : "default";
@@ -45,23 +72,22 @@ export const ReadMore = ({
       element.hidden = !isOverflowing;
     });
 
-    const checkbox = container.querySelector<HTMLInputElement>(
-      "input[type='checkbox']",
-    );
-
-    if (isOverflowing) {
+    if (!isOverflowing) {
+      container.style.maxHeight = "none";
       if (checkbox) {
-        checkbox.style.cursor = "pointer";
+        checkbox.checked = false;
+        checkbox.style.cursor = "default";
       }
       return;
     }
 
-    container.style.maxHeight = "none";
     if (checkbox) {
-      checkbox.checked = false;
-      checkbox.style.cursor = "default";
+      checkbox.style.cursor = "pointer";
     }
-    container.style.cursor = "default";
+
+    container.style.maxHeight = isExpanded
+      ? `${container.scrollHeight}px`
+      : maxHeight;
   }, [children, maxHeight]);
   return (
     <div

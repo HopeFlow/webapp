@@ -10,7 +10,7 @@ export type IconElement = (props: IconProps) => JSX.Element;
 export type ReFlowNode = {
   readonly children: ReadonlyArray<ReFlowNode>;
   readonly title?: string;
-  readonly subtitle?: string;
+  readonly createdAt: Date;
   readonly icon?: IconElement;
   readonly imageUrl?: string | null;
   readonly potentialNode?: boolean;

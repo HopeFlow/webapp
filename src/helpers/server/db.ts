@@ -93,7 +93,7 @@ export async function executeWithDateParsing<T>(
       dateKey
     ) {
       if (typeof inputData === "number") {
-        const epochMs = inputData < 1e12 ? inputData * 1000 : inputData;
+        const epochMs = inputData; // < 1e12 ? inputData * 1000 : inputData;
         return new Date(epochMs);
       }
       if (typeof inputData === "string") {

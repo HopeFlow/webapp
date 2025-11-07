@@ -7,6 +7,10 @@ import { defineServerFunction } from "@/helpers/server/define_server_function";
 import { and, eq, inArray, SQL, sql } from "drizzle-orm";
 import { DrizzleD1Database } from "drizzle-orm/d1/driver";
 import "server-only";
+import {
+  getQuestHistoryWithRelations,
+  type QuestHistoryWithRelations,
+} from "../common/quest_history";
 
 function userBranchCtes(
   questId: SQL,
@@ -172,6 +176,7 @@ export const getQuestAndNodesForLinkByLinkCode = defineServerFunction({
         quest: typeof questTable.$inferSelect;
         userNode: typeof nodeTable.$inferSelect;
         nodes: (typeof nodeTable.$inferSelect)[];
+        history: QuestHistoryWithRelations[];
         accessRestricted?: false; // When the quest is private and the link is already consumed by another user
       }
     | {
@@ -182,6 +187,7 @@ export const getQuestAndNodesForLinkByLinkCode = defineServerFunction({
         quest: typeof questTable.$inferSelect;
         userNode?: typeof nodeTable.$inferSelect;
         nodes: (typeof nodeTable.$inferSelect)[];
+        history: QuestHistoryWithRelations[];
         accessRestricted?: false;
       }
     | {
@@ -192,6 +198,7 @@ export const getQuestAndNodesForLinkByLinkCode = defineServerFunction({
         quest?: undefined;
         userNode?: undefined;
         nodes?: undefined;
+        history?: undefined;
         accessRestricted?: boolean; // true
       }
   > {
@@ -214,6 +221,16 @@ export const getQuestAndNodesForLinkByLinkCode = defineServerFunction({
       return {};
     }
     const user = preview ? null : await currentUserNoThrow();
+    let questHistoryCache: QuestHistoryWithRelations[] | null = null;
+    const getQuestHistory = async () => {
+      if (!questHistoryCache) {
+        questHistoryCache = await getQuestHistoryWithRelations(
+          db,
+          questEntry.id,
+        );
+      }
+      return questHistoryCache;
+    };
     if (user && questEntry.seekerId === user.id) {
       // Seeker view
       const questNodeEntries = await db.query.nodeTable.findMany({
@@ -249,6 +266,7 @@ export const getQuestAndNodesForLinkByLinkCode = defineServerFunction({
         quest: questEntry,
         userNode: seekerNode,
         nodes: questNodeEntries,
+        history: await getQuestHistory(),
       };
     }
     const emptyNode: typeof nodeTable.$inferSelect = {
@@ -276,6 +294,7 @@ export const getQuestAndNodesForLinkByLinkCode = defineServerFunction({
         quest: questEntry,
         userNode,
         nodes: [...questNodeEntries, ...contributionNode],
+        history: await getQuestHistory(),
       };
     }
     // "Restricted"
@@ -319,6 +338,7 @@ export const getQuestAndNodesForLinkByLinkCode = defineServerFunction({
             quest: questEntry,
             userNode,
             nodes: userBranch,
+            history: await getQuestHistory(),
           };
         }
         // happy path
@@ -328,6 +348,7 @@ export const getQuestAndNodesForLinkByLinkCode = defineServerFunction({
           quest: questEntry,
           userNode,
           nodes: userBranch,
+          history: await getQuestHistory(),
         };
       }
     }
@@ -350,6 +371,7 @@ export const getQuestAndNodesForLinkByLinkCode = defineServerFunction({
       link: linkEntry,
       quest: questEntry,
       nodes: parentBranch,
+      history: await getQuestHistory(),
     };
   },
 });

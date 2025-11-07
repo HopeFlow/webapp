@@ -503,13 +503,13 @@ const setDependentQueryKeys = (
   variants: string[],
   dependants: string[],
 ) => {
+  const literalKeys = Array.from(new Set([...variants, ...dependants])).map(
+    (key) => `[${JSON.stringify(key)}]`,
+  );
   functionDeclaration
     .getVariableDeclaration("dependantQueryKeys")!
     .setInitializer(
-      JSON.stringify([
-        ...variants.map((variant) => [variant]),
-        ...dependants.map((dependant) => [dependant]),
-      ]),
+      `[${literalKeys.join(", ")}${literalKeys.length ? ", " : ""}queryKey]`,
     );
 };
 

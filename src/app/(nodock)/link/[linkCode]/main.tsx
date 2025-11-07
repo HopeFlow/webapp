@@ -15,41 +15,14 @@ import {
   LinkMotivatorAccordion,
   LinkRewardAccordion,
 } from "./components/LinkAccordions";
-import {
-  LinkStoryContent,
-  LinkReflowCard,
-} from "./components/LinkStorySection";
+import { LinkStoryContent } from "./components/LinkStoryContent";
 import { ReFlowNodeSimple } from "./components/ReflowTree";
-import {
-  LinkTimelineContent,
-  LinkTimelineStats,
-  type TimelineAction,
-  type TimelineStat,
-} from "./components/LinkTimelineSection";
 import { LinkFooterSection } from "./components/LinkFooterSection";
 import { LinkTitleSection } from "./components/LinkTitleSection";
 import { QuestMedia } from "@/db/constants";
-
-const QUEST_TITLE = "Help Jacob find his stolen bicycle";
-
-const MEDIA_ITEMS: LinkOverviewMediaItem[] = [
-  {
-    id: "primary-photo",
-    src: "https://pub-7027dcead7294deeacde6da1a50ed32f.r2.dev/trek-520-grando-51cm-v0.jpeg",
-    width: 403.2,
-    height: 302.4,
-    alt: "Trek 520 Grando",
-    className: "rounded-box",
-  },
-  {
-    id: "secondary-photo",
-    src: "https://pub-7027dcead7294deeacde6da1a50ed32f.r2.dev/trek-520-grando-51cm-v0.jpeg",
-    width: 4032 / 2,
-    height: 3024 / 2,
-    alt: "Trek 520 Grando",
-    className: "w-auto object-contain",
-  },
-];
+import { LinkTimelineContent } from "./components/LinkTimelineContent";
+import { LinkBotonicalTree } from "./components/LinkBotonicalTree";
+import { LinkReflowTree } from "./components/LinkReflowTree";
 
 const STATUS: LinkStatusInfo = {
   stage: "Withering",
@@ -123,55 +96,6 @@ const QUEST_REWARD_CONTENT: RewardAccordionProps = {
   ),
 };
 
-const STORY_PARAGRAPHS = [
-  "My trek 520 grando was stolen last week. 51cm height. The red pusher pedals might help as well. Please let me know if you happen across one on your local online marketplace (anywhere in the US). If seen in public, please ask the owner politely where they bought it, and if you can see the serial number. It's WTU216LK0060R",
-  "I am offering $20 dollars for each post of a Trek 520 Grando with the same color scheme in these photos as well as the exact same height (51 cm). Heights of 49, 50, 52, 53 will be rewarded $10. Can pay out reward with Paypal, Amazon gift cards, venmo, zelle or crypto. $300 bounty if my bike is found and an extra $200 if I manage to recover it.",
-  "I have a lot of sentimental value in this bike. Mom passed shortly before our first child was born. We moved temporarily 1.5 hrs commute away to my in-laws and this trek helped me with the last 5 miles of the commute back from work.",
-];
-
-const TIMELINE_ACTIONS: TimelineAction[] = [
-  {
-    name: "Jacob",
-    imageUrl: "/img/avatar2.jpeg",
-    timestamp: new Date(1760525835746 - 48 * 60 * 60 * 1000),
-    type: "started the quest",
-  },
-  {
-    name: "Jacob",
-    imageUrl: "/img/avatar2.jpeg",
-    timestamp: new Date(1760525835746 - 35 * 60 * 60 * 1000),
-    type: "reflowed the quest",
-  },
-  {
-    name: "Martha",
-    imageUrl: "/img/avatar4.jpeg",
-    timestamp: new Date(1760525835746 - 28 * 60 * 60 * 1000),
-    type: "reflowed the quest",
-  },
-  {
-    name: "Martha",
-    imageUrl: "/img/avatar4.jpeg",
-    timestamp: new Date(1760525835746 - 22 * 60 * 60 * 1000),
-    type: "commented on the quest",
-    description: "I hope you will find your bike and get it back safely.",
-  },
-  {
-    name: "Behrooz",
-    imageUrl: "/img/behrooz.jpeg",
-    timestamp: new Date(1760525835746 - 12 * 60 * 60 * 1000),
-    type: "reflowed the quest",
-    description:
-      "Saeed is in the neighborhood and knows bikes well. He likes to help people as much as I do",
-  },
-];
-
-const TIMELINE_STATS: TimelineStat[] = [
-  { id: "views", icon: "views", text: "150 people have seen this quest" },
-  { id: "shares", icon: "shares", text: "10 people shared this quest" },
-  { id: "leads", icon: "leads", text: "No one submitted any leads" },
-  { id: "comments", icon: "comments", text: "Martha commented on the quest" },
-];
-
 type SeekerInfo = { name: string; avatarSrc: string };
 
 export function LinkMain({
@@ -183,6 +107,7 @@ export function LinkMain({
   user,
   inviter,
   reflowTreeRoot,
+  linkCode,
 }: {
   title: string;
   description: string;
@@ -192,6 +117,7 @@ export function LinkMain({
   user?: SafeUser;
   inviter: SerializedInviter;
   reflowTreeRoot: ReFlowNodeSimple;
+  linkCode: string;
 }) {
   // Normalize inviter messaging so the UI always has readable names and copy.
   const inviterName = inviter.displayName?.trim() || "Someone";
@@ -259,7 +185,6 @@ export function LinkMain({
     }),
   );
   const mediaItems = coverMediaItems.length ? coverMediaItems : [];
-  console.log("length of mediaItems", mediaItems.length);
   return (
     <div className="flex w-full max-w-6xl flex-col self-center">
       <MobileHeader user={user} />
@@ -281,13 +206,13 @@ export function LinkMain({
           {/* Left stack */}
           <div className="flex min-w-0 flex-col gap-4 md:w-2/3 md:gap-6">
             <LinkStoryContent description={description} />
-            <LinkTimelineContent actions={TIMELINE_ACTIONS} user={user} />
+            <LinkTimelineContent linkCode={linkCode} user={user} />
           </div>
           {/* right stack */}
           <div className="bg-secondary-content border-secondary card flex flex-1 flex-col border md:sticky md:top-6 md:w-1/3 md:flex-shrink-0 md:self-start">
-            <LinkTimelineStats stats={TIMELINE_STATS} />
+            <LinkBotonicalTree />
             <hr className="border-secondary mx-5 bg-transparent" />
-            <LinkReflowCard treeRoot={reflowTreeRoot} />
+            <LinkReflowTree treeRoot={reflowTreeRoot} />
           </div>
         </div>
         <LinkFooterSection

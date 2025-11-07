@@ -1,4 +1,5 @@
 import moment from "moment-timezone";
+import TimeAgo, { Formatter, Props as TimeAgoProps } from "react-timeago";
 
 export const getBrowserTimeZone = () => {
   try {
@@ -36,6 +37,37 @@ export const elapsedTime2String = (startTime: Date, newText?: string) => {
   }
 
   return `${timeStr} ago`;
+};
+
+export const defaultFormatter: Formatter = (value, unit, suffix) => {
+  if (unit === "second") {
+    const future = suffix === "from now";
+    return future ? "in a moment" : "moments ago";
+  }
+  const plural = value === 1 ? "" : "s";
+  return `${value} ${unit}${plural} ${suffix}`;
+};
+
+// Make all original props available, but default minPeriod/formatter.
+type AppTimeAgoProps = Omit<TimeAgoProps, "formatter" | "minPeriod"> & {
+  formatter?: Formatter;
+  minPeriod?: number;
+};
+
+export const AppTimeAgo: React.FC<AppTimeAgoProps> = ({
+  formatter = defaultFormatter,
+  minPeriod = 60,
+  date,
+  ...rest
+}) => {
+  return (
+    <TimeAgo
+      formatter={formatter}
+      minPeriod={minPeriod}
+      date={date}
+      {...rest}
+    />
+  );
 };
 
 export function formatDateWithSuffix(date: Date) {

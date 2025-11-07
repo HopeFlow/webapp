@@ -1,13 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
-import { ReadMore } from "@/components/read_more";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Timeline } from "@/components/timeline";
-import { EyeIcon } from "@/components/icons/eye";
-import { MediatorsIcon } from "@/components/icons/mediators";
-import { BulbIcon } from "@/components/icons/bulb";
-import { ChatBubbleIcon } from "@/components/icons/chat_bubble";
-import { Avatar } from "@/components/user_avatar";
 import { Tree } from "@dgreenheck/ez-tree";
 import {
   AmbientLight,
@@ -21,8 +15,6 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
-import { SafeUser } from "@/helpers/server/auth";
-import { Button } from "@/components/button";
 
 export type TimelineAction = React.ComponentProps<
   typeof Timeline
@@ -34,56 +26,7 @@ export type TimelineStat = {
   text: ReactNode;
 };
 
-export function LinkTimelineContent({
-  actions,
-  user,
-}: {
-  actions: TimelineAction[];
-  user?: SafeUser;
-}) {
-  const commentInputId = useId();
-
-  return (
-    <div className="">
-      <ReadMore
-        maxHeight="11rem"
-        className="card bg-base-100 rounded-b-none border-b-0 p-4 outline-0"
-      >
-        <Timeline actions={actions} />
-      </ReadMore>
-      <form className="card bg-base-100/80 rounded-t-none border border-t-0 border-neutral-400 p-2 shadow-xs transition">
-        <div className="bg-base-200/50 focus-within:bg-base-300/60 flex items-center gap-1 rounded shadow-inner transition-all">
-          {user?.imageUrl && (
-            <div className="shrink-0">
-              <Avatar
-                name="You"
-                className="w-10 bg-transparent"
-                imageUrl={user?.imageUrl}
-              />
-            </div>
-          )}
-          <div className="flex flex-1 items-center gap-1 pr-1">
-            <input
-              id={commentInputId}
-              type="text"
-              placeholder={user ? "Share your thoughts…" : "Sign in to comment"}
-              className="input input-bordered input-sm bg-base-100 placeholder:text-base-content/60 flex-1 text-sm"
-            />
-            <Button type="button" buttonType="primary" buttonSize="sm">
-              {user ? "Post" : "Sign in and Post"}
-            </Button>
-          </div>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-export function LinkTimelineStats({
-  stats: _stats,
-}: {
-  stats: TimelineStat[];
-}) {
+export function LinkBotonicalTree() {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -379,29 +322,7 @@ export function LinkTimelineStats({
     <div className="flex flex-col">
       <div className="text-secondary flex h-[15.5rem] flex-col overflow-hidden">
         <div ref={containerRef} className="h-full w-full" />
-        {/* <b className="mb-3 font-bold">Statistics</b>
-        {_stats.map((stat) => (
-          <div key={stat.id} className="flex flex-row gap-4">
-            {iconForStat(stat.icon)}
-            {stat.text}
-          </div>
-        ))} */}
       </div>
     </div>
   );
 }
-
-const iconForStat = (icon: TimelineStat["icon"]) => {
-  switch (icon) {
-    case "views":
-      return <EyeIcon />;
-    case "shares":
-      return <MediatorsIcon />;
-    case "leads":
-      return <BulbIcon />;
-    case "comments":
-      return <ChatBubbleIcon />;
-    default:
-      return null;
-  }
-};

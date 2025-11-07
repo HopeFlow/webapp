@@ -34,7 +34,7 @@ const primaryKey = () =>
     .primaryKey()
     .notNull()
     .$defaultFn(() => crypto.randomUUID());
-const timestamp = () => integer({ mode: "timestamp" });
+const timestamp = () => integer({ mode: "timestamp_ms" });
 const boolean = () => integer({ mode: "boolean" });
 
 /**
@@ -65,12 +65,7 @@ export const questTable = sqliteTable(
     farewellMessage: text(),
 
     coverPhoto: text({ mode: "json" })
-      .$type<{
-        url: string;
-        width: number;
-        height: number;
-        alt: string;
-      }>()
+      .$type<{ url: string; width: number; height: number; alt: string }>()
       .notNull(),
     media: text({ mode: "json" }).$type<QuestMedia[]>(),
 
@@ -230,11 +225,11 @@ export const linkTable = sqliteTable(
         "link_relationship_strength_chk",
         sql`
       ( ${table.type} = ${lit(LinkType.targeted)} AND ${
-          table.relationshipStrength
-        } BETWEEN 1 AND 5 )
+        table.relationshipStrength
+      } BETWEEN 1 AND 5 )
       OR ( ${table.type} <> ${lit(LinkType.targeted)} AND ${
-          table.relationshipStrength
-        } IS NULL )
+        table.relationshipStrength
+      } IS NULL )
     `,
       ),
 
@@ -361,8 +356,8 @@ export const questHistoryTable = sqliteTable(
         "hist_ptr_proposal_chk",
         sql`
       ${table.type} NOT IN (${inList(proposalTypes)}) OR ${
-          table.proposedAnswerId
-        } IS NOT NULL
+        table.proposedAnswerId
+      } IS NOT NULL
     `,
       ),
     ];
@@ -488,9 +483,7 @@ export const notificationsTable = sqliteTable("notifications", {
   timestamp: timestamp().notNull(),
   questHistoryId: text().references(
     (): AnySQLiteColumn => questHistoryTable.id,
-    {
-      onDelete: "set null",
-    },
+    { onDelete: "set null" },
   ),
   emailedAt: timestamp(),
   status: text({ enum: messageStatusDef }).notNull().default("sent"),
@@ -542,9 +535,7 @@ export const nodeRelations = relations(nodeTable, ({ one, many }) => ({
     references: [linkTable.id],
     relationName: "viewLinkUsage",
   }),
-  ownedLinks: many(linkTable, {
-    relationName: "linkOwner",
-  }),
+  ownedLinks: many(linkTable, { relationName: "linkOwner" }),
   comments: many(commentTable),
   histories: many(questHistoryTable),
   proposedAnswers: many(proposedAnswerTable),
@@ -562,9 +553,7 @@ export const linkRelations = relations(linkTable, ({ one, many }) => ({
     references: [nodeTable.id],
     relationName: "linkOwner",
   }),
-  usedByNodes: many(nodeTable, {
-    relationName: "viewLinkUsage",
-  }),
+  usedByNodes: many(nodeTable, { relationName: "viewLinkUsage" }),
   histories: many(questHistoryTable),
   userRelations: many(questUserRelationTable),
 }));
