@@ -38,6 +38,7 @@ export type TimelineCommentMeta = {
   viewerReaction: TimelineReaction | null;
   onReact?: (reaction: TimelineReaction | null) => void;
   isPending?: boolean;
+  optimistic?: boolean;
 };
 
 export type UserAction = {
@@ -48,6 +49,7 @@ export type UserAction = {
   timestamp: Date;
   description?: string;
   comment?: TimelineCommentMeta | null;
+  optimistic?: boolean;
 };
 
 const TimelineItemEnd = ({
@@ -56,53 +58,64 @@ const TimelineItemEnd = ({
   timestamp,
   description,
   comment,
+  optimistic,
 }: UserAction) => {
   const netReactions = comment ? comment.likeCount - comment.dislikeCount : 0;
   const likeActive = comment?.viewerReaction === "like";
   const dislikeActive = comment?.viewerReaction === "dislike";
-  const disableReactions = !comment?.onReact || comment?.isPending;
+  const disableReactions = !comment?.onReact;
+  const isOptimistic = Boolean(optimistic || comment?.optimistic);
 
   return (
-    <div className="timeline-end mt-3 mb-10 md:text-start">
+    <div className={cn("timeline-end mt-3 mb-10 md:text-start")}>
       <div className="text-lg font-black">
         {name} {type}
       </div>
       <div className="font-mono text-neutral-500 italic">
         <AppTimeAgo date={timestamp} />
       </div>
-      <p className={cn(type !== "commented on the quest" && "italic")}>
+      <p
+        className={cn(
+          type !== "commented on the quest" && "italic",
+          isOptimistic && "text-base-content/80",
+        )}
+      >
         {description}
       </p>
       {type === "commented on the quest" && comment && (
-        <div className="mt-2 flex flex-row items-center gap-2">
-          {Math.abs(netReactions) > 0 && (
-            <span className="badge badge-primary">
-              {netReactions > 0 ? `+${netReactions}` : netReactions}
-            </span>
-          )}
-          <Button
-            buttonType="success"
-            buttonSize="sm"
-            buttonStyle="outline"
-            className={cn(likeActive && "btn-active")}
-            disabled={disableReactions}
-            onClick={() => comment.onReact?.(likeActive ? null : "like")}
-          >
-            <ThumbUpIcon size={18} />
-            <span className="ml-1 text-sm">{comment.likeCount}</span>
-          </Button>
-          <Button
-            buttonType="warning"
-            buttonSize="sm"
-            buttonStyle="outline"
-            className={cn(dislikeActive && "btn-active")}
-            disabled={disableReactions}
-            onClick={() => comment.onReact?.(dislikeActive ? null : "dislike")}
-          >
-            <ThumbDownIcon size={18} />
-            <span className="ml-1 text-sm">{comment.dislikeCount}</span>
-          </Button>
-        </div>
+        <>
+          <div className="mt-2 flex flex-row flex-wrap items-center gap-2">
+            {Math.abs(netReactions) > 0 && (
+              <span className="badge badge-primary">
+                {netReactions > 0 ? `+${netReactions}` : netReactions}
+              </span>
+            )}
+            <Button
+              buttonType="success"
+              buttonSize="sm"
+              buttonStyle="outline"
+              className={cn(likeActive && "btn-active")}
+              disabled={disableReactions}
+              onClick={() => comment.onReact?.(likeActive ? null : "like")}
+            >
+              <ThumbUpIcon size={18} />
+              <span className="ml-1 text-sm">{comment.likeCount}</span>
+            </Button>
+            <Button
+              buttonType="warning"
+              buttonSize="sm"
+              buttonStyle="outline"
+              className={cn(dislikeActive && "btn-active")}
+              disabled={disableReactions}
+              onClick={() =>
+                comment.onReact?.(dislikeActive ? null : "dislike")
+              }
+            >
+              <ThumbDownIcon size={18} />
+              <span className="ml-1 text-sm">{comment.dislikeCount}</span>
+            </Button>
+          </div>
+        </>
       )}
     </div>
   );
@@ -113,6 +126,7 @@ export const Timeline = ({ actions }: { actions: UserAction[] }) => (
     {actions.map(({ imageUrl, ...action }, index, actions) => (
       <li
         key={action.id ?? `h-i-${index}`}
+        className={cn(action.optimistic && "opacity-70")}
         style={{ "--timeline-col-start": "auto" } as CSSProperties}
       >
         {index > 0 && <hr />}

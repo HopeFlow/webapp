@@ -3,6 +3,7 @@ import { getHopeflowDatabase } from "@/db";
 import { questStatusDef } from "@/db/constants";
 import {
   bookmarkTable,
+  linkTable,
   nodeTable,
   proposedAnswerTable,
   questTable,
@@ -10,7 +11,7 @@ import {
 import { clerkClientNoThrow, currentUserNoThrow } from "@/helpers/server/auth";
 import { createServerAction } from "@/helpers/server/create_server_action";
 import { executeWithDateParsing } from "@/helpers/server/db";
-import { inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 type Node = {
   name: string;
@@ -21,6 +22,7 @@ type Node = {
 };
 
 export type QuestCard = {
+  id?: string;
   title: string;
   isUserSeeker: boolean;
   rewardAmount: string;
@@ -279,6 +281,56 @@ export const quests = createServerAction({
       else pathsByQuest.set(n.questId, [n]);
     }
 
+    // Map each non-seeker quest to the user-specific linkId/linkCode for contributor cards.
+    const questLinkIdByQuest = new Map<string, string>();
+    const linkCodeById = new Map<string, string>();
+    if (nonSeekerQuestIds.length > 0) {
+      const [userNodeLinks, userBookmarks] = await Promise.all([
+        db
+          .select({
+            questId: nodeTable.questId,
+            viewLinkId: nodeTable.viewLinkId,
+          })
+          .from(nodeTable)
+          .where(
+            and(
+              eq(nodeTable.userId, user.id),
+              inArray(nodeTable.questId, nonSeekerQuestIds),
+            ),
+          ),
+        db
+          .select({
+            questId: bookmarkTable.questId,
+            linkId: bookmarkTable.linkId,
+          })
+          .from(bookmarkTable)
+          .where(
+            and(
+              eq(bookmarkTable.userId, user.id),
+              inArray(bookmarkTable.questId, nonSeekerQuestIds),
+            ),
+          ),
+      ]);
+
+      for (const row of userNodeLinks) {
+        if (!row.viewLinkId) continue;
+        questLinkIdByQuest.set(row.questId, row.viewLinkId);
+      }
+      for (const row of userBookmarks) {
+        if (questLinkIdByQuest.has(row.questId)) continue;
+        questLinkIdByQuest.set(row.questId, row.linkId);
+      }
+
+      if (questLinkIdByQuest.size > 0) {
+        const linkIds = [...new Set(questLinkIdByQuest.values())];
+        const linkRows = await db
+          .select({ id: linkTable.id, linkCode: linkTable.linkCode })
+          .from(linkTable)
+          .where(inArray(linkTable.id, linkIds));
+        linkRows.forEach((row) => linkCodeById.set(row.id, row.linkCode));
+      }
+    }
+
     // 4) Build a single Clerk user map for all userIds we’ll display
     const userIdsForProfiles = new Set<string>();
 
@@ -297,6 +349,12 @@ export const quests = createServerAction({
       if (!q) continue;
 
       const isUserSeeker = q.seekerId === user.id;
+      const questLinkId = questLinkIdByQuest.get(q.id);
+      const identifier = isUserSeeker
+        ? q.id
+        : questLinkId
+          ? linkCodeById.get(questLinkId)
+          : undefined;
 
       let nodes: Node[] = [];
       if (isUserSeeker) {
@@ -324,6 +382,7 @@ export const quests = createServerAction({
         a.activityDate > b.activityDate ? 1 : -1,
       );
       cards.push({
+        id: identifier,
         title: q.title,
         isUserSeeker,
         rewardAmount: q.rewardAmount,
@@ -339,6 +398,8 @@ export const quests = createServerAction({
     const nextOffset = hasMore
       ? params.offset + pageRelations.length
       : undefined;
-    return { items: cards, hasMore, nextOffset };
+    const result = { items: cards, hasMore, nextOffset };
+    console.log("result", result);
+    return result;
   },
 });

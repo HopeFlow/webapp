@@ -6,7 +6,7 @@ import { Timeline } from "@/components/timeline";
 import { Avatar } from "@/components/user_avatar";
 import { SafeUser } from "@/helpers/server/auth";
 import { Button } from "@/components/button";
-import { useLinkTimeline } from "@/server_actions/client/link/linkTimeline";
+import { useLinkTimelineOptimistic } from "../useLinkTimelineOptimistic";
 import type {
   LinkTimelineReadResult,
   LinkTimelineReaction,
@@ -31,7 +31,7 @@ export function LinkTimelineContent({
   const commentInputId = useId();
   const [commentText, setCommentText] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-  const timelineQuery = useLinkTimeline({ linkCode });
+  const timelineQuery = useLinkTimelineOptimistic({ linkCode }, { user });
   const { data, create, update } = timelineQuery;
 
   const timelineData: LinkTimelineReadResult =
@@ -48,6 +48,14 @@ export function LinkTimelineContent({
         continue;
       }
 
+      const entryOptimisticMeta =
+        (
+          entry as LinkTimelineReadResult["actions"][number] & {
+            optimistic?: boolean;
+          }
+        ).optimistic ?? false;
+      const isOptimisticEntry = Boolean(entryOptimisticMeta);
+
       const action: TimelineAction = {
         id: entry.id,
         type: entry.type,
@@ -55,6 +63,7 @@ export function LinkTimelineContent({
         imageUrl: entry.imageUrl ?? undefined,
         timestamp,
         description: entry.description ?? undefined,
+        optimistic: isOptimisticEntry,
       };
 
       if (entry.comment) {
@@ -64,6 +73,15 @@ export function LinkTimelineContent({
           likeCount: entry.comment.likeCount,
           dislikeCount: entry.comment.dislikeCount,
           viewerReaction: entry.comment.viewerReaction,
+          optimistic:
+            isOptimisticEntry ||
+            Boolean(
+              (
+                entry.comment as NonNullable<typeof entry.comment> & {
+                  optimistic?: boolean;
+                }
+              )?.optimistic,
+            ),
           isPending: update.isPending && pendingReactionId === entry.comment.id,
           onReact: canReact
             ? (desired: LinkTimelineReaction | null) => {
