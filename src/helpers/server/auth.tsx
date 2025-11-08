@@ -16,7 +16,7 @@ export const user2SafeUser = (user: User): SafeUser =>
     hasImage: user.hasImage,
     userProfileCreated: Boolean(user.publicMetadata.userProfileCreated),
     imageUrl: user.imageUrl,
-  } as SafeUser);
+  }) as SafeUser;
 
 export const currentUserNoThrow = async () => {
   try {

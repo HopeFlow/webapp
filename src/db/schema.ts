@@ -235,7 +235,7 @@ export const linkTable = sqliteTable(
         .onUpdate("cascade")
         .onDelete("cascade"),
 
-      // Expose composite key for other FKs (e.g., node.viewLinkId, questUserRelation)
+      // Expose composite key for other FKs (e.g., node.viewLinkId)
       uniqueIndex("link_id_quest_unique").on(table.id, table.questId),
     ];
   },
@@ -353,11 +353,11 @@ export const questHistoryTable = sqliteTable(
 
 /**
  * ==========================
- * QUEST USER RELATION
+ * BOOKMARKS
  * ==========================
  */
-export const questUserRelationTable = sqliteTable(
-  "questUserRelation",
+export const bookmarkTable = sqliteTable(
+  "bookmark",
   {
     id: primaryKey(),
     questId: text()
@@ -365,38 +365,28 @@ export const questUserRelationTable = sqliteTable(
       .references((): AnySQLiteColumn => questTable.id, {
         onDelete: "cascade",
       }),
+    userId: text().notNull(),
     linkId: text()
       .notNull()
       .references((): AnySQLiteColumn => linkTable.id, { onDelete: "cascade" }),
-    nodeId: text().references((): AnySQLiteColumn => nodeTable.id, {
-      onDelete: "cascade",
-    }), // null: bookmarked; =root: seeker; else contributor
-    userId: text().notNull(),
     createdAt: timestamp()
       .notNull()
       .$defaultFn(() => new Date()),
   },
-  (table) => {
-    return [
-      // Enforce link belongs to quest
-      foreignKey({
-        name: "fk_qur_link_same_quest",
-        columns: [table.linkId, table.questId] as const,
-        foreignColumns: [linkTable.id, linkTable.questId] as const,
-      })
-        .onUpdate("cascade")
-        .onDelete("cascade"),
-
-      // If node present, enforce node belongs to quest
-      foreignKey({
-        name: "fk_qur_node_same_quest",
-        columns: [table.nodeId, table.questId] as const,
-        foreignColumns: [nodeTable.id, nodeTable.questId] as const,
-      })
-        .onUpdate("cascade")
-        .onDelete("cascade"),
-    ];
-  },
+  (table) => [
+    uniqueIndex("uniq_bookmark_per_user_per_quest").on(
+      table.questId,
+      table.userId,
+    ),
+    // Link must belong to same quest
+    foreignKey({
+      name: "fk_bookmark_link_same_quest",
+      columns: [table.linkId, table.questId] as const,
+      foreignColumns: [linkTable.id, linkTable.questId] as const,
+    })
+      .onUpdate("cascade")
+      .onDelete("cascade"),
+  ],
 );
 
 /**
@@ -503,8 +493,8 @@ export const questRelations = relations(questTable, ({ one, many }) => ({
   links: many(linkTable),
   comments: many(commentTable),
   histories: many(questHistoryTable),
-  userRelations: many(questUserRelationTable),
   proposedAnswers: many(proposedAnswerTable),
+  bookmarks: many(bookmarkTable),
   chatMessages: many(chatMessagesTable),
 }));
 
@@ -527,7 +517,6 @@ export const nodeRelations = relations(nodeTable, ({ one, many }) => ({
   histories: many(questHistoryTable),
   proposedAnswers: many(proposedAnswerTable),
   chatMessages: many(chatMessagesTable),
-  questUserRelations: many(questUserRelationTable),
 }));
 
 export const linkRelations = relations(linkTable, ({ one, many }) => ({
@@ -542,7 +531,7 @@ export const linkRelations = relations(linkTable, ({ one, many }) => ({
   }),
   usedByNodes: many(nodeTable, { relationName: "viewLinkUsage" }),
   histories: many(questHistoryTable),
-  userRelations: many(questUserRelationTable),
+  bookmarks: many(bookmarkTable),
 }));
 
 export const commentRelations = relations(commentTable, ({ one, many }) => ({
@@ -583,23 +572,16 @@ export const questHistoryRelations = relations(
   }),
 );
 
-export const questUserRelationRelations = relations(
-  questUserRelationTable,
-  ({ one }) => ({
-    quest: one(questTable, {
-      fields: [questUserRelationTable.questId],
-      references: [questTable.id],
-    }),
-    link: one(linkTable, {
-      fields: [questUserRelationTable.linkId],
-      references: [linkTable.id],
-    }),
-    node: one(nodeTable, {
-      fields: [questUserRelationTable.nodeId],
-      references: [nodeTable.id],
-    }),
+export const bookmarkRelations = relations(bookmarkTable, ({ one }) => ({
+  quest: one(questTable, {
+    fields: [bookmarkTable.questId],
+    references: [questTable.id],
   }),
-);
+  link: one(linkTable, {
+    fields: [bookmarkTable.linkId],
+    references: [linkTable.id],
+  }),
+}));
 
 export const proposedAnswerRelations = relations(
   proposedAnswerTable,
