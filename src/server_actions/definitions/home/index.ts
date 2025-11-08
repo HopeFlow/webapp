@@ -2,16 +2,15 @@
 import { getHopeflowDatabase } from "@/db";
 import { questStatusDef } from "@/db/constants";
 import {
-  linkTable,
+  bookmarkTable,
   nodeTable,
   proposedAnswerTable,
   questTable,
-  questUserRelationTable,
 } from "@/db/schema";
 import { clerkClientNoThrow, currentUserNoThrow } from "@/helpers/server/auth";
 import { createServerAction } from "@/helpers/server/create_server_action";
 import { executeWithDateParsing } from "@/helpers/server/db";
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 
 type Node = {
   name: string;
@@ -22,7 +21,6 @@ type Node = {
 };
 
 export type QuestCard = {
-  id?: string;
   title: string;
   isUserSeeker: boolean;
   rewardAmount: string;
@@ -124,18 +122,39 @@ export const quests = createServerAction({
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Unauthenticated");
     const db = await getHopeflowDatabase();
-    // 1) // fetch limit+1 to detect more
-    const relationsPlusOne = await db
-      .select({
-        questId: questUserRelationTable.questId,
-        createdAt: questUserRelationTable.createdAt,
-        linkId: questUserRelationTable.linkId,
-      })
-      .from(questUserRelationTable)
-      .where(eq(questUserRelationTable.userId, user.id))
-      .orderBy(desc(questUserRelationTable.createdAt))
-      .offset(params.offset)
-      .limit(params.limit + 1);
+    // 1) Gather quests the user is related to (seeker, contributor, or bookmark)
+    //    and keep the latest interaction timestamp per quest for pagination.
+    const relationsPlusOne = await executeWithDateParsing<{
+      questId: string;
+      createdAt: Date;
+    }>(
+      sql`
+          WITH raw AS (
+            SELECT ${questTable.id} AS questId, ${questTable.creationDate} AS createdAt
+            FROM ${questTable}
+            WHERE ${questTable.seekerId} = ${user.id}
+          UNION ALL
+            SELECT ${nodeTable.questId} AS questId, ${nodeTable.createdAt} AS createdAt
+            FROM ${nodeTable}
+            WHERE ${nodeTable.userId} = ${user.id}
+          UNION ALL
+            SELECT ${bookmarkTable.questId} AS questId, ${bookmarkTable.createdAt} AS createdAt
+            FROM ${bookmarkTable}
+            WHERE ${bookmarkTable.userId} = ${user.id}
+          ),
+          dedup AS (
+            SELECT questId, MAX(createdAt) AS createdAt
+            FROM raw
+            GROUP BY questId
+          )
+          SELECT questId, createdAt
+          FROM dedup
+          ORDER BY createdAt DESC
+          LIMIT ${params.limit + 1}
+          OFFSET ${params.offset}
+        `,
+      db,
+    );
 
     const hasMore = relationsPlusOne.length > params.limit;
     const pageRelations = relationsPlusOne.slice(0, params.limit);
@@ -156,34 +175,12 @@ export const quests = createServerAction({
         rewardAmount: questTable.rewardAmount,
         farewellMessage: questTable.farewellMessage,
         coverPhoto: questTable.coverPhoto,
+        creationDate: questTable.creationDate,
       })
       .from(questTable)
       .where(inArray(questTable.id, questIds));
 
     const questsById = new Map(quests.map((q) => [q.id, q]));
-
-    const contributorLinkIds = [
-      ...new Set(
-        pageRelations
-          .map((rel) => {
-            const quest = questsById.get(rel.questId);
-            if (!quest || quest.seekerId === user.id) return;
-            return rel.linkId;
-          })
-          .filter((id): id is string => Boolean(id)),
-      ),
-    ];
-
-    const linkCodeById = new Map<string, string>();
-    if (contributorLinkIds.length > 0) {
-      const links = await db
-        .select({ id: linkTable.id, linkCode: linkTable.linkCode })
-        .from(linkTable)
-        .where(inArray(linkTable.id, contributorLinkIds));
-      links.forEach((link) => {
-        linkCodeById.set(link.id, link.linkCode);
-      });
-    }
 
     // 2) Count proposed answers per quest in one grouped query
     const counts = await db
@@ -199,26 +196,64 @@ export const quests = createServerAction({
       counts.map((c) => [c.questId, Number(c.count)]),
     );
 
-    // 3a) Preload *all participants* for these quests (for seeker cards)
-    const participants = await db
-      .select({
-        questId: questUserRelationTable.questId,
-        userId: questUserRelationTable.userId,
-        createdAt: questUserRelationTable.createdAt,
-      })
-      .from(questUserRelationTable)
-      .where(inArray(questUserRelationTable.questId, questIds))
-      .orderBy(desc(questUserRelationTable.createdAt));
+    // 3a) Merge seeker, contributor, and bookmark activity so seeker cards
+    //     can render recent participant avatars without extra joins later.
+    type ParticipantRow = { questId: string; userId: string; createdAt: Date };
 
-    // Group participants by quest
+    const nodeParticipants = await db
+      .select({
+        questId: nodeTable.questId,
+        userId: nodeTable.userId,
+        createdAt: nodeTable.createdAt,
+      })
+      .from(nodeTable)
+      .where(inArray(nodeTable.questId, questIds));
+
+    const bookmarkParticipants = await db
+      .select({
+        questId: bookmarkTable.questId,
+        userId: bookmarkTable.userId,
+        createdAt: bookmarkTable.createdAt,
+      })
+      .from(bookmarkTable)
+      .where(inArray(bookmarkTable.questId, questIds));
+
+    const participantAccumulator = new Map<
+      string,
+      Map<string, ParticipantRow>
+    >();
+    const upsertParticipant = (record: ParticipantRow) => {
+      const questMap =
+        participantAccumulator.get(record.questId) ??
+        new Map<string, ParticipantRow>();
+      const existing = questMap.get(record.userId);
+      if (!existing || existing.createdAt < record.createdAt) {
+        questMap.set(record.userId, record);
+      }
+      participantAccumulator.set(record.questId, questMap);
+    };
+
+    nodeParticipants.forEach(upsertParticipant);
+    bookmarkParticipants.forEach(upsertParticipant);
+    // Treat seekers as participants so their own quests show them first.
+    quests.forEach((questRow) => {
+      if (!questRow.seekerId) return;
+      upsertParticipant({
+        questId: questRow.id,
+        userId: questRow.seekerId,
+        createdAt: questRow.creationDate,
+      });
+    });
+
     const participantsByQuest = new Map<
       string,
       { userId: string; createdAt: Date }[]
     >();
-    for (const p of participants) {
-      const arr = participantsByQuest.get(p.questId);
-      if (arr) arr.push(p);
-      else participantsByQuest.set(p.questId, [p]);
+    for (const [questId, questMap] of participantAccumulator.entries()) {
+      const sorted = [...questMap.values()].sort((a, b) =>
+        a.createdAt > b.createdAt ? -1 : 1,
+      );
+      participantsByQuest.set(questId, sorted);
     }
 
     // 3b) Compute all parent paths for non-seeker quests in *one* recursive CTE
@@ -248,7 +283,9 @@ export const quests = createServerAction({
     const userIdsForProfiles = new Set<string>();
 
     // from participants (seeker view)
-    participants.forEach((p) => userIdsForProfiles.add(p.userId));
+    participantsByQuest.forEach((list) =>
+      list.forEach((p) => userIdsForProfiles.add(p.userId)),
+    );
     // from parent paths (non-seeker view)
     parentPaths.forEach((n) => userIdsForProfiles.add(n.userId));
 
@@ -260,9 +297,6 @@ export const quests = createServerAction({
       if (!q) continue;
 
       const isUserSeeker = q.seekerId === user.id;
-      const identifier = isUserSeeker
-        ? q.id
-        : (linkCodeById.get(rel.linkId) ?? undefined);
 
       let nodes: Node[] = [];
       if (isUserSeeker) {
@@ -290,7 +324,6 @@ export const quests = createServerAction({
         a.activityDate > b.activityDate ? 1 : -1,
       );
       cards.push({
-        id: identifier,
         title: q.title,
         isUserSeeker,
         rewardAmount: q.rewardAmount,
