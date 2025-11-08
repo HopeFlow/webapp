@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1762562186783,
+      "tag": "0000_drop_quest_user_relation",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1762562325746,
+      "tag": "0001_add_bookmark_table",
+      "breakpoints": true
+    }
+  ]
+}

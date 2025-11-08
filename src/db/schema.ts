@@ -65,12 +65,7 @@ export const questTable = sqliteTable(
     farewellMessage: text(),
 
     coverPhoto: text({ mode: "json" })
-      .$type<{
-        url: string;
-        width: number;
-        height: number;
-        alt: string;
-      }>()
+      .$type<{ url: string; width: number; height: number; alt: string }>()
       .notNull(),
     media: text({ mode: "json" }).$type<QuestMedia[]>(),
 
@@ -91,19 +86,6 @@ export const questTable = sqliteTable(
     return [
       // reward non-negative
       check("quest_reward_nonneg_chk", sql`${table.rewardAmount} >= 0`),
-
-      //CoverPhoto aspect ratio 16:9 (enforce in app or via CHECK in raw SQL)
-      check(
-        "quest_coverphoto_aspect_ratio_chk",
-        sql`
-        json_type(${table.coverPhoto}, '$.width') IN ('integer','real') AND
-        json_type(${table.coverPhoto}, '$.height') IN ('integer','real') AND
-        json_extract(${table.coverPhoto}, '$.width') > 0 AND
-        json_extract(${table.coverPhoto}, '$.height') > 0 AND
-        (json_extract(${table.coverPhoto}, '$.width') * 9) =
-        (json_extract(${table.coverPhoto}, '$.height') * 16)
-      `,
-      ),
 
       //CoverPhoto aspect ratio 16:9 (enforce in app or via CHECK in raw SQL)
       check(
@@ -230,11 +212,11 @@ export const linkTable = sqliteTable(
         "link_relationship_strength_chk",
         sql`
       ( ${table.type} = ${lit(LinkType.targeted)} AND ${
-          table.relationshipStrength
-        } BETWEEN 1 AND 5 )
+        table.relationshipStrength
+      } BETWEEN 1 AND 5 )
       OR ( ${table.type} <> ${lit(LinkType.targeted)} AND ${
-          table.relationshipStrength
-        } IS NULL )
+        table.relationshipStrength
+      } IS NULL )
     `,
       ),
 
@@ -253,7 +235,7 @@ export const linkTable = sqliteTable(
         .onUpdate("cascade")
         .onDelete("cascade"),
 
-      // Expose composite key for other FKs (e.g., node.viewLinkId, questUserRelation)
+      // Expose composite key for other FKs (e.g., node.viewLinkId)
       uniqueIndex("link_id_quest_unique").on(table.id, table.questId),
     ];
   },
@@ -361,8 +343,8 @@ export const questHistoryTable = sqliteTable(
         "hist_ptr_proposal_chk",
         sql`
       ${table.type} NOT IN (${inList(proposalTypes)}) OR ${
-          table.proposedAnswerId
-        } IS NOT NULL
+        table.proposedAnswerId
+      } IS NOT NULL
     `,
       ),
     ];
@@ -371,11 +353,11 @@ export const questHistoryTable = sqliteTable(
 
 /**
  * ==========================
- * QUEST USER RELATION
+ * BOOKMARKS
  * ==========================
  */
-export const questUserRelationTable = sqliteTable(
-  "questUserRelation",
+export const bookmarkTable = sqliteTable(
+  "bookmark",
   {
     id: primaryKey(),
     questId: text()
@@ -383,38 +365,28 @@ export const questUserRelationTable = sqliteTable(
       .references((): AnySQLiteColumn => questTable.id, {
         onDelete: "cascade",
       }),
+    userId: text().notNull(),
     linkId: text()
       .notNull()
       .references((): AnySQLiteColumn => linkTable.id, { onDelete: "cascade" }),
-    nodeId: text().references((): AnySQLiteColumn => nodeTable.id, {
-      onDelete: "cascade",
-    }), // null: bookmarked; =root: seeker; else contributor
-    userId: text().notNull(),
     createdAt: timestamp()
       .notNull()
       .$defaultFn(() => new Date()),
   },
-  (table) => {
-    return [
-      // Enforce link belongs to quest
-      foreignKey({
-        name: "fk_qur_link_same_quest",
-        columns: [table.linkId, table.questId] as const,
-        foreignColumns: [linkTable.id, linkTable.questId] as const,
-      })
-        .onUpdate("cascade")
-        .onDelete("cascade"),
-
-      // If node present, enforce node belongs to quest
-      foreignKey({
-        name: "fk_qur_node_same_quest",
-        columns: [table.nodeId, table.questId] as const,
-        foreignColumns: [nodeTable.id, nodeTable.questId] as const,
-      })
-        .onUpdate("cascade")
-        .onDelete("cascade"),
-    ];
-  },
+  (table) => [
+    uniqueIndex("uniq_bookmark_per_user_per_quest").on(
+      table.questId,
+      table.userId,
+    ),
+    // Link must belong to same quest
+    foreignKey({
+      name: "fk_bookmark_link_same_quest",
+      columns: [table.linkId, table.questId] as const,
+      foreignColumns: [linkTable.id, linkTable.questId] as const,
+    })
+      .onUpdate("cascade")
+      .onDelete("cascade"),
+  ],
 );
 
 /**
@@ -488,9 +460,7 @@ export const notificationsTable = sqliteTable("notifications", {
   timestamp: timestamp().notNull(),
   questHistoryId: text().references(
     (): AnySQLiteColumn => questHistoryTable.id,
-    {
-      onDelete: "set null",
-    },
+    { onDelete: "set null" },
   ),
   emailedAt: timestamp(),
   status: text({ enum: messageStatusDef }).notNull().default("sent"),
@@ -523,8 +493,8 @@ export const questRelations = relations(questTable, ({ one, many }) => ({
   links: many(linkTable),
   comments: many(commentTable),
   histories: many(questHistoryTable),
-  userRelations: many(questUserRelationTable),
   proposedAnswers: many(proposedAnswerTable),
+  bookmarks: many(bookmarkTable),
   chatMessages: many(chatMessagesTable),
 }));
 
@@ -542,14 +512,11 @@ export const nodeRelations = relations(nodeTable, ({ one, many }) => ({
     references: [linkTable.id],
     relationName: "viewLinkUsage",
   }),
-  ownedLinks: many(linkTable, {
-    relationName: "linkOwner",
-  }),
+  ownedLinks: many(linkTable, { relationName: "linkOwner" }),
   comments: many(commentTable),
   histories: many(questHistoryTable),
   proposedAnswers: many(proposedAnswerTable),
   chatMessages: many(chatMessagesTable),
-  questUserRelations: many(questUserRelationTable),
 }));
 
 export const linkRelations = relations(linkTable, ({ one, many }) => ({
@@ -562,11 +529,9 @@ export const linkRelations = relations(linkTable, ({ one, many }) => ({
     references: [nodeTable.id],
     relationName: "linkOwner",
   }),
-  usedByNodes: many(nodeTable, {
-    relationName: "viewLinkUsage",
-  }),
+  usedByNodes: many(nodeTable, { relationName: "viewLinkUsage" }),
   histories: many(questHistoryTable),
-  userRelations: many(questUserRelationTable),
+  bookmarks: many(bookmarkTable),
 }));
 
 export const commentRelations = relations(commentTable, ({ one, many }) => ({
@@ -607,23 +572,16 @@ export const questHistoryRelations = relations(
   }),
 );
 
-export const questUserRelationRelations = relations(
-  questUserRelationTable,
-  ({ one }) => ({
-    quest: one(questTable, {
-      fields: [questUserRelationTable.questId],
-      references: [questTable.id],
-    }),
-    link: one(linkTable, {
-      fields: [questUserRelationTable.linkId],
-      references: [linkTable.id],
-    }),
-    node: one(nodeTable, {
-      fields: [questUserRelationTable.nodeId],
-      references: [nodeTable.id],
-    }),
+export const bookmarkRelations = relations(bookmarkTable, ({ one }) => ({
+  quest: one(questTable, {
+    fields: [bookmarkTable.questId],
+    references: [questTable.id],
   }),
-);
+  link: one(linkTable, {
+    fields: [bookmarkTable.linkId],
+    references: [linkTable.id],
+  }),
+}));
 
 export const proposedAnswerRelations = relations(
   proposedAnswerTable,
