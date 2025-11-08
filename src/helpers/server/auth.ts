@@ -127,7 +127,7 @@ export const deactivateLinkAndSetJwtToken = async (linkCode: string) => {
  */
 export async function verifyLinkJwtToken<
   T extends typeof linkTable.$inferSelect,
->(l: T) {
+>(linkRecord: T) {
   "server only";
   const c = await cookies();
   const jwtToken = c.get("linkJwtToken")?.value;
@@ -135,7 +135,7 @@ export async function verifyLinkJwtToken<
   try {
     const decoded = decodeJwtToken(jwtToken, chatPublicKey);
     if (!decoded.linkCode) return false;
-    if (l.linkCode !== decoded.linkCode) return false;
+    if (linkRecord.linkCode !== decoded.linkCode) return false;
     return true;
   } catch {
     return false;
