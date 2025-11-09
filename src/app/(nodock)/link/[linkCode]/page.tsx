@@ -230,6 +230,7 @@ async function ContentsForUser({
         inviter={inviter}
         reflowTreeRoot={createNodeTree(nodesWithUserNameAndImage)}
         linkCode={linkCode}
+        questId={quest.id}
       />
     </Prefetch>
   );

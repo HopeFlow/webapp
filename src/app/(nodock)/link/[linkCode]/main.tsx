@@ -108,6 +108,7 @@ export function LinkMain({
   inviter,
   reflowTreeRoot,
   linkCode,
+  questId,
 }: {
   title: string;
   description: string;
@@ -118,6 +119,7 @@ export function LinkMain({
   inviter: SerializedInviter;
   reflowTreeRoot: ReFlowNodeSimple;
   linkCode: string;
+  questId: string;
 }) {
   // Normalize inviter messaging so the UI always has readable names and copy.
   const inviterName = inviter.displayName?.trim() || "Someone";
@@ -210,7 +212,7 @@ export function LinkMain({
           </div>
           {/* right stack */}
           <div className="bg-secondary-content border-secondary card flex flex-1 flex-col border md:sticky md:top-6 md:w-1/3 md:flex-shrink-0 md:self-start">
-            <LinkBotonicalTree />
+            <LinkBotonicalTree treeRoot={reflowTreeRoot} questId={questId} />
             <hr className="border-secondary mx-5 bg-transparent" />
             <LinkReflowTree treeRoot={reflowTreeRoot} />
           </div>
