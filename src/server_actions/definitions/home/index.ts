@@ -125,7 +125,7 @@ export const quests = createServerAction({
     if (!user) throw new Error("Unauthenticated");
     const db = await getHopeflowDatabase();
     // 1) Gather quests the user is related to (seeker, contributor, or bookmark)
-    //    and keep the latest interaction timestamp per quest for pagination.
+    //    and keep the oldest interaction timestamp per quest for pagination.
     const relationsPlusOne = await executeWithDateParsing<{
       questId: string;
       createdAt: Date;
@@ -145,7 +145,7 @@ export const quests = createServerAction({
             WHERE ${bookmarkTable.userId} = ${user.id}
           ),
           dedup AS (
-            SELECT questId, MAX(createdAt) AS createdAt
+            SELECT questId, MIN(createdAt) AS createdAt
             FROM raw
             GROUP BY questId
           )
