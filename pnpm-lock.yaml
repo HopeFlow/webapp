@@ -53,6 +53,9 @@ importers:
       drizzle-zod:
         specifier: ^0.8.2
         version: 0.8.3(drizzle-orm@0.44.6(@libsql/client@0.15.15))(zod@3.25.76)
+      jose:
+        specifier: ^6.1.0
+        version: 6.1.0
       lexical:
         specifier: ^0.34.0
         version: 0.34.0
@@ -3735,6 +3738,9 @@ packages:
   jiti@2.6.1:
     resolution: {integrity: sha512-ekilCSN1jwRvIbgeg/57YFh8qQDNbwDb9xT/qu2DAHbFFZUicIl4ygVaAvzveMhMVr3LnpSKTNnwt8PoOfmKhQ==}
     hasBin: true
+
+  jose@6.1.0:
+    resolution: {integrity: sha512-TTQJyoEoKcC1lscpVDCSsVgYzUDg/0Bt3WE//WiTPK6uOCQC2KZS4MpugbMWt/zyjkopgZoXhZuCi00gLudfUA==}
 
   js-base64@3.7.8:
     resolution: {integrity: sha512-hNngCeKxIUQiEUN3GPJOkz4wF/YvdUdbNL9hsBcMQTkKzboD7T/q3OYOuuPZLUE6dBxSGpwhk5mwuDud7JVAow==}
@@ -9661,6 +9667,8 @@ snapshots:
       '@isaacs/cliui': 8.0.2
 
   jiti@2.6.1: {}
+
+  jose@6.1.0: {}
 
   js-base64@3.7.8: {}
 
