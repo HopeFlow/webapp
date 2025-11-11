@@ -17,6 +17,7 @@ import {
 } from "./components/LinkAccordions";
 import { LinkStoryContent } from "./components/LinkStoryContent";
 import { ReFlowNodeSimple } from "./components/ReflowTree";
+import type { SocialMediaName } from "./components/ReflowTree";
 import { LinkFooterSection } from "./components/LinkFooterSection";
 import { LinkTitleSection } from "./components/LinkTitleSection";
 import { QuestMedia } from "@/db/constants";
@@ -109,6 +110,7 @@ export function LinkMain({
   reflowTreeRoot,
   linkCode,
   questId,
+  referer,
 }: {
   title: string;
   description: string;
@@ -120,6 +122,7 @@ export function LinkMain({
   reflowTreeRoot: ReFlowNodeSimple;
   linkCode: string;
   questId: string;
+  referer: SocialMediaName;
 }) {
   // Normalize inviter messaging so the UI always has readable names and copy.
   const inviterName = inviter.displayName?.trim() || "Someone";
@@ -208,7 +211,11 @@ export function LinkMain({
           {/* Left stack */}
           <div className="flex min-w-0 flex-col gap-4 md:w-2/3 md:gap-6">
             <LinkStoryContent description={description} />
-            <LinkTimelineContent linkCode={linkCode} user={user} />
+            <LinkTimelineContent
+              linkCode={linkCode}
+              user={user}
+              referer={referer}
+            />
           </div>
           {/* right stack */}
           <div className="bg-secondary-content border-secondary card flex flex-1 flex-col border md:sticky md:top-6 md:w-1/3 md:flex-shrink-0 md:self-start">

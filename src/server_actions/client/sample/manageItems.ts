@@ -36,7 +36,11 @@ export const useManageItems: UseManageItems = (
       : "manageItems",
     ...args,
   ];
-  const dependantQueryKeys = [["manageItems"], ["manageItems.getItemById"]];
+  const dependantQueryKeys = [
+    ["manageItems"],
+    ["manageItems.getItemById"],
+    queryKey,
+  ];
   const queryClient = useQueryClient();
   const query = useQuery(
     {

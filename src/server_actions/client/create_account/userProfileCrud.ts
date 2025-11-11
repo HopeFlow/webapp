@@ -11,7 +11,7 @@ import {
 
 export const useCreateAccount = () => {
   const queryKey = ["createAccount"];
-  const dependantQueryKeys = [["createAccount"]];
+  const dependantQueryKeys = [["createAccount"], queryKey];
   const queryClient = useQueryClient();
   const query = useQuery(
     { queryKey, queryFn: async () => await userProfileCrud("read") },

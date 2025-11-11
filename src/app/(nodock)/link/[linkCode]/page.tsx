@@ -24,6 +24,7 @@ import QuestOwnerNotice from "./components/questOwnerNotice";
 import AlreadyContributorNotice from "./components/alreadyContributorNotice";
 import { socialMediaNames } from "@/db/constants";
 import { ReFlowNodeSimple } from "./components/ReflowTree";
+import type { SocialMediaName } from "./components/ReflowTree";
 import ErrorPreparingPage from "./components/ErrorPreparingPage";
 const isSocialMediaName = (
   value: unknown,
@@ -36,6 +37,9 @@ async function ContentsForUser({
   referer,
   // headers: reqHeaders,
 }: { referer?: string; linkCode: string } & { headers: ReadonlyHeaders }) {
+  const sanitizedReferer: SocialMediaName = isSocialMediaName(referer)
+    ? referer
+    : "unknown";
   const { seekerView, link, quest, userNode, nodes, accessRestricted } =
     await getQuestAndNodesForLinkByLinkCode(linkCode);
   if (!quest) {
@@ -231,6 +235,7 @@ async function ContentsForUser({
         reflowTreeRoot={createNodeTree(nodesWithUserNameAndImage)}
         linkCode={linkCode}
         questId={quest.id}
+        referer={sanitizedReferer}
       />
     </Prefetch>
   );

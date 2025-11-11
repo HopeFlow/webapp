@@ -6,6 +6,7 @@ import {
   linkTable,
   nodeTable,
   questHistoryTable,
+  questTable,
 } from "@/db/schema";
 import { currentUserNoThrow, withUserData } from "@/helpers/server/auth";
 import { createCrudServerAction } from "@/helpers/server/create_server_action";
@@ -19,6 +20,7 @@ import {
 import { getQuestAndNodesForLinkByLinkCode } from "./index.server";
 import type { QuestHistoryWithRelations } from "../common/quest_history";
 import { and, eq } from "drizzle-orm";
+import { SocialMediaName } from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
 
 type HistoryEntryWithActor = QuestHistoryWithRelations & {
   actorName?: string | null;
@@ -37,6 +39,57 @@ type LinkContextWithHistory = {
   nodes: (typeof nodeTable.$inferSelect)[];
   userNode?: typeof nodeTable.$inferSelect;
   history: QuestHistoryWithRelations[];
+};
+
+type HopeflowDb = Awaited<ReturnType<typeof getHopeflowDatabase>>;
+
+type PreparedNodeResult = {
+  nodeId: string;
+  pendingInsert?: typeof nodeTable.$inferInsert;
+};
+
+const prepareUserNode = async ({
+  db,
+  link,
+  userId,
+  referer,
+}: {
+  db: HopeflowDb;
+  link: typeof linkTable.$inferSelect;
+  userId: string;
+  referer: SocialMediaName;
+}): Promise<PreparedNodeResult> => {
+  const existingNode = await db.query.nodeTable.findFirst({
+    where: and(
+      eq(nodeTable.questId, link.questId),
+      eq(nodeTable.userId, userId),
+    ),
+  });
+  if (existingNode) return { nodeId: existingNode.id };
+
+  const quest = await db.query.questTable.findFirst({
+    columns: { seekerId: true, creatorId: true },
+    where: eq(questTable.id, link.questId),
+  });
+  if (!quest) throw new Error("Quest not found");
+
+  const seekerId = quest.seekerId ?? quest.creatorId;
+  if (!seekerId) throw new Error("Quest is missing the seeker information");
+
+  const nodeId = crypto.randomUUID();
+  return {
+    nodeId,
+    pendingInsert: {
+      id: nodeId,
+      questId: link.questId,
+      seekerId,
+      userId,
+      parentId: link.ownerNodeId,
+      createdAt: new Date(),
+      viewLinkId: link.id,
+      referer,
+    },
+  };
 };
 
 const getTrimmedStringProperty = <K extends string>(
@@ -337,7 +390,7 @@ export const linkTimeline = createCrudServerAction<
       viewer: { canComment: viewerHasNode, canReact: viewerHasNode },
     } satisfies LinkTimelineReadResult;
   },
-  create: async ({ content }, { linkCode }) => {
+  create: async ({ content, referer }, { linkCode }) => {
     const viewer = await currentUserNoThrow();
     if (!viewer) throw new Error("Please sign in to leave a comment");
     const trimmed = content.trim();
@@ -349,60 +402,47 @@ export const linkTimeline = createCrudServerAction<
     });
     if (!link) throw new Error("Link not found");
 
-    const userNode = await db.query.nodeTable.findFirst({
-      where: and(
-        eq(nodeTable.questId, link.questId),
-        eq(nodeTable.userId, viewer.id),
-      ),
+    const { nodeId, pendingInsert } = await prepareUserNode({
+      db,
+      link,
+      userId: viewer.id,
+      referer,
     });
-    // TODO: Users should be able to comment even if they haven't joined, and they will be joined automatically
-    if (!userNode)
-      throw new Error("You need to join the quest before commenting");
 
     const now = new Date();
+    const commentId = crypto.randomUUID();
+    const commentInsert = db
+      .insert(commentTable)
+      .values({
+        id: commentId,
+        questId: link.questId,
+        nodeId,
+        userId: viewer.id,
+        likedBy: [] as string[],
+        dislikedBy: [] as string[],
+        content: trimmed,
+        createdAt: now,
+      });
+    const historyInsert = db
+      .insert(questHistoryTable)
+      .values({
+        questId: link.questId,
+        actorUserId: viewer.id,
+        type: "commentAdded",
+        createdAt: now,
+        commentId,
+        nodeId,
+      });
 
-    let insertedCommentId: string | undefined;
-    try {
-      const [inserted] = await db
-        .insert(commentTable)
-        .values({
-          questId: link.questId,
-          nodeId: userNode.id,
-          userId: viewer.id,
-          likedBy: [] as string[],
-          dislikedBy: [] as string[],
-          content: trimmed,
-          createdAt: now,
-        })
-        .returning({ id: commentTable.id });
-
-      if (!inserted?.id) {
-        throw new Error("Failed to create comment");
-      }
-      insertedCommentId = inserted.id;
-
-      await db
-        .insert(questHistoryTable)
-        .values({
-          questId: link.questId,
-          actorUserId: viewer.id,
-          type: "commentAdded",
-          createdAt: now,
-          commentId: inserted.id,
-          nodeId: userNode.id,
-        });
-
-      return true;
-    } catch (error) {
-      if (insertedCommentId) {
-        await db
-          .delete(commentTable)
-          .where(eq(commentTable.id, insertedCommentId));
-      }
-      throw error;
+    if (pendingInsert) {
+      const nodeInsert = db.insert(nodeTable).values(pendingInsert);
+      await db.batch([nodeInsert, commentInsert, historyInsert]);
+    } else {
+      await db.batch([commentInsert, historyInsert]);
     }
+    return true;
   },
-  update: async ({ commentId, reaction }, { linkCode }) => {
+  update: async ({ commentId, reaction, referer }, { linkCode }) => {
     const viewer = await currentUserNoThrow();
     if (!viewer) throw new Error("Please sign in to react to comments");
 
@@ -420,14 +460,12 @@ export const linkTimeline = createCrudServerAction<
     if (comment.questId !== link.questId)
       throw new Error("Mismatch between comment and quest");
 
-    const userNode = await db.query.nodeTable.findFirst({
-      where: and(
-        eq(nodeTable.questId, comment.questId),
-        eq(nodeTable.userId, viewer.id),
-      ),
+    const { pendingInsert } = await prepareUserNode({
+      db,
+      link,
+      userId: viewer.id,
+      referer,
     });
-    if (!userNode)
-      throw new Error("You need to join the quest before reacting");
 
     const likedBy = toStringArray(comment.likedBy);
     const dislikedBy = toStringArray(comment.dislikedBy);
@@ -441,10 +479,17 @@ export const linkTimeline = createCrudServerAction<
       filteredDislikes.push(viewer.id);
     }
 
-    await db
+    const commentUpdate = db
       .update(commentTable)
       .set({ likedBy: filteredLikes, dislikedBy: filteredDislikes })
       .where(eq(commentTable.id, commentId));
+
+    if (pendingInsert) {
+      const nodeInsert = db.insert(nodeTable).values(pendingInsert);
+      await db.batch([nodeInsert, commentUpdate]);
+    } else {
+      await db.batch([commentUpdate]);
+    }
 
     return true;
   },

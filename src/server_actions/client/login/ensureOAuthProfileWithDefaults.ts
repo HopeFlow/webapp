@@ -10,7 +10,7 @@ import {
 
 export const useEnsureOAuthProfileWithDefaults = () => {
   const queryKey = ["ensureOAuthProfileWithDefaults"];
-  const dependantQueryKeys = [["ensureOAuthProfileWithDefaults"]];
+  const dependantQueryKeys = [["ensureOAuthProfileWithDefaults"], queryKey];
   const queryClient = useQueryClient();
   const query = useQuery(
     {

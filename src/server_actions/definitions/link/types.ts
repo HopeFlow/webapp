@@ -1,3 +1,5 @@
+import { SocialMediaName } from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
+
 export type LinkTimelineActionType =
   | "started the quest"
   | "joined the quest"
@@ -32,11 +34,13 @@ export interface LinkTimelineReadResult {
 
 export interface LinkTimelineCreateInput {
   content: string;
+  referer: SocialMediaName;
 }
 
 export interface LinkTimelineReactionInput {
   commentId: string;
   reaction: LinkTimelineReaction | null;
+  referer: SocialMediaName;
 }
 
 export interface LinkTimelineReadParams {

@@ -7,6 +7,7 @@ import { Avatar } from "@/components/user_avatar";
 import { SafeUser } from "@/helpers/server/auth";
 import { Button } from "@/components/button";
 import { useLinkTimelineOptimistic } from "../useLinkTimelineOptimistic";
+import type { SocialMediaName } from "./ReflowTree";
 import type {
   LinkTimelineReadResult,
   LinkTimelineReaction,
@@ -24,15 +25,18 @@ const EMPTY_TIMELINE: LinkTimelineReadResult = {
 export function LinkTimelineContent({
   linkCode,
   user,
+  referer,
 }: {
   linkCode: string;
   user?: SafeUser;
+  referer?: SocialMediaName;
 }) {
   const commentInputId = useId();
   const [commentText, setCommentText] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const timelineQuery = useLinkTimelineOptimistic({ linkCode }, { user });
   const { data, create, update } = timelineQuery;
+  const resolvedReferer: SocialMediaName = referer ?? "unknown";
 
   const timelineData: LinkTimelineReadResult =
     data && typeof data !== "boolean" ? data : EMPTY_TIMELINE;
@@ -90,6 +94,7 @@ export function LinkTimelineContent({
                 update.mutate({
                   commentId: entry.comment!.id,
                   reaction: nextReaction,
+                  referer: resolvedReferer,
                 });
               }
             : undefined,
@@ -99,7 +104,13 @@ export function LinkTimelineContent({
       mapped.unshift(action); // unshift to put comments at the top
     }
     return mapped;
-  }, [timelineData.actions, pendingReactionId, canReact, update]);
+  }, [
+    timelineData.actions,
+    pendingReactionId,
+    canReact,
+    update,
+    resolvedReferer,
+  ]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -111,7 +122,7 @@ export function LinkTimelineContent({
     }
     setFormError(null);
     try {
-      await create.mutateAsync({ content: trimmed });
+      await create.mutateAsync({ content: trimmed, referer: resolvedReferer });
       setCommentText("");
     } catch (error) {
       setFormError(
