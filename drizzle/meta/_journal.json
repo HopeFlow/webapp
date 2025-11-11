@@ -15,6 +15,13 @@
       "when": 1762562325746,
       "tag": "0001_add_bookmark_table",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1762562400000,
+      "tag": "0002_drop_node_status",
+      "breakpoints": true
     }
   ]
 }

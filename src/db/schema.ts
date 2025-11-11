@@ -17,7 +17,6 @@ import {
   emailFrequencyDef,
   linkTypeDef,
   messageStatusDef,
-  nodeStatusDef,
   type QuestMedia,
   questStatusDef,
   questTypeDef,
@@ -137,7 +136,6 @@ export const nodeTable = sqliteTable(
     seekerId: text().notNull(),
     userId: text().notNull(),
     referer: text({ enum: socialMediaNames }).notNull().default("unknown"),
-    status: text({ enum: nodeStatusDef }).notNull(),
     parentId: text().references((): AnySQLiteColumn => nodeTable.id, {
       onDelete: "cascade",
     }),
