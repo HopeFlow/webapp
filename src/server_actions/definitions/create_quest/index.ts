@@ -6,13 +6,11 @@ import type {
   InsertQuestData,
 } from "@/app/(dock)/create_quest/types";
 import { getHopeflowDatabase } from "@/db";
-import { questTable } from "@/db/schema";
-import {
-  createCrudServerAction,
-  createServerAction,
-} from "@/helpers/server/create_server_action";
+import { linkTable, nodeTable, questTable } from "@/db/schema";
+import { createCrudServerAction } from "@/helpers/server/create_server_action";
 import { currentUserNoThrow } from "@/helpers/server/auth";
 import type { CoverPhoto as QuestCoverPhoto, QuestMedia } from "@/db/constants";
+import { eq } from "drizzle-orm";
 
 const R2_PUBLIC_BASE_URL =
   process.env.NODE_ENV === "production"
@@ -115,6 +113,9 @@ const persistMedia = async (
   return filtered.length > 0 ? filtered : undefined;
 };
 
+const generateLinkCode = () =>
+  crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+
 export const insertQuest = createCrudServerAction({
   id: "insertQuest",
   scope: "create_quest",
@@ -141,28 +142,62 @@ export const insertQuest = createCrudServerAction({
     );
     if (!coverPhoto) throw new Error("Cover photo is required");
     const media = await persistMedia(bucket, baseBlobPath, payload.media);
+    const rootNodeId = crypto.randomUUID();
+    const viewLinkId = crypto.randomUUID();
+    const viewLinkType = "targeted";
+    const viewLinkRelationshipStrength = viewLinkType === "targeted" ? 5 : null;
 
     const db = await getHopeflowDatabase();
-    await db
-      .insert(questTable)
-      .values({
-        id: questId,
-        type: payload.type,
-        title,
-        shareTitle: payload.shareTitle?.trim() || title,
-        description,
-        rewardAmount: `${
-          Number.isFinite(payload.rewardAmount)
-            ? Math.max(0, payload.rewardAmount)
-            : 0
-        }`,
-        baseBlobPath,
-        creatorId: user.id,
-        seekerId: user.id,
-        coverPhoto,
-        media: media ?? null,
-      });
-
+    await db.batch([
+      db
+        .insert(questTable)
+        .values({
+          id: questId,
+          type: payload.type,
+          title,
+          shareTitle: payload.shareTitle?.trim() || title,
+          description,
+          rewardAmount: `${
+            Number.isFinite(payload.rewardAmount)
+              ? Math.max(0, payload.rewardAmount)
+              : 0
+          }`,
+          baseBlobPath,
+          creatorId: user.id,
+          seekerId: user.id,
+          coverPhoto,
+          media: media ?? null,
+        }),
+      db
+        .insert(nodeTable)
+        .values({
+          id: rootNodeId,
+          questId,
+          seekerId: user.id,
+          userId: user.id,
+          status: "started",
+          parentId: null,
+        }),
+      db
+        .insert(linkTable)
+        .values({
+          id: viewLinkId,
+          questId,
+          ownerNodeId: rootNodeId,
+          type: viewLinkType,
+          name: payload.shareTitle?.trim() || title,
+          linkCode: generateLinkCode(),
+          relationshipStrength: viewLinkRelationshipStrength,
+        }),
+      db
+        .update(nodeTable)
+        .set({ viewLinkId })
+        .where(eq(nodeTable.id, rootNodeId)),
+      db
+        .update(questTable)
+        .set({ rootNodeId })
+        .where(eq(questTable.id, questId)),
+    ]);
     return true;
   },
 });

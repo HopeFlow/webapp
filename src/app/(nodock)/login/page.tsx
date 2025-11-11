@@ -27,6 +27,8 @@ export default publicPage(
         else intent = "finish-profile";
       }
 
+      console.log("LoginPage", intent, url, currentUrl);
+
       return <LoginGate intent={intent} url={url} currentUrl={currentUrl} />;
     },
     { searchParamsTypeDef: z.object({ url: z.string().optional() }) },
