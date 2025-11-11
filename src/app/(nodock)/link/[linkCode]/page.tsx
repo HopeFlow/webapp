@@ -16,6 +16,7 @@ import { ReadonlyHeaders } from "next/dist/server/web/spec-extension/adapters/he
 import {
   getQuestAndNodesForLinkByLinkCode,
   getWinnerPathsForQuests,
+  trackLinkPageView,
 } from "@/server_actions/definitions/link/index.server";
 import { prefetchLinkTimeline } from "@/server_actions/client/link/linkTimeline";
 import AccessRestricted from "./components/accessRestricted";
@@ -46,6 +47,8 @@ async function ContentsForUser({
     if (accessRestricted) return <AccessRestricted />;
     else notFound();
   }
+
+  await trackLinkPageView(quest.id, link.id);
 
   if (link.linkCode !== linkCode) {
     if (seekerView) {

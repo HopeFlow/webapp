@@ -4,6 +4,7 @@ import {
   linkTable,
   nodeTable,
   proposedAnswerTable,
+  questViewTable,
   questTable,
 } from "@/db/schema";
 import { currentUserNoThrow, verifyLinkJwtToken } from "@/helpers/server/auth";
@@ -16,6 +17,94 @@ import {
   getQuestHistoryWithRelations,
   type QuestHistoryWithRelations,
 } from "../common/quest_history";
+import { headers } from "next/headers";
+
+type HeaderSource = { get(name: string): string | null };
+
+const BOT_HINTS = [
+  "bot",
+  "spider",
+  "crawl",
+  "slurp",
+  "monitor",
+  "headless",
+  "phantomjs",
+  "axios",
+  "curl",
+  "wget",
+] as const;
+
+const getClientIpFromHeaders = (
+  reqHeaders: HeaderSource | null,
+): string | null => {
+  if (!reqHeaders) return null;
+  return (
+    reqHeaders.get("cf-connecting-ip") ||
+    reqHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    null
+  );
+};
+
+const anonymizeIp = (ip: string | null): string => {
+  if (!ip) return "ip:unknown";
+  if (ip.includes(":")) {
+    const parts = ip.split(":").slice(0, 3).join(":");
+    return `v6:${parts}`;
+  }
+  const parts = ip.split(".");
+  if (parts.length !== 4) return "ip:unknown";
+  return `v4:${parts[0]}.${parts[1]}.${parts[2]}.0`;
+};
+
+const isLikelyBot = (reqHeaders: HeaderSource | null): boolean => {
+  if (!reqHeaders) return false;
+  const cfVerifiedBot = reqHeaders.get("cf-verified-bot");
+  if (cfVerifiedBot === "true") return true;
+
+  const cfScore = reqHeaders.get("cf-bot-score");
+  if (cfScore && Number(cfScore) <= 29) return true;
+
+  const ua = (reqHeaders.get("user-agent") || "").toLowerCase();
+  if (!ua) return true;
+
+  if (BOT_HINTS.some((hint) => ua.includes(hint))) return true;
+  if (ua.includes("rendertron") || ua.includes("facebookexternalhit"))
+    return true;
+
+  return false;
+};
+
+export const trackLinkPageView = defineServerFunction({
+  id: "trackLinkPageView",
+  scope: "link",
+  handler: async function (questId: string, linkId: string): Promise<boolean> {
+    if (!questId || !linkId) return false;
+    try {
+      const headerList = await headers();
+      if (isLikelyBot(headerList)) return false;
+
+      const db = await getHopeflowDatabase();
+      const user = await currentUserNoThrow();
+      const ipPrefix = anonymizeIp(getClientIpFromHeaders(headerList));
+      const userAgent = headerList.get("user-agent") || "ua:unknown";
+
+      await db
+        .insert(questViewTable)
+        .values({
+          questId,
+          linkId,
+          userId: user?.id ?? null,
+          ipPrefix,
+          userAgent,
+        });
+
+      return true;
+    } catch (error) {
+      console.error("trackLinkPageView failed", error);
+      return false;
+    }
+  },
+});
 
 function userBranchCtes(
   questId: SQL,

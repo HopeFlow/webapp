@@ -242,6 +242,27 @@ export const linkTable = sqliteTable(
 
 /**
  * ==========================
+ * QUEST VIEWS
+ * ==========================
+ */
+export const questViewTable = sqliteTable("questView", {
+  id: primaryKey(),
+  questId: text()
+    .notNull()
+    .references((): AnySQLiteColumn => questTable.id, { onDelete: "cascade" }),
+  linkId: text()
+    .notNull()
+    .references((): AnySQLiteColumn => linkTable.id, { onDelete: "cascade" }),
+  userId: text(),
+  ipPrefix: text().notNull(),
+  userAgent: text().notNull(),
+  createdAt: timestamp()
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+/**
+ * ==========================
  * COMMENTS
  * ==========================
  */
