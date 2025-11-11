@@ -175,7 +175,6 @@ export const insertQuest = createCrudServerAction({
           questId,
           seekerId: user.id,
           userId: user.id,
-          status: "started",
           parentId: null,
         }),
       db
