@@ -1,6 +1,11 @@
 "use server";
 import { getHopeflowDatabase } from "@/db";
-import { linkTable, nodeTable, questTable } from "@/db/schema";
+import {
+  linkTable,
+  nodeTable,
+  proposedAnswerTable,
+  questTable,
+} from "@/db/schema";
 import { currentUserNoThrow, verifyLinkJwtToken } from "@/helpers/server/auth";
 import { executeWithDateParsing } from "@/helpers/server/db";
 import { defineServerFunction } from "@/helpers/server/define_server_function";
@@ -276,7 +281,6 @@ export const getQuestAndNodesForLinkByLinkCode = defineServerFunction({
       referer: "unknown",
       createdAt: new Date(),
       seekerId: questEntry.seekerId!,
-      status: "mediated",
       userId: "",
       viewLinkId: linkEntry.id,
     };
@@ -396,18 +400,24 @@ export async function getWinnerPathsForQuests(
   questIds: string[],
 ): Promise<Record<string, Record<string, number>>> {
   const db = await getHopeflowDatabase();
-  // 1. Fetch all winner nodes (status = "accepted") for these quests
-  const winners = await db.query.nodeTable.findMany({
+  if (!questIds.length) return {};
+
+  // 1. Fetch all accepted proposed answers so we can highlight their paths
+  const acceptedAnswers = await db.query.proposedAnswerTable.findMany({
+    columns: { nodeId: true, questId: true },
     where: and(
-      eq(nodeTable.status, "isAccepted"),
-      inArray(nodeTable.questId, questIds),
+      eq(proposedAnswerTable.status, "accepted"),
+      inArray(proposedAnswerTable.questId, questIds),
     ),
   });
 
   const result: Record<string, Record<string, number>> = {};
+  if (!acceptedAnswers.length) return result;
+
   // 2. For each winner node, fetch its ancestor path with ranks
   await Promise.all(
-    winners.map(async ({ id: winnerId, questId }) => {
+    acceptedAnswers.map(async ({ nodeId: winnerId, questId }) => {
+      if (!winnerId) return;
       const rows: Array<{ id: string; rank: number }> =
         await executeWithDateParsing(
           winnerAncestorPathSql(sql`${winnerId}`),
