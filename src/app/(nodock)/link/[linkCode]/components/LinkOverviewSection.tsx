@@ -1,14 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { MediaCarousel } from "@/components/media_carousel";
-import { Leaf } from "@/components/leaf";
 import { AvatarGroup, type UserAvatarProps } from "@/components/user_avatar";
 import { Button } from "@/components/button";
 import { ReflowIcon } from "@/components/icons/reflow";
 import { BulbIcon } from "@/components/icons/bulb";
 import { BookmarkIcon } from "@/components/icons/bookmark";
+import { EyeIcon } from "@/components/icons/eye";
+import { MediatorsIcon } from "@/components/icons/mediators";
+import { ChatBubbleIcon } from "@/components/icons/chat_bubble";
 import { ReflowModal, showReflowModal } from "@/modals/reflow_modal";
 import {
   SubmitAnswerModal,
@@ -25,11 +27,22 @@ export type LinkOverviewMediaItem = {
   type?: "image" | "video";
 };
 
+export type LinkStatusStatIcon = "views" | "shares" | "leads" | "comments";
+
+export type LinkStatusStat = {
+  id: string;
+  icon: LinkStatusStatIcon;
+  label: string;
+  value: string;
+  helper?: string;
+};
+
 export type LinkStatusInfo = {
   stage: string;
   branchColor: string;
   leafColor: string;
   expiresInDays: number;
+  stats: LinkStatusStat[];
 };
 
 export type LinkInviterInfo = {
@@ -128,6 +141,42 @@ const getYouTubeVideoId = (source: string) => {
 };
 
 const StatusCard = ({ status }: { status: LinkStatusInfo }) => {
+  const stats = status.stats ?? [];
+
+  if (!stats.length) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-box border-base-200 bg-base-100/70 text-base-content border text-xs shadow-sm backdrop-blur">
+      <div className="divide-base-200 flex flex-wrap divide-y md:flex-nowrap md:divide-x md:divide-y-0">
+        {stats.map((stat) => (
+          <article
+            key={stat.id}
+            className="flex min-w-[120px] flex-1 items-center gap-2 p-3"
+            title={stat.helper}
+            aria-label={
+              stat.helper ? `${stat.label}: ${stat.helper}` : stat.label
+            }
+          >
+            <div className="bg-base-200/80 text-primary rounded-lg p-2 shadow-inner">
+              {iconForStat(stat.icon)}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-base-content/60 text-[0.6rem] font-semibold tracking-wide uppercase">
+                {stat.label}
+              </span>
+              <span className="text-base leading-tight font-bold">
+                {stat.value}
+              </span>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+
+  /*
   const style = {
     "--branch-color": status.branchColor,
     "--leaf-color": status.leafColor,
@@ -155,6 +204,24 @@ const StatusCard = ({ status }: { status: LinkStatusInfo }) => {
       </p>
     </div>
   );
+  */
+};
+
+const iconForStat = (icon: LinkStatusStatIcon) => {
+  const common = "h-5 w-5";
+
+  switch (icon) {
+    case "views":
+      return <EyeIcon className={common} />;
+    case "shares":
+      return <MediatorsIcon className={common} />;
+    case "leads":
+      return <BulbIcon className={common} />;
+    case "comments":
+      return <ChatBubbleIcon className={common} />;
+    default:
+      return null;
+  }
 };
 
 export function LinkOverviewEngagement({

@@ -30,6 +30,36 @@ const STATUS: LinkStatusInfo = {
   branchColor: "var(--color-amber-600, #22c55e)",
   leafColor: "var(--color-amber-300, #22c55e)",
   expiresInDays: 7,
+  stats: [
+    {
+      id: "views",
+      icon: "views",
+      label: "Views",
+      value: "150",
+      helper: "people have seen this quest",
+    },
+    {
+      id: "shares",
+      icon: "shares",
+      label: "Shares",
+      value: "10",
+      helper: "community members amplified it",
+    },
+    {
+      id: "leads",
+      icon: "leads",
+      label: "Leads",
+      value: "0",
+      helper: "qualified answers submitted",
+    },
+    {
+      id: "comments",
+      icon: "comments",
+      label: "Comments",
+      value: "1",
+      helper: "recent check-ins",
+    },
+  ],
 };
 
 const SUBMIT_QUESTIONS: LinkSubmitQuestion[] = [

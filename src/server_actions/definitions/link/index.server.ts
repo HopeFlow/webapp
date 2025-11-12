@@ -34,16 +34,113 @@ const BOT_HINTS = [
   "wget",
 ] as const;
 
-const getClientIpFromHeaders = (
-  reqHeaders: HeaderSource | null,
-): string | null => {
-  if (!reqHeaders) return null;
+function stripPort(s: string): string {
+  // 1.2.3.4:1234 -> 1.2.3.4, [2001:db8::1]:443 -> 2001:db8::1
+  if (s.startsWith("[")) {
+    const end = s.indexOf("]");
+    return end > 0 ? s.slice(1, end) : s;
+  }
+  const colon = s.indexOf(":");
+  // If it's IPv6 it will have many colons; only strip when it's clearly IPv4:port
+  return colon !== -1 && s.indexOf(":") === s.lastIndexOf(":")
+    ? s.slice(0, colon)
+    : s;
+}
+
+function isIpv4(ip: string): boolean {
+  // simple, permissive IPv4 check
+  const m = ip.match(/^(\d{1,3}\.){3}\d{1,3}$/);
+  if (!m) return false;
+  return ip.split(".").every((oct) => {
+    const n = Number(oct);
+    return (
+      n >= 0 &&
+      n <= 255 &&
+      String(n) === oct.replace(/^0+(?=\d)/, n === 0 ? "0" : String(n))
+    ); // avoid 01
+  });
+}
+
+function isIpv6(ip: string): boolean {
+  // basic IPv6 presence (compressed ok). We don’t fully validate every edge, just enough for filtering.
+  // Exclude bracketed forms; those are stripped earlier.
+  if (ip.includes(" ")) return false;
+  if (ip === "") return false;
+  // must contain at least one colon
+  if (!ip.includes(":")) return false;
+  // Disallow multiple ':::' sequences
+  if (ip.includes(":::")) return false;
+  return true;
+}
+
+function normalizeIpv4Mapped(ip: string): string {
+  // ::ffff:127.0.0.1 -> 127.0.0.1
+  const lower = ip.toLowerCase();
+  if (lower.startsWith("::ffff:")) {
+    const v4 = lower.slice(7);
+    if (isIpv4(v4)) return v4;
+  }
+  return ip;
+}
+
+function isIp(ip: string): boolean {
+  return isIpv4(ip) || isIpv6(ip);
+}
+
+function isPrivateIp(ip: string): boolean {
+  if (isIpv4(ip)) return isPrivateIpv4(ip);
+  // IPv6 private / special ranges
+  const lower = ip.toLowerCase();
   return (
-    reqHeaders.get("cf-connecting-ip") ||
-    reqHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    null
+    lower === "::1" || // loopback
+    lower.startsWith("fc") ||
+    lower.startsWith("fd") || // fc00::/7 unique local
+    lower.startsWith("fe80:") ||
+    lower.startsWith("fe90:") ||
+    lower.startsWith("fea0:") ||
+    lower.startsWith("feb0:") // fe80::/10 link-local
   );
-};
+}
+
+function isPrivateIpv4(ip: string): boolean {
+  const [a, b] = ip.split(".").map(Number);
+  // 10.0.0.0/8
+  if (a === 10) return true;
+  // 172.16.0.0/12
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  // 192.168.0.0/16
+  if (a === 192 && b === 168) return true;
+  // 127.0.0.0/8 loopback
+  if (a === 127) return true;
+  // 169.254.0.0/16 link-local
+  if (a === 169 && b === 254) return true;
+  return false;
+}
+
+function getClientIpFromHeaders(
+  reqHeaders: HeaderSource | null,
+  opts: { allowPrivate?: boolean } = {},
+): string | null {
+  if (!reqHeaders) return null;
+  const allowPrivate = opts.allowPrivate ?? false;
+
+  const xff = reqHeaders.get("x-forwarded-for");
+  const candidates = [
+    reqHeaders.get("cf-connecting-ip"),
+    reqHeaders.get("true-client-ip"),
+    reqHeaders.get("x-real-ip"),
+    ...(xff ? xff.split(",") : []),
+  ]
+    .filter(Boolean)
+    .map((s) => stripPort(s!.trim()))
+    .map(normalizeIpv4Mapped);
+
+  for (const ip of candidates) {
+    if (!isIp(ip)) continue;
+    if (allowPrivate || !isPrivateIp(ip)) return ip;
+  }
+  return null;
+}
 
 const anonymizeIp = (ip: string | null): string => {
   if (!ip) return "ip:unknown";
@@ -85,7 +182,11 @@ export const trackLinkPageView = defineServerFunction({
 
       const db = await getHopeflowDatabase();
       const user = await currentUserNoThrow();
-      const ipPrefix = anonymizeIp(getClientIpFromHeaders(headerList));
+      const clientIpFromHeaders = getClientIpFromHeaders(headerList);
+      const ipPrefix = !!clientIpFromHeaders
+        ? anonymizeIp(clientIpFromHeaders)
+        : "ip:unknown";
+      console.log("ipPrefix", ipPrefix);
       const userAgent = headerList.get("user-agent") || "ua:unknown";
 
       await db
