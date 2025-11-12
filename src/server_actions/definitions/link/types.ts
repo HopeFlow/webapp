@@ -47,7 +47,6 @@ export type LinkTimelineRecord = {
 
 export interface LinkTimelineReadResult {
   actions: LinkTimelineRecord[];
-  viewer: { canComment: boolean; canReact: boolean };
 }
 
 export interface LinkTimelineCreateInput {

@@ -354,7 +354,7 @@ export const linkTimeline = createCrudServerAction<
       !context.nodes ||
       !context.link
     ) {
-      return { actions: [], viewer: { canComment: false, canReact: false } };
+      return { actions: [] };
     }
 
     const contextWithHistory = context as LinkContextWithHistory;
@@ -384,12 +384,7 @@ export const linkTimeline = createCrudServerAction<
       viewerUserId: viewer?.id ?? null,
     });
 
-    const viewerHasNode = Boolean(viewer && contextWithHistory.userNode);
-
-    return {
-      actions,
-      viewer: { canComment: viewerHasNode, canReact: viewerHasNode },
-    } satisfies LinkTimelineReadResult;
+    return { actions } satisfies LinkTimelineReadResult;
   },
   create: async ({ content, referer }, { linkCode }) => {
     const viewer = await currentUserNoThrow();

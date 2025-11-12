@@ -88,7 +88,10 @@ export const redirectToQuest = (props: { questId: string }): never =>
   );
 
 // Corresponding to src/app/(nodock)/link/[linkCode]/page.tsx
-export const redirectToLink = (props: { linkCode: string }): never =>
+export const redirectToLink = (props: {
+  linkCode: string;
+  referer?: string | undefined;
+}): never =>
   redirect(
     [
       "",
@@ -96,8 +99,11 @@ export const redirectToLink = (props: { linkCode: string }): never =>
         { part: "link", isParam: false },
         { part: "linkCode", isParam: true },
       ]),
-    ].join("/"),
+    ].join("/") + toSearchParams(props, ["referer"]),
   );
+
+// Corresponding to src/app/(nodock)/link/draft/page.tsx
+export const redirectToLinkDraft = (): never => redirect("/link/draft");
 
 // Corresponding to src/app/(dock)/chat/[questId]/[nodeId]/page.tsx
 export const redirectToChat = (props: {
@@ -127,6 +133,7 @@ const routeSpecs: Map<
   | "Login"
   | "Quest"
   | "Link"
+  | "LinkDraft"
   | "Chat",
   {
     pathRegExp: RegExp;
@@ -230,6 +237,15 @@ const routeSpecs: Map<
     {
       pathRegExp: /^\/link\/(?<linkCode>[^/]+)$/,
       paramsTypeDef: z.object({ linkCode: z.string() }),
+      searchParamsTypeDef: z.object({ referer: z.string().optional() }),
+      isPublic: true,
+    },
+  ],
+  [
+    "LinkDraft",
+    {
+      pathRegExp: /^\/link\/draft$/,
+      paramsTypeDef: undefined,
       searchParamsTypeDef: undefined,
       isPublic: false,
     },
@@ -307,6 +323,8 @@ export const redirectTo = (urlString: string): never => {
       return redirectToQuest(props as any);
     case "Link":
       return redirectToLink(props as any);
+    case "LinkDraft":
+      return redirectToLinkDraft();
     case "Chat":
       return redirectToChat(props as any);
   }

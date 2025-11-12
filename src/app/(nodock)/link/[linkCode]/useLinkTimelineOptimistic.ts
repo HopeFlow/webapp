@@ -20,23 +20,13 @@ type UseLinkTimelineOptimisticOptions = { user?: SafeUser };
 
 type MutationContext = { previousData?: LinkTimelineReadResult };
 
-const FALLBACK_VIEWER = { canComment: false, canReact: false };
-
 const toTimelineData = (
   data: LinkTimelineReadResult | boolean | undefined,
-  user?: SafeUser,
 ): LinkTimelineReadResult => {
   if (data && typeof data === "object") {
     return data;
   }
-  return {
-    actions: [],
-    viewer: {
-      ...FALLBACK_VIEWER,
-      canComment: Boolean(user),
-      canReact: Boolean(user),
-    },
-  };
+  return { actions: [] };
 };
 
 const buildOptimisticCommentRecord = (
@@ -99,14 +89,13 @@ const applyOptimisticComment = ({
   const previous = queryClient.getQueryData<LinkTimelineReadResult | boolean>(
     queryKey,
   );
-  const safePrevious = toTimelineData(previous, user);
+  const safePrevious = toTimelineData(previous);
   const optimisticRecord = buildOptimisticCommentRecord(
     variables.content,
     user,
   );
 
   queryClient.setQueryData<LinkTimelineReadResult>(queryKey, {
-    viewer: safePrevious.viewer ?? FALLBACK_VIEWER,
     actions: [...safePrevious.actions, optimisticRecord],
   });
 

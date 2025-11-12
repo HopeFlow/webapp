@@ -269,7 +269,6 @@ export default publicPage(
       }
       return (
         <ContentsForUser linkCode={linkCode} referer={referer} headers={h} />
-        // <AccessRestricted />
       );
     },
     {

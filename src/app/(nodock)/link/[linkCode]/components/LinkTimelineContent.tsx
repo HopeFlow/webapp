@@ -17,10 +17,7 @@ export type TimelineAction = React.ComponentProps<
   typeof Timeline
 >["actions"][number];
 
-const EMPTY_TIMELINE: LinkTimelineReadResult = {
-  actions: [],
-  viewer: { canComment: false, canReact: false },
-};
+const EMPTY_TIMELINE: LinkTimelineReadResult = { actions: [] };
 
 export function LinkTimelineContent({
   linkCode,
@@ -41,8 +38,6 @@ export function LinkTimelineContent({
   const timelineData: LinkTimelineReadResult =
     data && typeof data !== "boolean" ? data : EMPTY_TIMELINE;
   const pendingReactionId = update.variables?.commentId ?? null;
-  const canComment = Boolean(user) && timelineData.viewer.canComment;
-  const canReact = Boolean(user) && timelineData.viewer.canReact;
 
   const timelineActions = useMemo<TimelineAction[]>(() => {
     const mapped: TimelineAction[] = [];
@@ -87,7 +82,7 @@ export function LinkTimelineContent({
               )?.optimistic,
             ),
           isPending: update.isPending && pendingReactionId === entry.comment.id,
-          onReact: canReact
+          onReact: !!user
             ? (desired: LinkTimelineReaction | null) => {
                 const nextReaction =
                   entry.comment?.viewerReaction === desired ? null : desired;
@@ -104,17 +99,11 @@ export function LinkTimelineContent({
       mapped.unshift(action); // unshift to put comments at the top
     }
     return mapped;
-  }, [
-    timelineData.actions,
-    pendingReactionId,
-    canReact,
-    update,
-    resolvedReferer,
-  ]);
+  }, [timelineData.actions, pendingReactionId, update, resolvedReferer, user]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canComment) return;
+    if (!user) return;
     const trimmed = commentText.trim();
     if (!trimmed) {
       setFormError("Please enter a comment before posting.");
@@ -131,13 +120,9 @@ export function LinkTimelineContent({
     }
   };
 
-  const placeholder = user
-    ? canComment
-      ? "Share your thoughts…"
-      : "Join the quest to comment"
-    : "Sign in to comment";
+  const placeholder = user ? "Share your thoughts …" : "Sign in to comment";
 
-  const commentDisabled = !canComment || create.isPending;
+  const commentDisabled = create.isPending || !user;
 
   return (
     <div className="">
@@ -171,7 +156,7 @@ export function LinkTimelineContent({
               buttonSize="sm"
               disabled={commentDisabled || commentText.trim().length === 0}
             >
-              {user ? "Post" : "Sign in and Post"}
+              {"Post"}
             </Button>
           </div>
         </div>
