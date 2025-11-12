@@ -15,7 +15,7 @@ import {
 
 export const useLinkTimeline = (...args: [LinkTimelineReadParams]) => {
   const queryKey = ["linkTimeline", ...args];
-  const dependantQueryKeys = [["linkTimeline"], queryKey];
+  const dependantQueryKeys = [["linkTimeline"], ["linkStatsCard"], queryKey];
   const queryClient = useQueryClient();
   const query = useQuery(
     { queryKey, queryFn: async () => await linkTimeline("read", ...args) },

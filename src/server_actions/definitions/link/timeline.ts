@@ -21,6 +21,7 @@ import { getQuestAndNodesForLinkByLinkCode } from "./index.server";
 import type { QuestHistoryWithRelations } from "../common/quest_history";
 import { and, eq } from "drizzle-orm";
 import { SocialMediaName } from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
+import { linkStatsCard } from "./stats";
 
 type HistoryEntryWithActor = QuestHistoryWithRelations & {
   actorName?: string | null;
@@ -494,3 +495,5 @@ export const linkTimeline = createCrudServerAction<
     return true;
   },
 });
+
+linkTimeline.addInvalidation(linkStatsCard);

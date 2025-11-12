@@ -175,7 +175,11 @@ export const useLinkTimelineOptimistic = (
 ) => {
   const queryClient = useQueryClient();
   const queryKey = getLinkTimelineQueryKey(params);
-  const dependantQueryKeys = [["linkTimeline"], queryKey] as const;
+  const dependantQueryKeys = [
+    ["linkTimeline"],
+    ["linkStatsCard"],
+    queryKey,
+  ] as const;
   const user = options?.user;
 
   const query = useQuery(

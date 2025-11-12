@@ -1,5 +1,23 @@
 import { SocialMediaName } from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
 
+export type LinkStatusStatIcon = "views" | "shares" | "leads" | "comments";
+
+export type LinkStatusStat = {
+  id: LinkStatusStatIcon;
+  icon: LinkStatusStatIcon;
+  label: string;
+  value: string;
+  helper?: string;
+};
+
+export interface LinkStatsCardReadParams {
+  questId: string;
+}
+
+export interface LinkStatsCardReadResult {
+  stats: LinkStatusStat[];
+}
+
 export type LinkTimelineActionType =
   | "started the quest"
   | "joined the quest"

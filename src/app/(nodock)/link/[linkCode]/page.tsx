@@ -19,6 +19,7 @@ import {
   trackLinkPageView,
 } from "@/server_actions/definitions/link/index.server";
 import { prefetchLinkTimeline } from "@/server_actions/client/link/linkTimeline";
+import { prefetchLinkStatsCard } from "@/server_actions/client/link/linkStatsCard";
 import AccessRestricted from "./components/accessRestricted";
 import { notFound } from "next/navigation";
 import QuestOwnerNotice from "./components/questOwnerNotice";
@@ -226,7 +227,12 @@ async function ContentsForUser({
   };
 
   return (
-    <Prefetch actions={[prefetchLinkTimeline({ linkCode })]}>
+    <Prefetch
+      actions={[
+        prefetchLinkTimeline({ linkCode }),
+        prefetchLinkStatsCard({ questId: quest.id }),
+      ]}
+    >
       <LinkMain
         title={quest.title}
         description={quest.description}

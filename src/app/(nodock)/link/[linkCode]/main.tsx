@@ -3,14 +3,12 @@
 import { MobileHeader } from "@/components/mobile_header";
 import type { SafeUser } from "@/helpers/server/auth";
 import {
-  LinkOverviewMedia,
-  LinkOverviewEngagement,
+  LinkEngagement,
   type LinkOverviewMediaItem,
-  type LinkStatusInfo,
   type LinkInviterInfo,
   type LinkSubmitQuestion,
   type LinkActionLabels,
-} from "./components/LinkOverviewSection";
+} from "./components/LinkEngagement";
 import {
   LinkMotivatorAccordion,
   LinkRewardAccordion,
@@ -24,43 +22,41 @@ import { QuestMedia } from "@/db/constants";
 import { LinkTimelineContent } from "./components/LinkTimelineContent";
 import { LinkBotonicalTree } from "./components/LinkBotonicalTree";
 import { LinkReflowTree } from "./components/LinkReflowTree";
+import { LinkMediaCarousel } from "./components/LinkMediaCarousel";
+import { StatsCard } from "./components/StatsCard";
+import { useLinkStatsCard } from "@/server_actions/client/link/linkStatsCard";
+import type { LinkStatusStat } from "@/server_actions/definitions/link/types";
 
-const STATUS: LinkStatusInfo = {
-  stage: "Withering",
-  branchColor: "var(--color-amber-600, #22c55e)",
-  leafColor: "var(--color-amber-300, #22c55e)",
-  expiresInDays: 7,
-  stats: [
-    {
-      id: "views",
-      icon: "views",
-      label: "Views",
-      value: "150",
-      helper: "people have seen this quest",
-    },
-    {
-      id: "shares",
-      icon: "shares",
-      label: "Shares",
-      value: "10",
-      helper: "community members amplified it",
-    },
-    {
-      id: "leads",
-      icon: "leads",
-      label: "Leads",
-      value: "0",
-      helper: "qualified answers submitted",
-    },
-    {
-      id: "comments",
-      icon: "comments",
-      label: "Comments",
-      value: "1",
-      helper: "recent check-ins",
-    },
-  ],
-};
+const FALLBACK_STATS: LinkStatusStat[] = [
+  {
+    id: "views",
+    icon: "views",
+    label: "Views",
+    value: "0",
+    helper: "people have seen this quest",
+  },
+  {
+    id: "shares",
+    icon: "shares",
+    label: "Shares",
+    value: "0",
+    helper: "community members amplified it",
+  },
+  {
+    id: "leads",
+    icon: "leads",
+    label: "Leads",
+    value: "0",
+    helper: "qualified answers submitted",
+  },
+  {
+    id: "comments",
+    icon: "comments",
+    label: "Comments",
+    value: "0",
+    helper: "recent check-ins",
+  },
+];
 
 const SUBMIT_QUESTIONS: LinkSubmitQuestion[] = [
   { question: "Some question", answerRequired: true },
@@ -220,14 +216,19 @@ export function LinkMain({
     }),
   );
   const mediaItems = coverMediaItems.length ? coverMediaItems : [];
+  const statsQuery = useLinkStatsCard({ questId });
+  const stats = statsQuery.data?.stats ?? FALLBACK_STATS;
   return (
     <div className="flex w-full max-w-6xl flex-col self-center">
       <MobileHeader user={user} />
       <div className="flex flex-col gap-4 p-6 md:gap-6">
         <LinkTitleSection title={title} user={user} />
         <div className="flex flex-col gap-4 md:flex-row md:gap-6">
-          <LinkOverviewMedia mediaItems={mediaItems} status={STATUS} />
-          <LinkOverviewEngagement
+          <div className="flex flex-col gap-4 md:w-2/3">
+            <LinkMediaCarousel mediaItems={mediaItems} />
+            <StatsCard stats={stats} />
+          </div>
+          <LinkEngagement
             inviter={inviterInfo}
             submitQuestions={SUBMIT_QUESTIONS}
             actionLabels={ACTION_LABELS}
