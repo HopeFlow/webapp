@@ -30,7 +30,6 @@ export function Steps({ onClick, numberOfSteps, currentStep }: StepsProps) {
         to >= numberOfSteps - 2 ? numberOfSteps : to,
       ];
     })();
-    console.log({ from, to, currentStep, numberOfSteps });
     const result = [
       ...(from === 0 ? [] : from === 1 ? [0] : [0, -1]),
       ...new Array(
@@ -45,7 +44,6 @@ export function Steps({ onClick, numberOfSteps, currentStep }: StepsProps) {
           ? [numberOfSteps - 1]
           : [-1, numberOfSteps - 1]),
     ];
-    console.log({ result });
     return result;
   })();
   return (

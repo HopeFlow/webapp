@@ -1,13 +1,14 @@
 "use client";
 
-import { Button } from "@/components/button";
+import { Button, GhostButton } from "@/components/button";
+import { ArrowPathIcon } from "@/components/icons/arrow_path";
 import { ArrowUpIcon } from "@/components/icons/arrow_up";
 import { MicIcon } from "@/components/icons/microphone";
 import MarkdownViewer from "@/components/markdown/view";
 import { useSpeechRecognitionEngine } from "@/helpers/client/asr";
 import { isOptionsMessage, useCreateQuestChat } from "@/helpers/client/LLM";
 import { cn } from "@/helpers/client/tailwind_helpers";
-import { CreateQuestChatMessage } from "@/helpers/server/LLM";
+import type { QuestIntentState } from "@/helpers/server/LLM";
 import {
   type Dispatch,
   type SetStateAction,
@@ -17,10 +18,12 @@ import {
 } from "react";
 
 export const ChatWithLLM = ({
-  setMessages,
+  setUserChatMessageCount,
+  setQuestIntentState,
   continueToNextStep,
 }: {
-  setMessages: Dispatch<SetStateAction<CreateQuestChatMessage[]>>;
+  setUserChatMessageCount: Dispatch<SetStateAction<number>>;
+  setQuestIntentState: Dispatch<SetStateAction<QuestIntentState | null>>;
   continueToNextStep: () => void;
 }) => {
   const discussionRef = useRef<HTMLDivElement>(null);
@@ -32,8 +35,15 @@ export const ChatWithLLM = ({
         textAreaRef.current.value = value;
       }, []),
     );
-  const [messages, thinking, thinkingMessage, confidence, postUserMessage] =
-    useCreateQuestChat();
+  const {
+    thinking,
+    thinkingMessage,
+    messages,
+    questIntentState,
+    confidence,
+    error,
+    postUserMessage,
+  } = useCreateQuestChat();
   useLayoutEffect(() => {
     const el = discussionRef.current;
     if (!el) return;
@@ -84,17 +94,63 @@ export const ChatWithLLM = ({
               .filter((m) => ["user", "assistant", "options"].includes(m.role))
               .map((message, i) =>
                 isOptionsMessage(message) ? (
-                  message.options.map((m, j) => (
-                    <Button
-                      key={`o-${i}-${j}`}
-                      buttonType="neutral"
-                      buttonStyle="outline"
-                      className="box-border w-fit justify-start border-gray-400 bg-transparent p-2 text-gray-500"
-                      onClick={() => commit(m)}
+                  message.confirmation ? (
+                    <div
+                      key={`o-c-${i}`}
+                      className="flex w-full flex-row items-center justify-center gap-4"
                     >
-                      {m}
-                    </Button>
-                  ))
+                      {message.options.map((m, j) => (
+                        <Button
+                          key={`o-${i}-${j}`}
+                          buttonType={
+                            m.toLowerCase() === "accept"
+                              ? "success"
+                              : m.toLowerCase() === "reject"
+                                ? "error"
+                                : "neutral"
+                          }
+                          buttonStyle="outline"
+                          className={cn(
+                            "box-border",
+                            ["Accept", "Reject"].includes(m)
+                              ? "w-1/4"
+                              : "w-fit justify-start border-gray-400 bg-transparent p-2 text-gray-500",
+                          )}
+                          onClick={() => {
+                            console.log("Confirmation clicked:", m);
+                            if (m.toLowerCase() === "accept") {
+                              setQuestIntentState(questIntentState);
+                              setUserChatMessageCount(
+                                messages.filter((m) => m.role === "user")
+                                  .length,
+                              );
+                              Promise.resolve().then(() =>
+                                continueToNextStep(),
+                              );
+                            } else if (m.toLowerCase() === "reject")
+                              postUserMessage(
+                                "Recap is not accurate. Please revise.",
+                              );
+                            else commit(`Ambiguous confirmation: ${m}`);
+                          }}
+                        >
+                          {m}
+                        </Button>
+                      ))}
+                    </div>
+                  ) : (
+                    message.options.map((m, j) => (
+                      <Button
+                        key={`o-${i}-${j}`}
+                        buttonType="neutral"
+                        buttonStyle="outline"
+                        className="box-border w-fit justify-start border-gray-400 bg-transparent p-2 text-gray-500"
+                        onClick={() => commit(m)}
+                      >
+                        {m}
+                      </Button>
+                    ))
+                  )
                 ) : (
                   <MarkdownViewer
                     key={`m-${i}`}
@@ -107,6 +163,14 @@ export const ChatWithLLM = ({
                   />
                 ),
               )}
+            {error && (
+              <div className="text-error flex w-full flex-row gap-4">
+                <div className="flex-1">Error: {error}</div>
+                <GhostButton onClick={() => postUserMessage()}>
+                  <ArrowPathIcon />
+                </GhostButton>
+              </div>
+            )}
           </div>
           {thinking && (
             <div className="flex items-center justify-center p-4">
@@ -169,10 +233,9 @@ export const ChatWithLLM = ({
             }
             buttonType="primary"
             onClick={() => {
-              setMessages(
-                messages.filter((m) =>
-                  ["user", "assistant"].includes(m.role),
-                ) as CreateQuestChatMessage[],
+              setQuestIntentState(questIntentState);
+              setUserChatMessageCount(
+                messages.filter((m) => m.role === "user").length,
               );
               Promise.resolve().then(() => continueToNextStep());
             }}

@@ -5,19 +5,30 @@ import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 import { defineServerFunction } from "./define_server_function";
 
+// #region preamble
+
 // const defineServerFunction = (params: object) => {
 //   return async () => {};
 // };
 
-const getTransliteratePrompt = (inputName: string) =>
-  `
-transliterate "${inputName}" as a sequence of ASCII characters.
-OUTPUT ONLY THE TRANSLITERATION WITHOUT ANY EXTRA TEXT OR INFORMATION.
+if (!process.env.OPENAI_API_KEY) {
+  throw new Error("OPENAI_API_KEY is not set");
+}
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// #endregion
+
+// #region Transliterate
+
+const getTransliteratePrompt = (inputName: string) => `
+Transliterate the following name as ASCII-only characters.
+Return only the transliteration, no quotes, no extra text.
+
+Name: ${JSON.stringify(inputName)}
 `;
 
 export const transliterate = defineServerFunction({
   handler: async (inputName: string) => {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await openai.responses.create({
       model: "gpt-5-nano",
       input: getTransliteratePrompt(inputName),
@@ -28,62 +39,40 @@ export const transliterate = defineServerFunction({
   scope: "global::llm",
 });
 
-const createQuestChatSystemPrompt = `
-You are a coach helping the user clarify a quest — something they are searching for and want to describe clearly for their extended social circle. Your goal is to help them articulate what they are looking for and, if possible, identify which expertise, skills, or locations might make someone more likely to help. This enables their network to assist directly or refer the request to others.
-🧭 Interaction Cycle
-You must follow this exact cycle for every turn:
-1️⃣ Clarify → Ask ONE clear question about the user’s quest.  - Multiple-choice questions are allowed.  - If multiple choice, put a blank line, then put every option in a new line starting with %%%%OB%%%% and ending with %%%%OE%%%%
-2️⃣ Recap & Confirm → Every third message (or when unsure), recap what you’ve learned so far and ask for confirmation of understanding.
-3️⃣ Respond briefly if the user is confused by your previous message.
-Do exactly one of these three actions per turn.
-🧱 Content Restrictions
-Only ask about:
-The description
-Information that can be shared as plain text / Unicode characters
-Do not ask for:
-Photo
-Document
-Other media
-Contact method
-Reward or incentive
-Permission for anything
-Do not generate the final description or search plans, and do not suggest plans of action.
-🪜 Output Format
-After your main response, you must include the following block exactly as shown:
-<your main message text here><four empty lines>CONFIDENCE: [ZERO | POOR | DOUBTFUL | GOOD | CONFIDENT | SURE] 
-Confidence reflects how complete and real the gathered information is for generating a 3+ paragraph description:
-ZERO: Mostly hallucinated text
-POOR: Some real info but still mostly hallucinated
-DOUBTFUL: Real info and hallucination are about equal
-GOOD: Good real info, some hallucination
-CONFIDENT: Great real info, little hallucination
-SURE: Strong two-way correlation between info and generated description
-If you ever forget to include the CONFIDENCE: block, treat your previous reply as invalid and correct yourself immediately.
-🧩 Example
-Example of correct output format,
-Example1:
-Got it! Could you tell me where you last saw the item?
+// #endregion
 
+// #region general LLM helpers
 
+export type ReasoningEvent = { type: "reasoning-part"; title: string };
 
+async function* streamProxy<E extends OpenAI.Responses.ResponseStreamEvent>(
+  stream: AsyncIterable<E, void, unknown>,
+) {
+  let deltaReasonBuffer = "";
+  for await (const event of stream) {
+    switch (event.type) {
+      case "response.reasoning_summary_text.delta": {
+        deltaReasonBuffer += event.delta;
+        const m =
+          deltaReasonBuffer.match(/\*\*\s*(.+?)\s*\*\*/) ??
+          deltaReasonBuffer.match(/#+\s*(.+?)\s*\n/);
+        if (m) {
+          deltaReasonBuffer = "";
+          yield { type: "reasoning-part", title: m[1] } as ReasoningEvent;
+        }
+        break;
+      }
+      case "error":
+        throw new Error(event.message);
+      default:
+        yield event;
+    }
+  }
+}
 
-CONFIDENCE: GOOD 
-Example2:
-What is the purpose of acquiring the item?
+// #endregion
 
-%%%%OB%%%% Research %%%%OE%%%%
-%%%%OB%%%% Personal collection %%%%OE%%%%
-%%%%OB%%%% Repairing my motor %%%%OE%%%%
-
-CONFIDENCE: POOR
-Example3:
-So, you are looking for a donor with O- blood type in Birmangham. Am I correct?
-
-CONFIDENCE: CONFIDENT
-
-✨ Tone
-Keep your tone positive, casual, and encouraging. Be concise and focus only on clarifying the user’s quest.
-`;
+// #region Create Quest Chat
 
 export type CreateQuestChatMessage = {
   role: "user" | "assistant";
@@ -102,178 +91,312 @@ const confidenceLevels = [
 export type ConfidenceLevel = (typeof confidenceLevels)[number];
 
 export type TextDeltaEvent = { type: "text-delta"; text: string };
-export type OptionDeltaEvent = { type: "option-delta"; text: string };
+export type OptionDeltaEvent = {
+  type: "option-delta";
+  text: string;
+  confirmation?: boolean;
+};
+export type UpdateQuestIntentStateEvent = {
+  type: "update-quest-intent-state";
+  questIntentState: QuestIntentState;
+};
 export type SetConfidenceEvent = {
   type: "set-confidence";
   level: ConfidenceLevel;
 };
-export type ReasoningEvent = { type: "reasoning-part"; title: string };
+
+const updateQuestIntentStateSystemPrompt = `
+You are an expert psychologist and sociologist.
+
+Input JSON:
+{ summary?: string, newMessage: string }
+
+Task:
+1. Update the summary:
+   - If summary exists: append essential new info from newMessage.
+   - If not: summary = newMessage.
+   (Keep summary short, factual, cumulative.)
+
+2. Rate the updated summary with these booleans:
+   - clear: purpose is clear
+   - noAmbiguity: free of ambiguity
+   - understandable: easy to understand
+   - comprehensible: meaning fully graspable
+   - concise: not verbose or repetitive
+   - adequate: enough info to understand the purpose
+   - sufficient: enough data for reader to feel the situation
+   - covering: covers enough details to create a vivid picture
+   - complete: fully states the intended purpose
+
+One-shot example:
+Input:
+{ "summary": "User wants to find a lost bicycle", "newMessage": "It was stolen last night" }
+Output:
+{
+  "summary": "User wants to find a lost bicycle stolen last night",
+  "clear": true,
+  "noAmbiguity": true,
+  "understandable": true,
+  "comprehensible": true,
+  "concise": true,
+  "adequate": false,
+  "sufficient": false,
+  "covering": false,
+  "complete": false
+}
+
+Now process the actual input and return only the JSON object.
+`.trim();
+
+const generateClarifyingQuestionsSystemPrompt = `
+You clarify the user's goal.
+
+Input:
+{
+  "summary": string,
+  "issues": { "ambiguous": bool, "missingInfo": bool, "verbose": bool },
+  "clarityLabel": ${confidenceLevels.map(l => JSON.stringify(l)).join("|")}
+}
+
+Rules:
+- ONE overall clarifying question unless the state is crystal clear.
+- Crystal clear = clarityLabel=="SURE" or clarityLabel=="CONFIDENT" AND issues.ambiguous==false AND issues.missingInfo==false.
+- A question may have parts but must end as one question.
+- Add <option>...</option> lines (short answers) wherever obvious.
+- If crystal clear: give 1-sentence recap, then on new lines: <accept/> and <reject/>.
+- No explanations. Output only the question+options OR recap+accept/reject.
+
+--- ONE-SHOT EXAMPLES ---
+
+(1) Example: ambiguous → ask question with options
+Input:
+{ "summary":"User is seeking a possible donor", "issues":{"ambiguous":true,"missingInfo":true,"verbose":false}, "clarityLabel":"POOR" }
+Output:
+What kind of donation are you looking for?
+<option>Biological Donor</option>
+<option>Financial Donor</option>
+<option>In-Kind Donor</option>
+
+(2) Example: missing info → ask question (no options needed)
+Input:
+{ "summary":"User wants help researching on a 17th century literary work", "issues":{"ambiguous":false,"missingInfo":true,"verbose":false}, "clarityLabel":"POOR" }
+Output:
+Is it a novel or a play? Or something else?
+
+(3) Example: crystal clear → recap + accept/reject
+Input:
+{ "summary":"User wants guidance on renewing their German passport from someone who recently had similar experience", "issues":{"ambiguous":false,"missingInfo":false,"verbose":false}, "clarityLabel":"CONFIDENT" }
+Output:
+Lets recap. You want to renew your passport and seek guidance from someone who has recently done that. Correct?
+<accept/>
+<reject/>
+
+--- NOW PROCESS THE ACTUAL INPUT ---
+`.trim();
+
+const questIntentStateSchema = z.object({
+  summary: z.string(),
+  clear: z.boolean(),
+  noAmbiguity: z.boolean(),
+  understandable: z.boolean(),
+  comprehensible: z.boolean(),
+  concise: z.boolean(),
+  adequate: z.boolean(),
+  sufficient: z.boolean(),
+  covering: z.boolean(),
+  complete: z.boolean(),
+});
+
+export type QuestIntentState = z.infer<typeof questIntentStateSchema>;
 
 export const createQuestChat = defineServerFunction({
   id: "createQuestChat",
   scope: "global::llm",
   handler: async function* (
-    messages: CreateQuestChatMessage[],
+    previousState: QuestIntentState | null,
+    newUserMessage: string,
   ): AsyncGenerator<
-    ReasoningEvent | TextDeltaEvent | OptionDeltaEvent | SetConfidenceEvent,
+    | TextDeltaEvent
+    | OptionDeltaEvent
+    | SetConfidenceEvent
+    | ReasoningEvent
+    | UpdateQuestIntentStateEvent,
     void,
     unknown
   > {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    // 1) Update quest intent state
+    yield { type: "reasoning-part", title: "Updating quest intent state..." };
 
-    const input = [
-      { role: "system" as const, content: createQuestChatSystemPrompt },
-      ...messages.map((m) => ({ role: m.role, content: m.content })),
-    ];
-
-    yield { type: "reasoning-part", title: "Thinking ..." };
-    const stream = await openai.responses.create({
-      model: "gpt-5-nano",
-      input,
-      reasoning: { effort: "minimal", summary: "detailed" },
-      text: { format: { type: "text" } },
+    const updateIntentStateStream = openai.responses.stream({
+      model: "gpt-5-mini",
+      // temperature: 0,
+      reasoning: { effort: "low" },
+      text: {
+        format: zodTextFormat(questIntentStateSchema, "questIntentState"),
+      },
+      input: [
+        { role: "system", content: updateQuestIntentStateSystemPrompt },
+        {
+          role: "user",
+          content: JSON.stringify(
+            previousState
+              ? { summary: previousState.summary, newUserMessage }
+              : { newUserMessage },
+          ),
+        },
+      ],
       stream: true,
     });
 
-    let done = false;
-    let deltaTextBuffer = "";
-    let deltaReasonBuffer = "";
+    for await (const event of streamProxy(updateIntentStateStream)) {
+      if (event.type === "reasoning-part") {
+        yield event;
+      }
+    }
 
-    const confidenceLevelRegExp = new RegExp(
-      `(${confidenceLevels.join("|")})`,
-      "si",
-    );
-    const createPermissivePattern = (str: string) =>
-      str
-        .split("")
-        .map((c) => `(?:${c}|$)`)
-        .join("");
-    const confidenceEndingRegExp = new RegExp(
-      `\n(${createPermissivePattern("CONFIDENCE:")}\\s*(${confidenceLevels
-        .map((c) => createPermissivePattern(c))
-        .join("|")}))[\\.\\;]?\\s*$`,
-      "si",
-    );
-    const optionStartRegExp = new RegExp(
-      `^${createPermissivePattern("%%%%OB%%%%")}`,
-      "si",
-    );
+    const updatedState = (await updateIntentStateStream.finalResponse())
+      .output_parsed;
+    if (!updatedState) {
+      throw new Error("Failed to update QuestIntentState");
+    }
 
-    for await (const event of stream) {
+    yield { type: "update-quest-intent-state", questIntentState: updatedState };
+
+    const clarity = ((score): ConfidenceLevel => {
+      if (score <= 0.12) return "ZERO";
+      if (score <= 0.25) return "POOR";
+      if (score <= 0.5) return "DOUBTFUL";
+      if (score <= 0.7) return "GOOD";
+      if (score <= 0.9) return "CONFIDENT";
+      return "SURE";
+    })(
+      [
+        updatedState.clear,
+        updatedState.noAmbiguity,
+        updatedState.understandable,
+        updatedState.comprehensible,
+        updatedState.concise,
+        updatedState.adequate,
+        updatedState.sufficient,
+        updatedState.covering,
+        updatedState.complete,
+      ].filter(Boolean).length / 9,
+    );
+    yield { type: "set-confidence", level: clarity };
+
+    // 3) Generate clarifying question + options
+    yield {
+      type: "reasoning-part",
+      title: "Generating clarifying question...",
+    };
+
+    const generateQuestionsStream = openai.responses.stream({
+      model: "gpt-5-nano",
+      // temperature: 0.7,
+      input: [
+        { role: "system", content: generateClarifyingQuestionsSystemPrompt },
+        {
+          role: "user",
+          content: JSON.stringify({
+            questIntentState: updatedState,
+            newUserMessage,
+            clarity,
+          }),
+        },
+      ],
+      stream: true,
+    });
+
+    let lineBuffer = "";
+    for await (const event of streamProxy(generateQuestionsStream)) {
       switch (event.type) {
-        case "response.output_text.delta": {
-          deltaTextBuffer += event.delta;
-          const confidenceEndingMatch = deltaTextBuffer.match(
-            confidenceEndingRegExp,
-          );
-          let consumableText = deltaTextBuffer;
-          deltaTextBuffer = "";
-          if (confidenceEndingMatch && confidenceEndingMatch[0] !== "") {
-            deltaTextBuffer = consumableText.slice(confidenceEndingMatch.index);
-            consumableText = consumableText.slice(
-              0,
-              confidenceEndingMatch.index,
-            );
-            const confidenceLevelMatch = confidenceEndingMatch[1].match(
-              confidenceLevelRegExp,
-            );
-            if (confidenceLevelMatch) {
-              done = true;
-              yield {
-                type: "set-confidence",
-                level: confidenceLevelMatch[1].toUpperCase(),
-              } as SetConfidenceEvent;
-            }
-          }
-          if (consumableText !== "") {
-            const incompleteLines: string[] = [];
-            for (const line of consumableText.split("\n")) {
-              const optionMatch = line.match(/%%%%OB%%%%(.*?)%%%%OE%%%%/);
-              if (optionMatch) {
-                if (!/please specify/i.test(optionMatch[1])) {
-                  yield {
-                    type: "option-delta",
-                    text: optionMatch[1].trim(),
-                  } as OptionDeltaEvent;
-                }
-              } else {
-                const optionStartMatch = line.match(optionStartRegExp);
-                if (optionStartMatch && optionStartMatch[0] !== "") {
-                  incompleteLines.push(line);
-                } else
-                  yield {
-                    type: "text-delta",
-                    text: line.replace(/%%%%O\w%%%%/g, ","),
-                  } as TextDeltaEvent;
-              }
-            }
-            deltaTextBuffer = incompleteLines.join("\n") + deltaTextBuffer;
-          }
+        case "reasoning-part": {
+          yield event;
           break;
         }
-        case "response.reasoning_summary_text.delta": {
-          deltaReasonBuffer += event.delta;
-          const m =
-            deltaReasonBuffer.match(/\*\*\s*(.+?)\s*\*\*/) ??
-            deltaReasonBuffer.match(/#+\s*(.+?)\s*\n/);
-          if (m) {
-            deltaReasonBuffer = "";
-            yield { type: "reasoning-part", title: m[1] } as ReasoningEvent;
+        case "response.output_text.delta": {
+          const delta: string = event.delta ?? "";
+          if (!delta) break;
+
+          lineBuffer += delta;
+          if (lineBuffer.indexOf("accept") !== -1) {
+            console.log("Current line buffer:", lineBuffer, "delta:", delta);
           }
+
+          const lines = lineBuffer.split("\n");
+          for (const line of lines.slice(0, -1)) {
+            const trimmed = line.trim();
+            if (/^<option>.*<\/option>$/.test(trimmed.toLowerCase())) {
+              yield { type: "option-delta", text: trimmed.slice(8, -9).trim() };
+            } else if (trimmed.toLowerCase() === "<accept/>") {
+              console.log("Yielding accept");
+              yield {
+                type: "option-delta",
+                text: "Accept",
+                confirmation: true,
+              };
+            } else if (trimmed.toLowerCase() === "<reject/>") {
+              yield {
+                type: "option-delta",
+                text: "Reject",
+                confirmation: true,
+              };
+            } else {
+              yield { type: "text-delta", text: trimmed + "\n" };
+            }
+          }
+          if (
+            lines.length > 0 &&
+            !"<option>".startsWith(lines.at(-1)!.trim().slice(0, 8)) &&
+            !"<accept/".startsWith(lines.at(-1)!.trim().slice(0, 8)) &&
+            !"<reject/".startsWith(lines.at(-1)!.trim().slice(0, 8))
+          ) {
+            // Do not trim the last line as it may be a part of a larger line and
+            // spaces between words may be significant
+            yield { type: "text-delta", text: lines.at(-1)! };
+            lineBuffer = "";
+          } else lineBuffer = lines.at(-1) ?? "";
         }
       }
-      if (done) break;
+    }
+    if (lineBuffer.length > 0) {
+      const trimmed = lineBuffer.trim();
+      // Only trim the end as beginning spaces might be significant
+      if (/^\s*<option>.*<\/option>\s*$/.test(trimmed.toLowerCase())) {
+        yield { type: "option-delta", text: trimmed.slice(8, -9).trim() };
+      } else if (trimmed.toLowerCase() === "<accept/>") {
+        console.log("Yielding accept");
+        yield { type: "option-delta", text: "Accept", confirmation: true };
+      } else if (trimmed.toLowerCase() === "<reject/>") {
+        yield { type: "option-delta", text: "Reject", confirmation: true };
+      } else {
+        yield { type: "text-delta", text: lineBuffer };
+      }
     }
   },
 });
 
+// #endregion
+
+// #region Generate Title and Description for Quest
+
 const getQuestTitleAndDescriptionSystemPrompt = `
-You are an expert clarity assistant helping to summarize and reframe a user’s “quest” — something they are seeking, researching, or trying to achieve — based on a short chat transcript between the user and an assistant.
+Generate a quest description and two titles from the provided QuestIntentState.
 
-Your task:
-Given the full chat transcript, infer the user’s main goal, motivation, and context, then produce a concise JSON object describing their quest.
+Rules:
+- Description: at least two paragraphs; clear, engaging, faithful to the state; written in the user's tone using writingFeatures; no invented facts.
+- UserTitle: max 8 words, direct, describes what the user seeks.
+- PublicTitle: max 8 words, addressed to helpers (e.g., “Help <name> …”).
+- Stay concise and factual; follow style and emotional tone from writingFeatures.
 
-### GUIDELINES
-
-**description**  
-- Write about 3 paragraphs in total.  
-- Use third person (“Joseph is looking for…”, “Helena wants to…”).  
-- Capture *why* they want it (motivation, curiosity, or purpose).  
-- Explain *what exactly* they are seeking.  
-- Mention any priorities, focus areas, or constraints.  
-- End with a sense of direction or next step (“They hope that by finding X, they can Y…”).
-
-**seekerTitle**  
-- A short, inspiring title (max ~5 words).  
-- For user, to easily remember what the quest is about summarizing their mission.  
-- Example: "Rare 17th-Century Translation"
-
-**contributorTitle**  
-- A clear, friendly, and engaging title for others who might help.  
-- Example: "Can You Help Malcom Find a 17th-Century English Arabian Nights?"
-
-### INPUT
-
-You’ll receive a transcript formatted like this:
-name:
-Malcom
-user: <user messages>
-bot: <assistant messages>
-user: <user messages>
-bot: <assistant messages>
-
-Combine all relevant information from the user’s turns to infer intent and motivation.  
-Ignore generic assistant prompts unless they clarify facts.
-
-### OUTPUT EXAMPLE
-
-\`\`\`json
+Output only this JSON:
 {
-  "description": "The user is seeking a 17th-century English translation of Arabian Nights. They are fascinated by how early translators adapted Asian cultural narratives into Western literary traditions. Their goal is to study how meaning, tone, and storytelling evolved through translation. By finding this rare edition, they hope to explore cultural exchange through language and contribute insights to historical translation research.",
-  "seekerTitle": "17th-Century Arabian Nights",
-  "contributorTitle": "Help Malcom Find a 17th-Century Arabian Nights"
+  "description": "...",
+  "seekerTitle": "...",
+  "contributorTitle": "..."
 }
-\`\`\``;
+
+`.trim();
 
 const generatedDescriptionTitle = z
   .object({
@@ -310,66 +433,44 @@ export const getQuestTitleAndDescription = defineServerFunction({
   id: "getQuestTitleAndDescription",
   scope: "global::llm",
   handler: async function* (
-    conversation: string,
+    nameOfUser: string,
+    questIntentState: QuestIntentState,
   ): AsyncGenerator<
     ReasoningEvent | GeneratedTitleAndDescriptionEvent,
     void,
     unknown
   > {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-    const input = [
-      {
-        role: "system" as const,
-        content: getQuestTitleAndDescriptionSystemPrompt,
-      },
-      { role: "user" as const, content: conversation },
-    ];
-
-    yield { type: "reasoning-part", title: "Thinking ..." };
-    const stream = await openai.responses.create({
+    yield {
+      type: "reasoning-part",
+      title: "Generating title and description...",
+    };
+    const generateTitleDescriptionStream = openai.responses.stream({
       model: "gpt-5-nano",
-      input,
-      reasoning: { effort: "minimal", summary: "detailed" },
+      // temperature: 0.7,
       text: {
         format: zodTextFormat(
           generatedDescriptionTitle,
-          "generatedDescriptionTitle",
+          "generatedTitleAndDescription",
         ),
       },
+      input: [
+        { role: "system", content: getQuestTitleAndDescriptionSystemPrompt },
+        {
+          role: "user",
+          content: JSON.stringify({ nameOfUser, ...questIntentState }),
+        },
+      ],
       stream: true,
     });
-
-    let deltaTextBuffer = "";
-    let deltaReasonBuffer = "";
-
-    for await (const event of stream) {
-      switch (event.type) {
-        case "response.output_text.delta": {
-          deltaTextBuffer += event.delta;
-          break;
-        }
-        case "response.reasoning_summary_text.delta": {
-          deltaReasonBuffer += event.delta;
-          const m =
-            deltaReasonBuffer.match(/\*\*\s*(.+?)\s*\*\*/) ??
-            deltaReasonBuffer.match(/#+\s*(.+?)\s*\n/);
-          if (m) {
-            deltaReasonBuffer = "";
-            yield { type: "reasoning-part", title: m[1] } as ReasoningEvent;
-          }
-        }
-      }
+    for await (const event of streamProxy(generateTitleDescriptionStream))
+      if (event.type === "reasoning-part") yield event;
+    const result = (await generateTitleDescriptionStream.finalResponse())
+      .output_parsed;
+    if (!result) {
+      throw new Error("Failed to generate title and description");
     }
-
-    const generated = generatedDescriptionTitle.safeParse(
-      JSON.parse(deltaTextBuffer),
-    );
-    if (generated.success) {
-      yield {
-        type: "generated-title-and-description",
-        value: generated.data,
-      } as GeneratedTitleAndDescriptionEvent;
-    }
+    yield { type: "generated-title-and-description", value: result };
   },
 });
+
+// #endregion

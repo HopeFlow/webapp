@@ -1,11 +1,11 @@
 import { useGenerateDescriptionTitle } from "@/helpers/client/LLM";
 import { SafeUser } from "@/helpers/server/auth";
-import { CreateQuestChatMessage } from "@/helpers/server/LLM";
+import type { QuestIntentState } from "@/helpers/server/LLM";
 import { useEffect, useMemo, useState } from "react";
 
 export const GenerateDescriptionTitle = ({
   user,
-  messages,
+  questIntentState,
   setTitle,
   setShareTitle,
   setDescription,
@@ -13,44 +13,29 @@ export const GenerateDescriptionTitle = ({
   continueToNextStep,
 }: {
   user: SafeUser;
-  messages: CreateQuestChatMessage[];
+  questIntentState: QuestIntentState | null;
   setTitle: (v: string) => void;
   setShareTitle: (v: string) => void;
   setDescription: (v: string) => void;
   active: boolean;
   continueToNextStep: () => void;
 }) => {
-  const conversation = useMemo(
-    () =>
-      `name:\n${user.firstName ?? user.lastName ?? "User"}\n` +
-      messages
-        .map((m) =>
-          m.role === "user"
-            ? `user:\n${m.content}`
-            : m.role === "assistant"
-              ? `bot:\n${m.content}`
-              : null,
-        )
-        .filter((m) => m !== null)
-        .join("\n"),
-    [messages, user.firstName, user.lastName],
-  );
   const [generationStarted, setGenerationStarted] = useState(false);
-  const [descriptionTitle, thinking, thinkingMessage, setConversation] =
-    useGenerateDescriptionTitle();
+  const { descriptionTitle, thinking, thinkingMessage, setQuestIntentState } =
+    useGenerateDescriptionTitle(user.firstName ?? "User");
   useEffect(() => {
     if (!active) return;
     Promise.resolve().then(() => {
       setGenerationStarted(true);
-      setConversation(conversation);
+      setQuestIntentState(questIntentState);
     });
-  }, [active, conversation, setConversation]);
+  }, [active, questIntentState, setQuestIntentState]);
   useEffect(() => {
     if (!active || !generationStarted || thinking) return;
     Promise.resolve().then(() => {
       setGenerationStarted(false);
-      setTitle(descriptionTitle.contributorTitle);
-      setShareTitle(descriptionTitle.seekerTitle);
+      setTitle(descriptionTitle.seekerTitle);
+      setShareTitle(descriptionTitle.contributorTitle);
       setDescription(descriptionTitle.description);
       continueToNextStep();
     });

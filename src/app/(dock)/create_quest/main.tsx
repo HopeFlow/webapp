@@ -11,7 +11,7 @@ import { ConfirmCoverPhoto } from "./confirmCoverPhoto";
 import { UploadAdditionalMedia } from "./uploadAdditionalMedia";
 import { ConfirmScreeningQuestions } from "./confirmScreeningQuestions";
 import { GenerateDescriptionTitle } from "./generateDescriptionTitle";
-import type { CreateQuestChatMessage } from "@/helpers/server/LLM";
+import type { QuestIntentState } from "@/helpers/server/LLM";
 import { SafeUser } from "@/helpers/server/auth";
 import { GenerateCoverPhoto } from "./generateCoverPhoto";
 import type { InsertQuestData } from "./types";
@@ -24,9 +24,9 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
   const [latestVisitedState, setLatestVisitedState] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
   const [stableStepIndex, setStableStepIndex] = useState(0);
-  const [chatMessages, setChatMessages] = useState<CreateQuestChatMessage[]>(
-    [],
-  );
+  const [userChatMessageCount, setUserChatMessageCount] = useState(0);
+  const [questIntentState, setQuestIntentState] =
+    useState<QuestIntentState | null>(null);
 
   const [
     { type, title, shareTitle, description, rewardAmount, coverPhoto, media },
@@ -118,7 +118,8 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
 
   const formPartsAndSpecs: Array<ReactNode | [ReactNode, boolean]> = [
     <ChatWithLLM
-      setMessages={setChatMessages}
+      setUserChatMessageCount={setUserChatMessageCount}
+      setQuestIntentState={setQuestIntentState}
       continueToNextStep={continueToNextStep}
       key="chatWithLLM"
     />,
@@ -126,7 +127,7 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
       <GenerateDescriptionTitle
         user={user}
         active={stableStepIndex === 1 && stepIndex === 1}
-        messages={chatMessages}
+        questIntentState={questIntentState}
         setTitle={setTitle}
         setShareTitle={setShareTitle}
         setDescription={setDescription}
@@ -210,7 +211,7 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
       );
       if (santizedTargetStepIndex > latestVisitedState) {
         if (santizedTargetStepIndex > 0) {
-          if (chatMessages.length < 1) santizedTargetStepIndex = 0;
+          if (userChatMessageCount < 1) santizedTargetStepIndex = 0;
         }
         if (santizedTargetStepIndex > 2) {
           if (!description || description.trim() === "")
@@ -225,7 +226,7 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
     [
       formParts.length,
       latestVisitedState,
-      chatMessages.length,
+      userChatMessageCount,
       description,
       title,
     ],
