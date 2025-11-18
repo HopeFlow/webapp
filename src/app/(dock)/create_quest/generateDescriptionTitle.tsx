@@ -1,7 +1,7 @@
 import { useGenerateDescriptionTitle } from "@/helpers/client/LLM";
 import { SafeUser } from "@/helpers/server/auth";
 import type { QuestIntentState } from "@/helpers/server/LLM";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 export const GenerateDescriptionTitle = ({
   user,

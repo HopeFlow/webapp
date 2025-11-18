@@ -1,12 +1,6 @@
-import { loadImageFromUrl, timeout } from "@/helpers/client/common";
+import { loadBlobFromUrl, loadImageFromUrl } from "@/helpers/client/common";
 import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
-import {
-  type Dispatch,
-  type SetStateAction,
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
+import { useCallback, useState } from "react";
 import type { InsertQuestData } from "./types";
 import { useDebouncedEffect } from "@/helpers/client/hooks";
 
@@ -27,8 +21,13 @@ export const GenerateCoverPhoto = ({
     setGenerationStarted(false);
     if (imageDataUrl) {
       const image = await loadImageFromUrl(imageDataUrl);
+      const file = new File(
+        [await loadBlobFromUrl(imageDataUrl)],
+        "cover_photo.png",
+        { type: "image/png" },
+      );
       setCoverPhoto({
-        url: imageDataUrl,
+        content: file,
         alt: "cover_photo.png",
         width: image.width,
         height: image.height,
@@ -45,7 +44,6 @@ export const GenerateCoverPhoto = ({
   }, [active, description, setDescription]);
   useDebouncedEffect(() => {
     if (!active || !generationStarted || generating) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     passGeneratedPhoto();
   }, [active, generating, generationStarted, passGeneratedPhoto]);
   return (

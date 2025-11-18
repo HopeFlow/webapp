@@ -6,20 +6,9 @@ import { ArrowUpTrayIcon } from "@/components/icons/arrow_up_tray";
 import { PencilSquareIcon } from "@/components/icons/pencil_square";
 import { useFileUpload } from "@/helpers/client/hooks";
 import { cn } from "@/helpers/client/tailwind_helpers";
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useState } from "react";
 import type { InsertQuestData } from "./types";
-import Image from "next/image";
-import {
-  getImageDataUrl,
-  loadBlobFromUrl,
-  loadImageFromBlob,
-} from "@/helpers/client/common";
+import { loadImageFromBlob } from "@/helpers/client/common";
 import { FileImage } from "@/components/file_image";
 
 export const ConfirmCoverPhoto = ({
@@ -33,7 +22,7 @@ export const ConfirmCoverPhoto = ({
   setCoverPhoto: (v: InsertQuestData["coverPhoto"]) => void;
   continueToNextStep: () => void;
 }) => {
-  const [image, setImage] = useState<File | undefined>();
+  const [image, setImage] = useState<File | undefined>(coverPhoto?.content);
   const [isEditing, setIsEditing] = useState(false);
   const fileUpload = useFileUpload({ accept: "image/*", multiple: false });
   return (

@@ -79,16 +79,13 @@ export type CreateQuestChatMessage = {
   content: string;
 };
 
-const confidenceLevels = [
-  "ZERO",
-  "POOR",
-  "DOUBTFUL",
-  "GOOD",
-  "CONFIDENT",
-  "SURE",
-] as const;
-
-export type ConfidenceLevel = (typeof confidenceLevels)[number];
+export type ConfidenceLevel =
+  | "ZERO"
+  | "POOR"
+  | "DOUBTFUL"
+  | "GOOD"
+  | "CONFIDENT"
+  | "SURE";
 
 export type TextDeltaEvent = { type: "text-delta"; text: string };
 export type OptionDeltaEvent = {

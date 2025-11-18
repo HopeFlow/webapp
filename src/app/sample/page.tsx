@@ -2,7 +2,7 @@ import { withUser } from "@/helpers/server/page_component";
 import { Test } from "./test";
 import { JWTPayload, SignJWT } from "jose";
 
-export const createRealtimeJwt = async (payload: JWTPayload) => {
+const createRealtimeJwt = async (payload: JWTPayload) => {
   const secret = process.env.REALTIME_JWT_SECRET;
   if (!secret) {
     throw new Error("REALTIME_JWT_SECRET is not configured");

@@ -17,9 +17,10 @@ export function FileImage({
   const [srcUrl, setSrcUrl] = useState("");
   useEffect(() => {
     if (!src) return;
+    const url = URL.createObjectURL(src);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSrcUrl(URL.createObjectURL(src));
-    return () => URL.revokeObjectURL(srcUrl);
+    setSrcUrl(url);
+    return () => URL.revokeObjectURL(url);
   }, [src]);
   return srcUrl === "" ? (
     <div
