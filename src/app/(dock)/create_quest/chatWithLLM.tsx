@@ -117,7 +117,6 @@ export const ChatWithLLM = ({
                               : "w-fit justify-start border-gray-400 bg-transparent p-2 text-gray-500",
                           )}
                           onClick={() => {
-                            console.log("Confirmation clicked:", m);
                             if (m.toLowerCase() === "accept") {
                               setQuestIntentState(questIntentState);
                               setUserChatMessageCount(

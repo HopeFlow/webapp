@@ -106,31 +106,25 @@ export type SetConfidenceEvent = {
 };
 
 const updateQuestIntentStateSystemPrompt = `
-You are an expert psychologist and sociologist.
-
-Input JSON:
-{ summary?: string, newMessage: string }
+You are an expert psychologist and sociologist. User will mix a summary of previous chat and a new message
+in a single message.
 
 Task:
-1. Update the summary:
-   - If summary exists: append essential new info from newMessage.
-   - If not: summary = newMessage.
-   (Keep summary short, factual, cumulative.)
-
-2. Rate the updated summary with these booleans:
+1. Summarize the text. Keep important information. Consider the text as a whole.
+2. Rate the summary with these booleans:
    - clear: purpose is clear
    - noAmbiguity: free of ambiguity
    - understandable: easy to understand
    - comprehensible: meaning fully graspable
-   - concise: not verbose or repetitive
-   - adequate: enough info to understand the purpose
-   - sufficient: enough data for reader to feel the situation
-   - covering: covers enough details to create a vivid picture
-   - complete: fully states the intended purpose
+   - concise: gives a relatable picture fully transparent
+   - adequate: enough info to understand the purpose and individuals that can help
+   - sufficient: enough data for reader to feel the situation and personality of ones more probably can help
+   - covering: covers enough details to create a vivid picture of what is sought and who can help
+   - complete: fully states the intended purpose and what people can help most
 
 One-shot example:
 Input:
-{ "summary": "User wants to find a lost bicycle", "newMessage": "It was stolen last night" }
+User wants to find a lost bicycle\n\nIt was stolen last night
 Output:
 {
   "summary": "User wants to find a lost bicycle stolen last night",
@@ -149,49 +143,68 @@ Now process the actual input and return only the JSON object.
 `.trim();
 
 const generateClarifyingQuestionsSystemPrompt = `
-You clarify the user's goal.
+You help user clearly express his goal. You are not going to help user with his goal, just help him/her express it clearly.
 
 Input:
 {
-  "summary": string,
-  "issues": { "ambiguous": bool, "missingInfo": bool, "verbose": bool },
-  "clarityLabel": ${confidenceLevels.map(l => JSON.stringify(l)).join("|")}
+  "summary": string, // What we know from user's chat
+  "issues": {
+    "ambiguous": bool, // Goal is not completely clear
+    "missingInfo": bool, // Additional info can help people better understand user's goal or feel who will more probably be able to help
+  },
+  "clarityLabel": "ZERO"|"POOR"|"DOUBTFUL"|"GOOD"|"CONFIDENT"|"SURE"
 }
 
 Rules:
 - ONE overall clarifying question unless the state is crystal clear.
 - Crystal clear = clarityLabel=="SURE" or clarityLabel=="CONFIDENT" AND issues.ambiguous==false AND issues.missingInfo==false.
 - A question may have parts but must end as one question.
-- Add <option>...</option> lines (short answers) wherever obvious.
+- Add <option>...</option> (short answers) wherever obvious. Each option in ITS OWN LINE
+- No "other" <option>s. In these cases add a sentence after options meaning "if it is something else, write it yourself"
 - If crystal clear: give 1-sentence recap, then on new lines: <accept/> and <reject/>.
 - No explanations. Output only the question+options OR recap+accept/reject.
 
---- ONE-SHOT EXAMPLES ---
-
+One-shot examples:
 (1) Example: ambiguous → ask question with options
 Input:
-{ "summary":"User is seeking a possible donor", "issues":{"ambiguous":true,"missingInfo":true,"verbose":false}, "clarityLabel":"POOR" }
+{ "summary":"User is seeking a possible donor", "issues":{"ambiguous":true,"missingInfo":true}, "clarityLabel":"POOR" }
 Output:
 What kind of donation are you looking for?
 <option>Biological Donor</option>
 <option>Financial Donor</option>
 <option>In-Kind Donor</option>
+Something else? write it down.
 
-(2) Example: missing info → ask question (no options needed)
+(2) Example: ambiguous → ask question with options
 Input:
-{ "summary":"User wants help researching on a 17th century literary work", "issues":{"ambiguous":false,"missingInfo":true,"verbose":false}, "clarityLabel":"POOR" }
+{ "summary":"User is seeking a physical copy of Dante's purgatory", "issues":{"ambiguous":false,"missingInfo":true}, "clarityLabel":"GOOD" }
+Output:
+What happens if you find someone who has access?
+<option>Borrow the book</option>
+<option>Buy it</option>
+
+(3) Example: ambiguous → ask question with options
+Input:
+{ "summary":"User is seeking a physical copy of Dante's purgatory to borrow", "issues":{"ambiguous":false,"missingInfo":true}, "clarityLabel":"POOR" }
+Output:
+What do you want to do with the book?
+<option>Compare to a contemporary translation</option>
+<option>Analyse physical condition of the books that old</option>
+Or may be something completely different. Describe it!
+
+(4) Example: missing info → ask question (no options needed)
+Input:
+{ "summary":"User wants help researching on a 17th century literary work", "issues":{"ambiguous":false,"missingInfo":true}, "clarityLabel":"POOR" }
 Output:
 Is it a novel or a play? Or something else?
 
-(3) Example: crystal clear → recap + accept/reject
+(5) Example: crystal clear → recap + accept/reject
 Input:
-{ "summary":"User wants guidance on renewing their German passport from someone who recently had similar experience", "issues":{"ambiguous":false,"missingInfo":false,"verbose":false}, "clarityLabel":"CONFIDENT" }
+{ "summary":"User wants guidance on renewing their German passport from someone who recently had similar experience", "issues":{"ambiguous":false,"missingInfo":false}, "clarityLabel":"CONFIDENT" }
 Output:
 Lets recap. You want to renew your passport and seek guidance from someone who has recently done that. Correct?
 <accept/>
 <reject/>
-
---- NOW PROCESS THE ACTUAL INPUT ---
 `.trim();
 
 const questIntentStateSchema = z.object({
@@ -230,21 +243,19 @@ export const createQuestChat = defineServerFunction({
     const updateIntentStateStream = openai.responses.stream({
       model: "gpt-5-mini",
       // temperature: 0,
-      reasoning: { effort: "low" },
+      reasoning: { effort: "low", summary: "auto" },
       text: {
         format: zodTextFormat(questIntentStateSchema, "questIntentState"),
+        verbosity: "medium",
       },
       input: [
         { role: "system", content: updateQuestIntentStateSystemPrompt },
         {
           role: "user",
-          content: JSON.stringify(
-            previousState
-              ? { summary: previousState.summary, newUserMessage }
-              : { newUserMessage },
-          ),
+          content: `${previousState?.summary ?? ""}\n\n${newUserMessage}`,
         },
       ],
+      store: false,
       stream: true,
     });
 
@@ -293,6 +304,9 @@ export const createQuestChat = defineServerFunction({
     const generateQuestionsStream = openai.responses.stream({
       model: "gpt-5-nano",
       // temperature: 0.7,
+      reasoning: { effort: "low", summary: "auto" },
+      text: { verbosity: "medium" },
+      store: false,
       input: [
         { role: "system", content: generateClarifyingQuestionsSystemPrompt },
         {
@@ -320,7 +334,6 @@ export const createQuestChat = defineServerFunction({
 
           lineBuffer += delta;
           if (lineBuffer.indexOf("accept") !== -1) {
-            console.log("Current line buffer:", lineBuffer, "delta:", delta);
           }
 
           const lines = lineBuffer.split("\n");
@@ -329,7 +342,6 @@ export const createQuestChat = defineServerFunction({
             if (/^<option>.*<\/option>$/.test(trimmed.toLowerCase())) {
               yield { type: "option-delta", text: trimmed.slice(8, -9).trim() };
             } else if (trimmed.toLowerCase() === "<accept/>") {
-              console.log("Yielding accept");
               yield {
                 type: "option-delta",
                 text: "Accept",
@@ -365,7 +377,6 @@ export const createQuestChat = defineServerFunction({
       if (/^\s*<option>.*<\/option>\s*$/.test(trimmed.toLowerCase())) {
         yield { type: "option-delta", text: trimmed.slice(8, -9).trim() };
       } else if (trimmed.toLowerCase() === "<accept/>") {
-        console.log("Yielding accept");
         yield { type: "option-delta", text: "Accept", confirmation: true };
       } else if (trimmed.toLowerCase() === "<reject/>") {
         yield { type: "option-delta", text: "Reject", confirmation: true };
@@ -384,7 +395,7 @@ const getQuestTitleAndDescriptionSystemPrompt = `
 Generate a quest description and two titles from the provided QuestIntentState.
 
 Rules:
-- Description: at least two paragraphs; clear, engaging, faithful to the state; written in the user's tone using writingFeatures; no invented facts.
+- Description: at least two paragraphs; clear, engaging, faithful to the state; NO INVENTED FACTS.
 - UserTitle: max 8 words, direct, describes what the user seeks.
 - PublicTitle: max 8 words, addressed to helpers (e.g., “Help <name> …”).
 - Stay concise and factual; follow style and emotional tone from writingFeatures.
@@ -395,7 +406,6 @@ Output only this JSON:
   "seekerTitle": "...",
   "contributorTitle": "..."
 }
-
 `.trim();
 
 const generatedDescriptionTitle = z
@@ -447,11 +457,13 @@ export const getQuestTitleAndDescription = defineServerFunction({
     const generateTitleDescriptionStream = openai.responses.stream({
       model: "gpt-5-nano",
       // temperature: 0.7,
+      reasoning: { effort: "low", summary: "auto" },
       text: {
         format: zodTextFormat(
           generatedDescriptionTitle,
           "generatedTitleAndDescription",
         ),
+        verbosity: "medium",
       },
       input: [
         { role: "system", content: getQuestTitleAndDescriptionSystemPrompt },

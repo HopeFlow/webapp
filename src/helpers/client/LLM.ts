@@ -112,12 +112,10 @@ export const useCreateQuestChat = () => {
           return { newMessages, textDelta: textDelta + event.text };
         }
         case "update-quest-intent-state": {
-          console.log("Updating quest intent state", event.questIntentState);
           setQuestIntentState(event.questIntentState);
           return state;
         }
         case "option-delta": {
-          console.log("Option delta event:", event);
           const updatedNewMessages = (() => {
             const textDeltaMessage: CreateQuestChatMessage[] = /^[\s\n]*$/.test(
               textDelta,
@@ -166,11 +164,11 @@ export const useCreateQuestChat = () => {
   const postUserMessage = useCallback(
     (content?: string) => {
       if (content) userMessageRef.current = content;
+      questIntentStateSnapshotRef.current = questIntentState;
       setMessages((messages) => {
         messagesSnapshotRef.current = content
           ? [...messages, { role: "user", content }]
           : messages;
-        questIntentStateSnapshotRef.current = questIntentState;
         return messagesSnapshotRef.current;
       });
       run();

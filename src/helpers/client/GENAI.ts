@@ -1,17 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { getGenAIResponse } from "../server/GENAI";
+import { generateCoverPhoto } from "../server/GENAI";
 import { loadImageFromUrl } from "./common";
-
-const getGeneratedCoverImagePrompt = (title: string) => `
-Create a cover image for a ‘${title}’
-IMPORTANT CONSTRAINTS:
-1-No text, logos, or UI elements — just the art.
-2-Only use center 1024x576 area of 1024x1024 canvas
-IMAGE DESCRIPTION:
-The image should be minimal. Creative design of a graphistic. With a dark background,
-suitable for display on a light themed UI. The focus should be clear and centered, with
-balanced negative space around the subject.
-`;
 
 const canvas =
   typeof document !== "undefined" && document.createElement("canvas");
@@ -44,12 +33,10 @@ export const useGeneratedCoverImage = () => {
     if (!generating || !description) return;
     (async () => {
       try {
-        const imageData = await getGenAIResponse(
-          getGeneratedCoverImagePrompt(description),
-        );
+        const imageData = await generateCoverPhoto(description);
         if (imageData && canvas && canvasContext) {
           const squareImage = await loadImageFromUrl(
-            `data:image/png;base64,${imageData}`,
+            `data:image/jpeg;base64,${imageData}`,
           );
           canvasContext.drawImage(
             squareImage,

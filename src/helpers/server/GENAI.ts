@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 // import { GoogleGenAI } from "@google/genai";
 import { defineServerFunction } from "./define_server_function";
 
@@ -32,19 +33,42 @@ import { defineServerFunction } from "./define_server_function";
 // });
 
 import OpenAI from "openai";
+import { zodTextFormat } from "openai/helpers/zod.mjs";
 
-export const getGenAIResponse = defineServerFunction({
+if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not set");
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const promptJsonSchema = z.object({ prompt: z.string() });
+
+export const generateCoverPhoto = defineServerFunction({
   id: "getGenAIResponse",
   scope: "genai",
-  handler: async (prompt: string) => {
+  handler: async (description: string) => {
     // return sampleImage;
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const { output_parsed } = await openai.responses.parse({
+      model: "gpt-5-nano",
+      input: [
+        {
+          role: "developer",
+          content:
+            "Your are an expert designer and idea generator. User will give you a description for a quest of his." +
+            'Generate a prompt for "gpt-image-1-mini" to generate a cover photo for the given quest',
+        },
+        { role: "user", content: description },
+      ],
+      text: { format: zodTextFormat(promptJsonSchema, "promptJson") },
+    });
+    if (!output_parsed)
+      throw new Error("Failed to generate prompt from description");
     const response = await openai.images.generate({
       model: "gpt-image-1-mini", // or "dall-e-3"
-      prompt,
+      prompt: output_parsed.prompt,
+      output_format: "jpeg",
+      quality: "low",
       size: "1024x1024",
     });
-    return response.data?.[0].b64_json;
+    const base64Image = response.data?.find((d) => d.b64_json)?.b64_json;
+    return base64Image;
   },
 });
 
