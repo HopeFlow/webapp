@@ -266,7 +266,7 @@ const getSvgNodes = (
         return (
           <g
             key={`${nodeId}`}
-            className="z-10"
+            className="group z-10"
             style={{
               animationDelay: `${layerIndex * 500}ms`,
               cursor: "pointer",
@@ -299,20 +299,25 @@ const getSvgNodes = (
               mask={`url(#mask-${nodeId})`}
               className={cn(
                 "w-auto filter transition duration-200",
-                showPotentialNode && "brightness-75 grayscale",
+                showPotentialNode &&
+                  "brightness-75 grayscale group-hover:brightness-90 group-hover:grayscale-0",
               )}
             />
             {(showPotentialNode || showRefererIcon) && (
               <g
-                transform={`translate(${x + 0.25 * radius}, ${y + 0.5 * radius})`}
+                transform={
+                  showPotentialNode
+                    ? `translate(${x + 0.5 * radius}, ${y + 0.5 * radius})`
+                    : `translate(${x + 0.25 * radius}, ${y + 0.5 * radius})`
+                }
               >
                 {showPotentialNode ? (
                   <g color="white" fill="green">
-                    <circle cx={12} cy={12} r={13} fill="green" />
+                    <circle cx={12} cy={12} r={20} fill="green" />
                     <path
                       d="M12 6v12M6 12h12"
                       stroke="white"
-                      strokeWidth={2}
+                      strokeWidth={3}
                       strokeLinecap="round"
                       fill="none"
                     />
