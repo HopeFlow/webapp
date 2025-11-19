@@ -182,6 +182,7 @@ const getSvgNodes = (
   activeNodeId: string | undefined,
   onNodeClick: (nodeId: string) => void,
   viewport: { minX: number; minY: number; width: number; height: number },
+  userImageUrl?: string,
 ) => {
   const viewportMaxX = viewport.minX + viewport.width;
   const viewportMaxY = viewport.minY + viewport.height;
@@ -236,7 +237,8 @@ const getSvgNodes = (
           typeof imageUrl === "string" && imageUrl.trim()
             ? imageUrl
             : undefined;
-        const resolvedImageHref = imageHref ?? "/img/unknown.png";
+        const resolvedImageHref =
+          imageHref ?? userImageUrl ?? "/img/unknown.png";
         const showPotentialNode = Boolean(potentialNode);
         const RefererIcon = showPotentialNode ? null : getRefererIcon(referer);
         const showRefererIcon = Boolean(RefererIcon);
@@ -273,7 +275,9 @@ const getSvgNodes = (
             }}
             onClick={(event) => {
               event.stopPropagation();
-              onNodeClick(nodeId);
+              if (!showPotentialNode) {
+                onNodeClick(nodeId);
+              }
             }}
           >
             <circle
@@ -281,11 +285,16 @@ const getSvgNodes = (
               cy={y}
               r={radius}
               strokeWidth={strokeWidth}
+              strokeDasharray={showPotentialNode ? "8 8" : undefined}
               className={cn(
                 "stroke-primary fill-primary transition-all duration-200",
                 isActive && "drop-shadow-[0_0_12px_rgba(251,191,36,0.6)]",
+                showPotentialNode && "animate-[spin_30s_linear_infinite]",
               )}
-              style={isTargetNode ? { stroke: "#22c55e" } : undefined}
+              style={{
+                transformOrigin: `${x}px ${y}px`,
+                ...(isTargetNode ? { stroke: "#22c55e" } : undefined),
+              }}
             />
             <mask id={`mask-${nodeId}`}>
               <circle cx={x} cy={y} r={radius} strokeWidth={0} fill="white" />
@@ -307,25 +316,25 @@ const getSvgNodes = (
               <g
                 transform={
                   showPotentialNode
-                    ? `translate(${x + 0.5 * radius}, ${y + 0.5 * radius})`
+                    ? `translate(${x - 75}, ${y + 0.5 * radius})`
                     : `translate(${x + 0.25 * radius}, ${y + 0.5 * radius})`
                 }
               >
-                {showPotentialNode ? (
-                  <g color="white" fill="green">
-                    <circle cx={12} cy={12} r={20} fill="green" />
-                    <path
-                      d="M12 6v12M6 12h12"
-                      stroke="white"
-                      strokeWidth={3}
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                  </g>
-                ) : (
-                  RefererIcon && <RefererIcon size={48} />
-                )}
+                {!showPotentialNode && RefererIcon && <RefererIcon size={48} />}
               </g>
+            )}
+            {showPotentialNode && (
+              <foreignObject
+                x={x - 75}
+                y={y + 0.6 * radius}
+                width={150}
+                height={50}
+                className="pointer-events-none"
+              >
+                <div className="flex items-center justify-center rounded-full bg-emerald-400/60 px-4 py-1.5 text-lg font-bold whitespace-nowrap text-gray-900 shadow-lg ring-1 ring-black/5 backdrop-blur-sm transition-all duration-300 group-hover:bg-emerald-400">
+                  Join the quest
+                </div>
+              </foreignObject>
             )}
             {showRankBadge && (
               <g>
@@ -393,10 +402,12 @@ export const ReflowTree = ({
   treeNodes,
   activeNodeId,
   onNodeClick,
+  userImageUrl,
 }: {
   treeNodes?: ReFlowNodeSimple;
   activeNodeId?: string;
   onNodeClick?: (nodeId: string | undefined) => void;
+  userImageUrl?: string;
 }) => {
   if (!treeNodes) return null;
   const { treeLayers, ...dimensions } = computeTreeNodeWithPositions(treeNodes);
@@ -488,6 +499,7 @@ export const ReflowTree = ({
           if (onNodeClick) onNodeClick(nodeId);
         },
         viewport,
+        userImageUrl,
       )}
     </svg>
   );

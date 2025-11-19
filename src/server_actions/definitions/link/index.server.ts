@@ -481,7 +481,10 @@ export const getQuestAndNodesForLinkByLinkCode = defineServerFunction({
       const userNode = user
         ? questNodeEntries.find((questNode) => questNode.userId === user.id)
         : undefined;
-      const contributionNode = userNode ? [] : [emptyNode];
+      const contributionNode = userNode
+        ? // || questEntry.status !== "active"
+          []
+        : [emptyNode];
       return {
         anonymous: !user,
         link: linkEntry,

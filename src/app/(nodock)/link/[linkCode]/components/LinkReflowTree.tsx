@@ -6,12 +6,14 @@ type LinkReflowTreeProps = {
   treeRoot: ReFlowNodeSimple;
   activeNodeId?: string;
   onActiveNodeChange?: (nodeId: string | undefined) => void;
+  userImageUrl?: string;
 };
 
 export function LinkReflowTree({
   treeRoot,
   activeNodeId,
   onActiveNodeChange,
+  userImageUrl,
 }: LinkReflowTreeProps) {
   const [uncontrolledActiveNodeId, setUncontrolledActiveNodeId] = useState<
     string | undefined
@@ -41,6 +43,7 @@ export function LinkReflowTree({
         treeNodes={treeRoot}
         activeNodeId={resolvedActiveNodeId}
         onNodeClick={handleNodeSelection}
+        userImageUrl={userImageUrl}
       />
     </div>
   );

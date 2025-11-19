@@ -218,11 +218,12 @@ export function LinkMain({
   const mediaItems = coverMediaItems.length ? coverMediaItems : [];
   const statsQuery = useLinkStatsCard({ questId });
   const stats = statsQuery.data?.stats ?? FALLBACK_STATS;
+  const redirectUrl = `link/${linkCode}`;
   return (
     <div className="flex w-full max-w-6xl flex-col self-center">
-      <MobileHeader user={user} />
+      <MobileHeader user={user} url={redirectUrl} />
       <div className="flex flex-col gap-4 p-6 md:gap-6">
-        <LinkTitleSection title={title} user={user} />
+        <LinkTitleSection title={title} user={user} url={redirectUrl} />
         <div className="flex flex-col gap-4 md:flex-row md:gap-6">
           <div className="flex flex-col gap-4 md:w-2/3">
             <LinkMediaCarousel mediaItems={mediaItems} />
@@ -252,7 +253,10 @@ export function LinkMain({
           <div className="bg-secondary-content border-secondary card flex flex-1 flex-col border md:sticky md:top-6 md:w-1/3 md:flex-shrink-0 md:self-start">
             <LinkBotonicalTree treeRoot={reflowTreeRoot} questId={questId} />
             <hr className="border-secondary mx-5 bg-transparent" />
-            <LinkReflowTree treeRoot={reflowTreeRoot} />
+            <LinkReflowTree
+              treeRoot={reflowTreeRoot}
+              userImageUrl={user?.imageUrl}
+            />
           </div>
         </div>
         <LinkFooterSection
