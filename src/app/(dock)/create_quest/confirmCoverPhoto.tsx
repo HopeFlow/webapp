@@ -6,7 +6,7 @@ import { ArrowUpTrayIcon } from "@/components/icons/arrow_up_tray";
 import { PencilSquareIcon } from "@/components/icons/pencil_square";
 import { useFileUpload } from "@/helpers/client/hooks";
 import { cn } from "@/helpers/client/tailwind_helpers";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { InsertQuestData } from "./types";
 import { loadImageFromBlob } from "@/helpers/client/common";
 import { FileImage } from "@/components/file_image";
@@ -23,6 +23,10 @@ export const ConfirmCoverPhoto = ({
   continueToNextStep: () => void;
 }) => {
   const [image, setImage] = useState<File | undefined>(coverPhoto?.content);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (coverPhoto?.content) setImage(coverPhoto.content);
+  }, [coverPhoto?.content]);
   const [isEditing, setIsEditing] = useState(false);
   const fileUpload = useFileUpload({ accept: "image/*", multiple: false });
   return (
