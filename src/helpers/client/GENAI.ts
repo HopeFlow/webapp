@@ -35,24 +35,33 @@ export const useGeneratedCoverImage = () => {
       try {
         const imageData = await generateCoverPhoto(description);
         if (imageData && canvas && canvasContext) {
-          const squareImage = await loadImageFromUrl(
+          const unprocessedImage = await loadImageFromUrl(
             `data:image/jpeg;base64,${imageData}`,
           );
+          const scale = Math.min(
+            unprocessedImage.width / canvas.width,
+            unprocessedImage.height / canvas.height,
+          );
+          canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+          const sx = (unprocessedImage.width - canvas.width * scale) / 2;
+          const sy = (unprocessedImage.height - canvas.height * scale) / 2;
           canvasContext.drawImage(
-            squareImage,
+            unprocessedImage,
+            sx,
+            sy,
+            canvas.width * scale,
+            canvas.height * scale,
             0,
-            224,
-            1024,
-            576,
             0,
-            0,
-            1024,
-            576,
+            canvas.width,
+            canvas.height,
           );
           const resizedImageDataUrl = canvas.toDataURL("image/png");
           setImageDataUrl(resizedImageDataUrl);
         } else if (imageData)
           setImageDataUrl(`data:image/png;base64,${imageData}`);
+      } catch (e) {
+        console.error({ error: e });
       } finally {
         setGenerating(false);
       }

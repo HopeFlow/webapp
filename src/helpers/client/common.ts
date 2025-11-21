@@ -14,6 +14,7 @@ export const getImageDataUrl = (image: HTMLImageElement) => {
 };
 
 export const loadImageFromUrl = (src: string): Promise<HTMLImageElement> => {
+  if (typeof Image === "undefined") throw "Image constructor is not supported";
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
@@ -23,6 +24,7 @@ export const loadImageFromUrl = (src: string): Promise<HTMLImageElement> => {
 };
 
 export const loadImageFromBlob = (blob: Blob): Promise<HTMLImageElement> => {
+  if (typeof FileReader === "undefined") throw "FileReader is not supported";
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -38,8 +40,8 @@ export const loadImageFromBlob = (blob: Blob): Promise<HTMLImageElement> => {
 };
 
 export const loadBlobFromUrl = async (src: string): Promise<Blob> => {
-  const res = await fetch(src, { mode: "cors", credentials: "omit" });
-  return await res.blob();
+  const result = await fetch(src, { mode: "cors", credentials: "omit" });
+  return await result.blob();
 };
 
 export const loadFileFromUrl = async (
