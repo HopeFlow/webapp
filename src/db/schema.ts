@@ -151,7 +151,7 @@ export const nodeTable = sqliteTable(
     return [
       unique("quest_id_user_id_unique").on(table.questId, table.userId),
       // Composite FK to guarantee viewLink belongs to same quest
-      foreignKey({
+      foreignKey(() => ({
         name: "fk_node_viewlink_same_quest",
         columns: [table.viewLinkId, table.questId] as [
           AnySQLiteColumn,
@@ -161,12 +161,12 @@ export const nodeTable = sqliteTable(
           AnySQLiteColumn,
           AnySQLiteColumn,
         ],
-      })
+      }))
         .onUpdate("cascade")
         .onDelete("set null"),
 
       // (id, questId) unique so others can safely reference node(id, questId)
-      uniqueIndex("node_id_quest_unique").on(table.id, table.questId),
+      unique("uniq_node_id_quest").on(table.id, table.questId),
 
       // Only one root node per quest (parentId is NULL)
       uniqueIndex("uniq_one_root_node_per_quest")
@@ -235,7 +235,7 @@ export const linkTable = sqliteTable(
         .onDelete("cascade"),
 
       // Expose composite key for other FKs (e.g., node.viewLinkId)
-      uniqueIndex("link_id_quest_unique").on(table.id, table.questId),
+      unique("uniq_link_id_quest").on(table.id, table.questId),
     ];
   },
 );

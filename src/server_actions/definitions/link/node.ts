@@ -1,7 +1,7 @@
 "use server";
 
 import { getHopeflowDatabase } from "@/db";
-import { nodeTable } from "@/db/schema";
+import { nodeTable, questHistoryTable } from "@/db/schema";
 import { currentUserNoThrow } from "@/helpers/server/auth";
 import { createCrudServerAction } from "@/helpers/server/create_server_action";
 import { linkTable } from "@/db/schema";
@@ -29,7 +29,7 @@ export const linkNode = createCrudServerAction<
     });
     if (!link) throw new Error("Link not found");
 
-    const { pendingInsert } = await prepareUserNode({
+    const { nodeId, pendingInsert } = await prepareUserNode({
       db,
       link,
       userId: viewer.id,
@@ -37,7 +37,18 @@ export const linkNode = createCrudServerAction<
     });
 
     if (pendingInsert) {
-      await db.insert(nodeTable).values(pendingInsert);
+      const nodeInsert = db.insert(nodeTable).values(pendingInsert);
+      const historyInsert = db
+        .insert(questHistoryTable)
+        .values({
+          questId: link.questId,
+          actorUserId: viewer.id,
+          type: "nodeJoined",
+          createdAt: new Date(),
+          nodeId,
+          linkId: link.id,
+        });
+      await db.batch([nodeInsert, historyInsert]);
     }
 
     return true;

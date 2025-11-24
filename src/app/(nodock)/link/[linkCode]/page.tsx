@@ -44,7 +44,6 @@ async function ContentsForUser({
     : "unknown";
   const { seekerView, link, quest, userNode, nodes, accessRestricted } =
     await getQuestAndNodesForLinkByLinkCode(linkCode);
-  console.log("nodes", nodes);
   if (!quest) {
     if (accessRestricted) return <AccessRestricted />;
     else notFound();

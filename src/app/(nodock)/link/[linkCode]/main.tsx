@@ -22,16 +22,8 @@ import { LinkFooterSection } from "./components/LinkFooterSection";
 import { LinkTitleSection } from "./components/LinkTitleSection";
 import { QuestMedia } from "@/db/constants";
 import { LinkTimelineContent } from "./components/LinkTimelineContent";
-// import { LinkBotonicalTree } from "./components/LinkBotonicalTree";
+import { LinkBotonicalTree } from "./components/LinkBotonicalTree";
 import { LinkReflowTree } from "./components/LinkReflowTree";
-
-const LinkBotonicalTree = dynamic(
-  () =>
-    import("./components/LinkBotonicalTree").then(
-      (mod) => mod.LinkBotonicalTree,
-    ),
-  { ssr: false },
-);
 import { LinkMediaCarousel } from "./components/LinkMediaCarousel";
 import { StatsCard } from "./components/StatsCard";
 import { useLinkStatsCard } from "@/server_actions/client/link/linkStatsCard";
@@ -268,6 +260,7 @@ export function LinkMain({
               userImageUrl={user?.imageUrl}
               linkCode={linkCode}
               isLoggedIn={!!user}
+              referer={referer}
             />
           </div>
         </div>

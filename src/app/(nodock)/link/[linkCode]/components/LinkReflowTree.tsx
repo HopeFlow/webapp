@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { ReFlowNodeSimple } from "./ReflowTree";
+import { ReFlowNodeSimple, SocialMediaName } from "./ReflowTree";
 import { ReflowTree } from "@/components/reflow_tree";
 import { useLinkNode } from "@/server_actions/client/link/linkNode";
-import { useRouter } from "next/navigation";
+
+import { useGotoLogin } from "@/helpers/client/routes";
 
 type LinkReflowTreeProps = {
   treeRoot: ReFlowNodeSimple;
@@ -11,6 +12,7 @@ type LinkReflowTreeProps = {
   userImageUrl?: string;
   linkCode: string;
   isLoggedIn: boolean;
+  referer: SocialMediaName;
 };
 
 export function LinkReflowTree({
@@ -20,6 +22,7 @@ export function LinkReflowTree({
   userImageUrl,
   linkCode,
   isLoggedIn,
+  referer,
 }: LinkReflowTreeProps) {
   const [uncontrolledActiveNodeId, setUncontrolledActiveNodeId] = useState<
     string | undefined
@@ -30,7 +33,7 @@ export function LinkReflowTree({
     : uncontrolledActiveNodeId;
 
   const { create: createNode } = useLinkNode({ linkCode });
-  const router = useRouter();
+  const gotoLogin = useGotoLogin();
 
   const handleNodeSelection = (nodeId: string | undefined) => {
     if (!isControlled) {
@@ -40,16 +43,11 @@ export function LinkReflowTree({
   };
 
   const handlePotentialNodeClick = async () => {
-    // TODO: we should have linkCode and using link/${linkCode} instead currentUrl
-    // TODO: we should use routeToLogin instead of router.push
     if (!isLoggedIn) {
-      const currentUrl = window.location.href;
-      const loginUrl = `/login?url=${encodeURIComponent(currentUrl)}`;
-      router.push(loginUrl);
+      gotoLogin({ url: `/link/${linkCode}` });
       return;
     }
-    // TODO: We should pass referer from page.tsx to here to use proper referer
-    await createNode.mutateAsync({ referer: "unknown" });
+    await createNode.mutateAsync({ referer });
   };
 
   return (
