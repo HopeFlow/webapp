@@ -183,6 +183,7 @@ const getSvgNodes = (
   onNodeClick: (nodeId: string) => void,
   viewport: { minX: number; minY: number; width: number; height: number },
   userImageUrl?: string,
+  onPotentialNodeClick?: () => void,
 ) => {
   const viewportMaxX = viewport.minX + viewport.width;
   const viewportMaxY = viewport.minY + viewport.height;
@@ -275,7 +276,9 @@ const getSvgNodes = (
             }}
             onClick={(event) => {
               event.stopPropagation();
-              if (!showPotentialNode) {
+              if (showPotentialNode) {
+                onPotentialNodeClick?.();
+              } else {
                 onNodeClick(nodeId);
               }
             }}
@@ -403,10 +406,12 @@ export const ReflowTree = ({
   activeNodeId,
   onNodeClick,
   userImageUrl,
+  onPotentialNodeClick,
 }: {
   treeNodes?: ReFlowNodeSimple;
   activeNodeId?: string;
   onNodeClick?: (nodeId: string | undefined) => void;
+  onPotentialNodeClick?: () => void;
   userImageUrl?: string;
 }) => {
   if (!treeNodes) return null;
@@ -500,6 +505,7 @@ export const ReflowTree = ({
         },
         viewport,
         userImageUrl,
+        onPotentialNodeClick,
       )}
     </svg>
   );

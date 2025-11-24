@@ -49,7 +49,7 @@ type PreparedNodeResult = {
   pendingInsert?: typeof nodeTable.$inferInsert;
 };
 
-const prepareUserNode = async ({
+export const prepareUserNode = async ({
   db,
   link,
   userId,

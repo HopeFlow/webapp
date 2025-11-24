@@ -45,6 +45,7 @@ type ActionInfo = {
   scope: string;
   variantName?: string;
   mutations?: string[];
+  hasRead?: boolean;
   parent?: Symbol;
   variants?: Map<Symbol, ActionInfo>;
   dependants?: Map<Symbol, ActionInfo>;
@@ -88,6 +89,7 @@ const analyseSourceFile = (
                 .getInitializerIfKindOrThrow(SyntaxKind.StringLiteral)
                 .getLiteralValue(),
               type: "serverAction",
+              hasRead: true,
             });
           }
           if (callee.getText() === "createCrudServerAction") {
@@ -119,6 +121,7 @@ const analyseSourceFile = (
                 .getInitializerIfKindOrThrow(SyntaxKind.StringLiteral)
                 .getLiteralValue(),
               type: "crudServerAction",
+              hasRead: isMutationProvided("read"),
               mutations: ["create", "update", "remove"].filter((mutation) =>
                 isMutationProvided(mutation),
               ),
@@ -328,6 +331,7 @@ const addHookVariableStatement = (
   argsType: Type,
   templateSourceFile: SourceFile,
   sourceFile: SourceFile,
+  hasRead: boolean,
   mutationDataTypeMap?: Map<string, Type>,
 ) => {
   const templateStatement = getTemplateHookVariableStatement(
@@ -411,15 +415,17 @@ const addHookVariableStatement = (
       return {
         parameters: [...variantNameParam, ...restParams],
         returnType:
-          `UseQueryResult<${getResolvedTypeText(
-            typeChecker
-              .getReturnTypeOfSignature(callSignature)
-              .getTypeArguments()
-              .at(0)!,
-            sourceFile,
-          )}>` +
+          (hasRead
+            ? `UseQueryResult<${getResolvedTypeText(
+                typeChecker
+                  .getReturnTypeOfSignature(callSignature)
+                  .getTypeArguments()
+                  .at(0)!,
+                sourceFile,
+              )}>`
+            : "") +
           (symbol === actionSymbol && actionInfo.mutations
-            ? `& { ${actionInfo.mutations.map(
+            ? `${hasRead ? " & " : ""}{ ${actionInfo.mutations.map(
                 (mutation) =>
                   `${mutation}: UseMutationResult<boolean, Error, ${getResolvedTypeText(
                     mutationDataTypeMap!.get(mutation)!,
@@ -555,7 +561,10 @@ const emitPrefetchExportsFromTemplate = (
   argsTypes: Map<Symbol, readonly [Type, boolean]>,
   isArgsEmpty: boolean,
   isCrud: boolean,
+  hasRead: boolean,
 ) => {
+  if (!hasRead) return;
+
   const pascal = upperCaseFirstLetter(actionInfo.id);
   const getKeyTemplate = getTemplateVar(
     "getQueryKeyTemplate",
@@ -843,6 +852,7 @@ const buildServerActionHook = (
     P,
     templateSourceFile,
     sourceFile,
+    true,
   );
 
   setQueryKey(functionDeclaration, actionInfo.id, isArgsEmpty);
@@ -860,6 +870,7 @@ const buildServerActionHook = (
     argsTypes,
     isArgsEmpty,
     /* isCrud */ false,
+    /* hasRead */ true,
   );
   return false;
 };
@@ -880,6 +891,7 @@ const buildServerActionWithInvalidationsHook = (
       P,
       templateSourceFile,
       sourceFile,
+      true,
     );
 
   setQueryKey(functionDeclaration, actionInfo.id, isArgsEmpty);
@@ -906,6 +918,7 @@ const buildServerActionWithInvalidationsHook = (
     argsTypes,
     isArgsEmpty,
     /* isCrud */ false,
+    /* hasRead */ true,
   );
 
   return false;
@@ -998,6 +1011,7 @@ const buildCrudServerActionHook = (
     P,
     templateSourceFile,
     sourceFile,
+    actionInfo.hasRead!,
     mutationDataTypeMap,
   );
   const variantNameToKeyMap = actionInfo.variants
@@ -1033,6 +1047,10 @@ const buildCrudServerActionHook = (
         )
       : [],
   );
+
+  if (!actionInfo.hasRead) {
+    functionDeclaration.getVariableDeclaration("query")?.remove();
+  }
 
   if (actionInfo.mutations) {
     const body = functionDeclaration.getBody()!.asKindOrThrow(SyntaxKind.Block);
@@ -1072,16 +1090,16 @@ const buildCrudServerActionHook = (
         .getThenStatement()!
         .asKindOrThrow(SyntaxKind.Block)
         .addStatements(
-          `return { ...${returnStatementExpression}, ${actionInfo.mutations.join(
-            ", ",
-          )} }`,
+          `return { ${
+            actionInfo.hasRead ? `...${returnStatementExpression}, ` : ""
+          }${actionInfo.mutations.join(", ")} }`,
         );
       body.addStatements(`return ${returnStatementExpression}`);
     } else {
       body.addStatements(
-        `return { ...${returnStatementExpression}, ${actionInfo.mutations.join(
-          ", ",
-        )} }`,
+        `return { ${
+          actionInfo.hasRead ? `...${returnStatementExpression}, ` : ""
+        }${actionInfo.mutations.join(", ")} }`,
       );
     }
   }
@@ -1133,6 +1151,7 @@ const buildCrudServerActionHook = (
     argsTypes,
     isArgsEmpty,
     /* isCrud */ true,
+    /* hasRead */ actionInfo.hasRead!,
   );
   return hasAnyType;
 };

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { LinkBotonicalTree } from "@/app/(nodock)/link/[linkCode]/components/LinkBotonicalTree";
-import { LinkReflowTree } from "@/app/(nodock)/link/[linkCode]/components/LinkReflowTree";
+import { ReflowTree } from "@/components/reflow_tree";
 import type {
   ReFlowNodeSimple,
   SocialMediaName,
@@ -460,10 +460,10 @@ export default function LinkDraftPage() {
               )}
             </div>
           </div>
-          <LinkReflowTree
-            treeRoot={treeRoot}
+          <ReflowTree
+            treeNodes={treeRoot}
             activeNodeId={activeNodeId}
-            onActiveNodeChange={setActiveNodeId}
+            onNodeClick={setActiveNodeId}
           />
         </div>
       </div>
