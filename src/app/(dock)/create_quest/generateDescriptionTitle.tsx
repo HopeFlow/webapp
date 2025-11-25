@@ -1,7 +1,14 @@
+import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
 import { useGenerateDescriptionTitle } from "@/helpers/client/LLM";
 import { SafeUser } from "@/helpers/server/auth";
 import type { QuestIntentState } from "@/helpers/server/LLM";
 import { useEffect, useState } from "react";
+import type { InsertQuestData } from "./types";
+import { loadBlobFromUrl, loadImageFromUrl } from "@/helpers/client/common";
+
+type SetCoverPhotoAction = (
+  v: InsertQuestData["coverPhoto"],
+) => InsertQuestData["coverPhoto"];
 
 export const GenerateDescriptionTitle = ({
   user,
@@ -9,6 +16,9 @@ export const GenerateDescriptionTitle = ({
   setTitle,
   setShareTitle,
   setDescription,
+  setCoverPhoto,
+  setIsCoverPhotoGenerating,
+  coverPhotoExists,
   active,
   continueToNextStep,
 }: {
@@ -17,12 +27,45 @@ export const GenerateDescriptionTitle = ({
   setTitle: (v: string) => void;
   setShareTitle: (v: string) => void;
   setDescription: (v: string) => void;
+  setCoverPhoto: (v: InsertQuestData["coverPhoto"] | undefined) => void;
+  setIsCoverPhotoGenerating: (v: boolean) => void;
+  coverPhotoExists: boolean;
   active: boolean;
   continueToNextStep: () => void;
 }) => {
   const [generationStarted, setGenerationStarted] = useState(false);
+  const {
+    imageDataUrl,
+    generating,
+    setDescription: setCoverImageDescription,
+  } = useGeneratedCoverImage();
   const { descriptionTitle, thinking, thinkingMessage, setQuestIntentState } =
     useGenerateDescriptionTitle(user.firstName ?? "User");
+  useEffect(() => {
+    setIsCoverPhotoGenerating(generating);
+    if (!coverPhotoExists && imageDataUrl) {
+      (async () => {
+        const image = await loadImageFromUrl(imageDataUrl);
+        const file = new File(
+          [await loadBlobFromUrl(imageDataUrl)],
+          "cover_photo.png",
+          { type: "image/png" },
+        );
+        setCoverPhoto({
+          content: file,
+          alt: "cover_photo.png",
+          width: image.width,
+          height: image.height,
+        });
+      })();
+    }
+  }, [
+    coverPhotoExists,
+    generating,
+    imageDataUrl,
+    setCoverPhoto,
+    setIsCoverPhotoGenerating,
+  ]);
   useEffect(() => {
     if (!active) return;
     Promise.resolve().then(() => {
@@ -37,13 +80,18 @@ export const GenerateDescriptionTitle = ({
       setTitle(descriptionTitle.seekerTitle);
       setShareTitle(descriptionTitle.contributorTitle);
       setDescription(descriptionTitle.description);
+      if (!coverPhotoExists) {
+        setCoverImageDescription(descriptionTitle.description);
+      }
       continueToNextStep();
     });
   }, [
     active,
     continueToNextStep,
+    coverPhotoExists,
     descriptionTitle,
     generationStarted,
+    setCoverImageDescription,
     setDescription,
     setShareTitle,
     setTitle,

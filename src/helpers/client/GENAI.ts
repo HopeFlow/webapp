@@ -67,5 +67,5 @@ export const useGeneratedCoverImage = () => {
       }
     })();
   }, [description, generating]);
-  return [imageDataUrl, generating, setDescription] as const;
+  return { imageDataUrl, generating, setDescription };
 };

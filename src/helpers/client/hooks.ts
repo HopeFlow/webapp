@@ -3,9 +3,19 @@ import { useCallback, useEffect, useRef } from "react";
 type UseEffectParamTypes = Parameters<typeof useEffect>;
 type UseEffectReturnType = ReturnType<typeof useEffect>;
 
-export const useDebouncedEffect: (
-  ...args: UseEffectParamTypes | [...UseEffectParamTypes, number]
-) => UseEffectReturnType = (effect, dep?, timeout?) => {
+interface UseDebouncedEffect {
+  (
+    effect: UseEffectParamTypes[0],
+    dep?: UseEffectParamTypes[1],
+    timeout?: number,
+  ): UseEffectReturnType;
+}
+
+export const useDebouncedEffect: UseDebouncedEffect = (
+  effect,
+  dep?,
+  timeout?,
+) => {
   let effectReturnValue: ReturnType<typeof effect> | undefined;
   return useEffect(() => {
     const timeoutHandle = setTimeout(() => {

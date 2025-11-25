@@ -21,6 +21,7 @@ import { useInsertQuest } from "@/server_actions/client/create_quest/insertQuest
 
 export function CreateQuestMain({ user }: { user: SafeUser }) {
   const [gotoNextStep, setGotoNextStep] = useState(false);
+  const [isCoverPhotoGenerating, setIsCoverPhotoGenerating] = useState(false);
   const [latestVisitedState, setLatestVisitedState] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
   const [stableStepIndex, setStableStepIndex] = useState(0);
@@ -131,6 +132,9 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
         setTitle={setTitle}
         setShareTitle={setShareTitle}
         setDescription={setDescription}
+        coverPhotoExists={coverPhoto?.content !== undefined}
+        setCoverPhoto={setCoverPhoto}
+        setIsCoverPhotoGenerating={setIsCoverPhotoGenerating}
         continueToNextStep={continueToNextStep}
         key="generateDescriptionTitle"
       />,
@@ -153,8 +157,7 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
     [
       <GenerateCoverPhoto
         active={stableStepIndex === 4 && stepIndex === 4}
-        description={description ?? ""}
-        setCoverPhoto={setCoverPhoto}
+        generating={isCoverPhotoGenerating}
         continueToNextStep={continueToNextStep}
         key="generateCoverPhoto"
       />,
