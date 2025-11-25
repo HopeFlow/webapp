@@ -243,7 +243,6 @@ const getSvgNodes = (
           imageHref ?? userImageUrl ?? "/img/unknown.png";
         const showPotentialNode = Boolean(potentialNode);
         const isOptimistic = Boolean(optimistic);
-        console.log({ isOptimistic, optimistic });
         const RefererIcon = showPotentialNode ? null : getRefererIcon(referer);
         const showRefererIcon = Boolean(RefererIcon);
         const isActive = nodeId === activeNodeId;
@@ -486,7 +485,7 @@ export const ReflowTree = ({
       viewBox={`${viewBoxMinX} ${viewBoxMinY} ${viewBoxWidth} ${viewBoxHeight}`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className="max-h-[40vh] w-full max-w-full md:max-h-[14.7rem]"
+      className="max-h-[40vh] w-full md:h-[14.35rem]"
       onClick={() => {
         if (onNodeClick) {
           onNodeClick(undefined);
