@@ -14,7 +14,7 @@ export const useProfile = () => {
   const dependantQueryKeys = [["Profile"], queryKey];
   const queryClient = useQueryClient();
   const query = useQuery(
-    { queryKey, queryFn: async () => await userProfileCrud("read") },
+    { queryKey, queryFn: async () => await userProfileCrud("read", undefined) },
     queryClient,
   );
   const update = useMutation(
@@ -42,7 +42,7 @@ export const getProfileQueryKey = () => {
 export const getProfileQueryOptions = () => {
   return {
     queryKey: getProfileQueryKey(),
-    queryFn: async () => userProfileCrud("read"),
+    queryFn: async () => userProfileCrud("read", undefined),
   } as const;
 };
 export const prefetchProfile = () => (qc: QueryClient) =>

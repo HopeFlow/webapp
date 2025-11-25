@@ -1,7 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
-
 import { MobileHeader } from "@/components/mobile_header";
 import type { SafeUser } from "@/helpers/server/auth";
 import {
@@ -16,7 +14,6 @@ import {
   LinkRewardAccordion,
 } from "./components/LinkAccordions";
 import { LinkStoryContent } from "./components/LinkStoryContent";
-import { ReFlowNodeSimple } from "./components/ReflowTree";
 import type { SocialMediaName } from "./components/ReflowTree";
 import { LinkFooterSection } from "./components/LinkFooterSection";
 import { LinkTitleSection } from "./components/LinkTitleSection";
@@ -28,6 +25,8 @@ import { LinkMediaCarousel } from "./components/LinkMediaCarousel";
 import { StatsCard } from "./components/StatsCard";
 import { useLinkStatsCard } from "@/server_actions/client/link/linkStatsCard";
 import type { LinkStatusStat } from "@/server_actions/definitions/link/types";
+import { useLinkNode } from "@/server_actions/client/link/linkNode";
+import { useGotoLogin } from "@/helpers/client/routes";
 
 const FALLBACK_STATS: LinkStatusStat[] = [
   {
@@ -135,7 +134,6 @@ export function LinkMain({
   coverMedia,
   user,
   inviter,
-  reflowTreeRoot,
   linkCode,
   questId,
   referer,
@@ -147,7 +145,6 @@ export function LinkMain({
   coverMedia: QuestMedia[];
   user?: SafeUser;
   inviter: SerializedInviter;
-  reflowTreeRoot: ReFlowNodeSimple;
   linkCode: string;
   questId: string;
   referer: SocialMediaName;
@@ -221,6 +218,22 @@ export function LinkMain({
   const statsQuery = useLinkStatsCard({ questId });
   const stats = statsQuery.data?.stats ?? FALLBACK_STATS;
   const redirectUrl = `link/${linkCode}`;
+
+  const {
+    data: linkNodeData,
+    isLoading: isLinkNodeLoading,
+    create: createNode,
+  } = useLinkNode({ linkCode });
+  const gotoLogin = useGotoLogin();
+
+  const handlePotentialNodeClick = async () => {
+    if (!user) {
+      gotoLogin({ url: `/link/${linkCode}` });
+      return;
+    }
+    await createNode.mutateAsync({ referer });
+  };
+
   return (
     <div className="flex w-full max-w-6xl flex-col self-center">
       <MobileHeader user={user} url={redirectUrl} />
@@ -253,14 +266,17 @@ export function LinkMain({
           </div>
           {/* right stack */}
           <div className="bg-secondary-content border-secondary card flex flex-1 flex-col border md:sticky md:top-6 md:w-1/3 md:flex-shrink-0 md:self-start">
-            <LinkBotonicalTree treeRoot={reflowTreeRoot} questId={questId} />
+            <LinkBotonicalTree
+              questId={questId}
+              treeRoot={linkNodeData?.treeRoot}
+              isLoading={isLinkNodeLoading}
+            />
             <hr className="border-secondary mx-5 bg-transparent" />
             <LinkReflowTree
-              treeRoot={reflowTreeRoot}
-              userImageUrl={user?.imageUrl}
-              linkCode={linkCode}
-              isLoggedIn={!!user}
-              referer={referer}
+              treeRoot={linkNodeData?.treeRoot}
+              userImageUrl={linkNodeData?.userImageUrl}
+              isLoading={isLinkNodeLoading}
+              onPotentialNodeClick={handlePotentialNodeClick}
             />
           </div>
         </div>

@@ -30,12 +30,26 @@ const LinkBotonicalTreeImpl = dynamic(
 );
 
 export function LinkBotonicalTree({
-  treeRoot,
   questId,
+  treeRoot,
+  isLoading,
 }: {
-  treeRoot: ReFlowNodeSimple;
   questId: string;
+  treeRoot: ReFlowNodeSimple | undefined;
+  isLoading: boolean;
 }) {
+  if (isLoading || !treeRoot) {
+    return (
+      <div className="flex flex-col">
+        <div className="text-secondary flex h-[15.5rem] flex-col overflow-hidden">
+          <div className="bg-base-200/20 flex h-full w-full items-center justify-center">
+            <LoadingElement size={48} variant="spinner" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col">
       <div className="text-secondary flex h-[15.5rem] flex-col overflow-hidden">

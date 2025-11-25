@@ -18,7 +18,10 @@ export const useLinkTimeline = (...args: [LinkTimelineReadParams]) => {
   const dependantQueryKeys = [["linkTimeline"], ["linkStatsCard"], queryKey];
   const queryClient = useQueryClient();
   const query = useQuery(
-    { queryKey, queryFn: async () => await linkTimeline("read", ...args) },
+    {
+      queryKey,
+      queryFn: async () => await linkTimeline("read", undefined, ...args),
+    },
     queryClient,
   );
   const create = useMutation(
@@ -65,7 +68,7 @@ export const getLinkTimelineQueryOptions = (
 ) => {
   return {
     queryKey: getLinkTimelineQueryKey(...args),
-    queryFn: async () => linkTimeline("read", ...args),
+    queryFn: async () => linkTimeline("read", undefined, ...args),
   } as const;
 };
 export const prefetchLinkTimeline =

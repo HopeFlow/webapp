@@ -14,7 +14,7 @@ export const useCreateAccount = () => {
   const dependantQueryKeys = [["createAccount"], queryKey];
   const queryClient = useQueryClient();
   const query = useQuery(
-    { queryKey, queryFn: async () => await userProfileCrud("read") },
+    { queryKey, queryFn: async () => await userProfileCrud("read", undefined) },
     queryClient,
   );
   const update = useMutation(
@@ -42,7 +42,7 @@ export const getCreateAccountQueryKey = () => {
 export const getCreateAccountQueryOptions = () => {
   return {
     queryKey: getCreateAccountQueryKey(),
-    queryFn: async () => userProfileCrud("read"),
+    queryFn: async () => userProfileCrud("read", undefined),
   } as const;
 };
 export const prefetchCreateAccount = () => (qc: QueryClient) =>

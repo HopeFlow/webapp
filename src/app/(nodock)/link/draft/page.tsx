@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { LinkBotonicalTree } from "@/app/(nodock)/link/[linkCode]/components/LinkBotonicalTree";
-import { ReflowTree } from "@/components/reflow_tree";
+import { LinkReflowTree } from "@/app/(nodock)/link/[linkCode]/components/LinkReflowTree";
 import type {
   ReFlowNodeSimple,
   SocialMediaName,
@@ -339,7 +339,13 @@ export default function LinkDraftPage() {
             </button>
           </div>
           <div className="border-base-300/40 bg-base-100 mt-4 w-full overflow-hidden rounded-2xl border">
-            <LinkBotonicalTree treeRoot={treeRoot} questId={questId} />
+            <div className="text-secondary flex h-[15.5rem] flex-col overflow-hidden">
+              <LinkBotonicalTree
+                questId={questId}
+                treeRoot={treeRoot}
+                isLoading={false}
+              />
+            </div>
           </div>
         </div>
         <hr className="border-secondary mx-6" />
@@ -460,10 +466,15 @@ export default function LinkDraftPage() {
               )}
             </div>
           </div>
-          <ReflowTree
-            treeNodes={treeRoot}
+          <LinkReflowTree
+            treeRoot={treeRoot}
             activeNodeId={activeNodeId}
-            onNodeClick={setActiveNodeId}
+            onActiveNodeChange={setActiveNodeId}
+            userImageUrl={undefined}
+            isLoading={false}
+            onPotentialNodeClick={() => {
+              /* no-op in draft */
+            }}
           />
         </div>
       </div>

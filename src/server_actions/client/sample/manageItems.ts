@@ -48,7 +48,7 @@ export const useManageItems: UseManageItems = (
       queryFn: async () =>
         await (variantName === "getItemById"
           ? getItemById(...(args as [number]))
-          : manageItems("read")),
+          : manageItems("read", undefined)),
     },
     queryClient,
   );
@@ -128,7 +128,7 @@ export const getManageItemsQueryOptions = (
     queryFn: async () => {
       return variantName === "getItemById"
         ? getItemById(...(args as [number]))
-        : manageItems("read", ...(args as []));
+        : manageItems("read", undefined, ...(args as []));
     },
   } as const;
 };

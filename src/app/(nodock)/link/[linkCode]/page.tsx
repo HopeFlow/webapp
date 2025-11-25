@@ -20,12 +20,12 @@ import {
 } from "@/server_actions/definitions/link/index.server";
 import { prefetchLinkTimeline } from "@/server_actions/client/link/linkTimeline";
 import { prefetchLinkStatsCard } from "@/server_actions/client/link/linkStatsCard";
+import { prefetchLinkNode } from "@/server_actions/client/link/linkNode";
 import AccessRestricted from "./components/accessRestricted";
 import { notFound } from "next/navigation";
 import QuestOwnerNotice from "./components/questOwnerNotice";
 import AlreadyContributorNotice from "./components/alreadyContributorNotice";
 import { socialMediaNames } from "@/db/constants";
-import { ReFlowNodeSimple } from "./components/ReflowTree";
 import type { SocialMediaName } from "./components/ReflowTree";
 import ErrorPreparingPage from "./components/ErrorPreparingPage";
 const isSocialMediaName = (
@@ -59,78 +59,12 @@ async function ContentsForUser({
     }
   }
 
-  const lastNode = nodes.at(-1);
-  if (lastNode?.id === "" && isSocialMediaName(referer)) {
-    lastNode.referer = referer;
-  }
-
+  // Enrich nodes with user data for inviter avatar chain
   const nodesWithUserNameAndImage = await withUserData(nodes, {
     fullName: "name",
     firstName: "firstName",
     imageUrl: "userImageUrl",
   });
-
-  type LinkTreeNodeSource = (typeof nodesWithUserNameAndImage)[number];
-
-  nodesWithUserNameAndImage
-    // Only adjust display labels for nodes tied to this link and
-    // ensure the pending nodes always display a label, defaulting to the link name.
-    .filter((n: LinkTreeNodeSource) => n.viewLinkId === link.id)
-    .forEach((n: LinkTreeNodeSource) => {
-      if (!n.name) {
-        n.name = link.name;
-      }
-    });
-
-  let winnerPathMap: Record<string, number> = {};
-  if (quest.status === "solved") {
-    const results = await getWinnerPathsForQuests([quest.id]);
-    if (results) winnerPathMap = results[quest.id];
-  }
-
-  const createNodeTree = (
-    nodesForTree: LinkTreeNodeSource[],
-  ): ReFlowNodeSimple => {
-    // Map a DB node to the shape expected by the tree component.
-    const toTreeNode = (
-      node: LinkTreeNodeSource,
-    ): Omit<ReFlowNodeSimple, "children"> => {
-      const rawId =
-        typeof node.id === "string" && node.id.trim() ? node.id.trim() : "";
-      const resolvedId =
-        rawId ||
-        (node.viewLinkId ? `link-${node.viewLinkId}` : undefined) ||
-        `pending-${node.parentId ?? "root"}-${Number(
-          new Date(node.createdAt),
-        )}`;
-      const hasRealId = Boolean(rawId);
-      const commonFields = {
-        id: resolvedId,
-        title: node.name || undefined,
-        targetNode: (hasRealId && node.id === userNode?.id) || !hasRealId,
-        potentialNode: !hasRealId,
-        createdAt: node.createdAt,
-        imageUrl: node.userImageUrl || undefined,
-        referer: node.parentId !== null ? node.referer : null,
-      };
-
-      const rank = hasRealId && node.id ? winnerPathMap[node.id] : null;
-      return rank != null ? { ...commonFields, rank } : commonFields;
-    };
-
-    // Root node is the only entry without a parent.
-    const rootSourceNode = nodesForTree.find((n) => n.parentId === null);
-
-    // Recursively build the nested tree for the UI.
-    const buildTree = (sourceNode: LinkTreeNodeSource): ReFlowNodeSimple => ({
-      ...toTreeNode(sourceNode),
-      children: nodesForTree
-        .filter((candidate) => candidate.parentId === sourceNode.id)
-        .map((child) => buildTree(child)),
-    });
-
-    return buildTree(rootSourceNode!);
-  };
 
   if (quest.type === "restricted" && link.active) {
     if (!(await deactivateLinkAndSetJwtToken(linkCode)))
@@ -231,6 +165,7 @@ async function ContentsForUser({
       actions={[
         prefetchLinkTimeline({ linkCode }),
         prefetchLinkStatsCard({ questId: quest.id }),
+        prefetchLinkNode({ linkCode }),
       ]}
     >
       <LinkMain
@@ -241,7 +176,6 @@ async function ContentsForUser({
         user={safeUser}
         coverMedia={coverMedia}
         inviter={inviter}
-        reflowTreeRoot={createNodeTree(nodesWithUserNameAndImage)}
         linkCode={linkCode}
         questId={quest.id}
         referer={sanitizedReferer}

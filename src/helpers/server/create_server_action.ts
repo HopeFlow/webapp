@@ -16,7 +16,7 @@ export type CrudAction = "create" | "read" | "update" | "remove";
 export interface CrudServerAction<C, R, U, D, P extends AnyArgs = []>
   extends ServerAction<[CrudAction, C | U | D | undefined, ...P], R | boolean> {
   (action: "create", data: C, ...args: P): Promise<boolean>;
-  (action: "read", ...args: P): Promise<R>;
+  (action: "read", data?: undefined, ...args: P): Promise<R>;
   (action: "update", data: U, ...args: P): Promise<boolean>;
   (action: "remove", data: D, ...args: P): Promise<boolean>;
   createVariant<V extends AnyArgs, W>(
@@ -84,7 +84,11 @@ export const createVariant = function <
 ) {
   const id = `${this.id}.${variantName}`;
   const scope = this.scope;
-  const fn = defineServerFunction<V, W, Promise<W>>({ id, scope, handler: read });
+  const fn = defineServerFunction<V, W, Promise<W>>({
+    id,
+    scope,
+    handler: read,
+  });
   return toServerAction<V, W>(fn, {
     id,
     scope,

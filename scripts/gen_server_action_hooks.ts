@@ -685,8 +685,8 @@ const emitPrefetchExportsFromTemplate = (
       .setInitializer(
         isCrud
           ? isArgsEmpty
-            ? `async () => ${actionSymbol.getName()}("read")`
-            : `async () => ${actionSymbol.getName()}("read", ...args)`
+            ? `async () => ${actionSymbol.getName()}("read", undefined)`
+            : `async () => ${actionSymbol.getName()}("read", undefined, ...args)`
           : isArgsEmpty
             ? `async () => ${actionSymbol.getName()}()`
             : `async () => ${actionSymbol.getName()}(...args)`,
@@ -710,7 +710,7 @@ const emitPrefetchExportsFromTemplate = (
 
     // 3) build the base call with a typed spread too
     const actionExprBase = isCrud
-      ? `${actionSymbol.getName()}("read"${
+      ? `${actionSymbol.getName()}("read", undefined${
           isArgsEmpty
             ? ""
             : `, ...args as ${getResolvedTypeText(baseArgsType, sourceFile)}`
@@ -1111,6 +1111,19 @@ const buildCrudServerActionHook = (
     isOriginalArgsEmpty,
     argsTypes.size > 1 ? argsTypes.get(actionSymbol)![0] : undefined,
   );
+
+  functionDeclaration
+    .getDescendantsOfKind(SyntaxKind.CallExpression)
+    .filter((call) => call.getExpression().getText() === actionSymbol.getName())
+    .forEach((call) => {
+      const args = call.getArguments();
+      if (
+        args.length > 0 &&
+        (args[0].getText() === '"read"' || args[0].getText() === "'read'")
+      ) {
+        call.insertArgument(1, "undefined");
+      }
+    });
 
   if (actionInfo.variants) {
     const actionCallExpression = functionDeclaration

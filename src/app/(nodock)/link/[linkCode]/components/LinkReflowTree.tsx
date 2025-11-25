@@ -1,28 +1,23 @@
 import { useState } from "react";
 import { ReFlowNodeSimple, SocialMediaName } from "./ReflowTree";
 import { ReflowTree } from "@/components/reflow_tree";
-import { useLinkNode } from "@/server_actions/client/link/linkNode";
-
-import { useGotoLogin } from "@/helpers/client/routes";
 
 type LinkReflowTreeProps = {
-  treeRoot: ReFlowNodeSimple;
   activeNodeId?: string;
   onActiveNodeChange?: (nodeId: string | undefined) => void;
-  userImageUrl?: string;
-  linkCode: string;
-  isLoggedIn: boolean;
-  referer: SocialMediaName;
+  treeRoot: ReFlowNodeSimple | undefined;
+  userImageUrl: string | undefined;
+  isLoading: boolean;
+  onPotentialNodeClick: () => void;
 };
 
 export function LinkReflowTree({
-  treeRoot,
   activeNodeId,
   onActiveNodeChange,
+  treeRoot,
   userImageUrl,
-  linkCode,
-  isLoggedIn,
-  referer,
+  isLoading,
+  onPotentialNodeClick,
 }: LinkReflowTreeProps) {
   const [uncontrolledActiveNodeId, setUncontrolledActiveNodeId] = useState<
     string | undefined
@@ -32,9 +27,6 @@ export function LinkReflowTree({
     ? activeNodeId
     : uncontrolledActiveNodeId;
 
-  const { create: createNode } = useLinkNode({ linkCode });
-  const gotoLogin = useGotoLogin();
-
   const handleNodeSelection = (nodeId: string | undefined) => {
     if (!isControlled) {
       setUncontrolledActiveNodeId(nodeId);
@@ -42,13 +34,15 @@ export function LinkReflowTree({
     onActiveNodeChange?.(nodeId);
   };
 
-  const handlePotentialNodeClick = async () => {
-    if (!isLoggedIn) {
-      gotoLogin({ url: `/link/${linkCode}` });
-      return;
-    }
-    await createNode.mutateAsync({ referer });
-  };
+  if (isLoading || !treeRoot) {
+    return (
+      <div className="text-secondary flex-1 items-center justify-center self-stretch rounded-t-none p-4 pt-0">
+        <div className="flex items-center justify-center p-8">
+          <span className="loading loading-spinner loading-md" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -64,7 +58,7 @@ export function LinkReflowTree({
         activeNodeId={resolvedActiveNodeId}
         onNodeClick={handleNodeSelection}
         userImageUrl={userImageUrl}
-        onPotentialNodeClick={handlePotentialNodeClick}
+        onPotentialNodeClick={onPotentialNodeClick}
       />
     </div>
   );
