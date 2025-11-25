@@ -7,7 +7,7 @@ import { Avatar } from "@/components/user_avatar";
 import { SafeUser } from "@/helpers/server/auth";
 import { Button } from "@/components/button";
 import { useLinkTimeline } from "@/server_actions/client/link/linkTimeline";
-import { useLinkTimelineMutationOptions } from "../useLinkTimelineMutationOptions";
+import { useLinkTimelineMutationOptions } from "./useLinkTimelineMutationOptions";
 import type { SocialMediaName } from "./ReflowTree";
 import type {
   LinkTimelineReadResult,

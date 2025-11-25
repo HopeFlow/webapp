@@ -26,6 +26,7 @@ import { StatsCard } from "./components/StatsCard";
 import { useLinkStatsCard } from "@/server_actions/client/link/linkStatsCard";
 import type { LinkStatusStat } from "@/server_actions/definitions/link/types";
 import { useLinkNode } from "@/server_actions/client/link/linkNode";
+import { useLinkNodeMutationOptions } from "./useLinkNodeMutationOptions";
 import { useGotoLogin } from "@/helpers/client/routes";
 
 const FALLBACK_STATS: LinkStatusStat[] = [
@@ -218,12 +219,13 @@ export function LinkMain({
   const statsQuery = useLinkStatsCard({ questId });
   const stats = statsQuery.data?.stats ?? FALLBACK_STATS;
   const redirectUrl = `link/${linkCode}`;
+  const mutationOptions = useLinkNodeMutationOptions(linkCode, user);
 
   const {
     data: linkNodeData,
     isLoading: isLinkNodeLoading,
     create: createNode,
-  } = useLinkNode({ linkCode });
+  } = useLinkNode({ linkCode }, mutationOptions);
   const gotoLogin = useGotoLogin();
 
   const handlePotentialNodeClick = async () => {

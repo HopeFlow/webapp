@@ -49,6 +49,7 @@ export const useLinkNodeMutationOptions = (
                 mutableNode.createdAt = new Date();
                 mutableNode.referer = variables.referer;
                 mutableNode.children = [];
+                mutableNode.optimistic = true;
                 return true;
               }
               if (node.children) {
@@ -67,17 +68,18 @@ export const useLinkNodeMutationOptions = (
       onError: (
         _err: Error,
         _newTodo: { referer: SocialMediaName },
-        context: MutationContext | undefined,
+        context: unknown,
       ) => {
-        if (context?.previousData) {
-          queryClient.setQueryData(queryKey, context.previousData);
+        const mutationContext = context as MutationContext | undefined;
+        if (mutationContext?.previousData) {
+          queryClient.setQueryData(queryKey, mutationContext.previousData);
         }
       },
     } as UseMutationOptions<
       boolean,
       Error,
       { referer: SocialMediaName },
-      MutationContext
+      unknown
     >,
   };
 };

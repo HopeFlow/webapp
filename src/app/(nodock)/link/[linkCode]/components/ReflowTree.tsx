@@ -17,6 +17,7 @@ export type ReFlowNode = {
   readonly tooltip?: ReactNode;
   readonly targetNode?: boolean;
   readonly rank?: number;
+  readonly optimistic?: boolean;
 };
 
 export type ReFlowNodeSimple = Omit<ReFlowNode, "icon" | "children"> & {

@@ -230,6 +230,7 @@ const getSvgNodes = (
           potentialNode,
           targetNode,
           rank,
+          optimistic,
         } = node;
         const isRootNode = layerIndex === 0 && nodeIndex === 0;
         const isTargetNode = Boolean(targetNode);
@@ -241,6 +242,8 @@ const getSvgNodes = (
         const resolvedImageHref =
           imageHref ?? userImageUrl ?? "/img/unknown.png";
         const showPotentialNode = Boolean(potentialNode);
+        const isOptimistic = Boolean(optimistic);
+        console.log({ isOptimistic, optimistic });
         const RefererIcon = showPotentialNode ? null : getRefererIcon(referer);
         const showRefererIcon = Boolean(RefererIcon);
         const isActive = nodeId === activeNodeId;
@@ -292,7 +295,8 @@ const getSvgNodes = (
               className={cn(
                 "stroke-primary fill-primary transition-all duration-200",
                 isActive && "drop-shadow-[0_0_12px_rgba(251,191,36,0.6)]",
-                showPotentialNode && "animate-[spin_30s_linear_infinite]",
+                (showPotentialNode || isOptimistic) &&
+                  "animate-[spin_30s_linear_infinite]",
               )}
               style={{
                 transformOrigin: `${x}px ${y}px`,
@@ -315,7 +319,7 @@ const getSvgNodes = (
                   "brightness-75 grayscale group-hover:brightness-90 group-hover:grayscale-0",
               )}
             />
-            {(showPotentialNode || showRefererIcon) && (
+            {(showPotentialNode || showRefererIcon || isOptimistic) && (
               <g
                 transform={
                   showPotentialNode
@@ -323,7 +327,22 @@ const getSvgNodes = (
                     : `translate(${x + 0.25 * radius}, ${y + 0.5 * radius})`
                 }
               >
-                {!showPotentialNode && RefererIcon && <RefererIcon size={48} />}
+                {!showPotentialNode && !isOptimistic && RefererIcon && (
+                  <RefererIcon size={48} />
+                )}
+                {isOptimistic && (
+                  <foreignObject
+                    x={0}
+                    y={0}
+                    width={48}
+                    height={48}
+                    className="pointer-events-none"
+                  >
+                    <div className="flex h-full w-full items-center justify-center">
+                      <span className="loading loading-spinner loading-md text-white" />
+                    </div>
+                  </foreignObject>
+                )}
               </g>
             )}
             {showPotentialNode && (
