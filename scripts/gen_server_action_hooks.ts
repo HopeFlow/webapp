@@ -396,12 +396,15 @@ const addHookVariableStatement = (
       const restParams = callSignature
         .getParameters()
         .flatMap((p) =>
-          symbol === actionSymbol && p.getName() === "action"
+          symbol === actionSymbol &&
+          (p.getName() === "action" ||
+            (actionInfo.type === "crudServerAction" && p.getName() === "data"))
             ? []
             : [
                 {
                   isRestParameter: isRestParam(p),
                   name: p.getName(),
+                  hasQuestionToken: p.isOptional(),
                   type: getResolvedTypeText(
                     typeChecker.getTypeOfSymbolAtLocation(
                       p,
@@ -412,6 +415,30 @@ const addHookVariableStatement = (
                 },
               ],
         );
+
+      if (symbol === actionSymbol && actionInfo.mutations) {
+        const mutationOptionsType = `{ ${actionInfo.mutations
+          .map(
+            (m) =>
+              `${m}?: UseMutationOptions<boolean, Error, ${getResolvedTypeText(
+                mutationDataTypeMap!.get(m)!,
+                sourceFile,
+              )}, unknown>`,
+          )
+          .join(", ")} }`;
+
+        const lastParam = restParams[restParams.length - 1];
+        if (lastParam && lastParam.isRestParameter) {
+          lastParam.type = `[...${lastParam.type}, (${mutationOptionsType} | undefined)?]`;
+        } else {
+          restParams.push({
+            name: "mutationOptions",
+            type: mutationOptionsType,
+            isRestParameter: false,
+            hasQuestionToken: true,
+          });
+        }
+      }
       return {
         parameters: [...variantNameParam, ...restParams],
         returnType:
@@ -980,6 +1007,26 @@ const addCrudMutations = (
       .getArguments()
       .at(0)!
       .replaceWithText(JSON.stringify(mutation));
+
+    const objectLiteral = mutationFnAssignment.getParentIfKindOrThrow(
+      SyntaxKind.ObjectLiteralExpression,
+    );
+    objectLiteral.insertSpreadAssignment(0, {
+      expression: `mutationOptions?.${mutation}`,
+    });
+
+    const onSettledAssignment = objectLiteral
+      .getProperty("onSettled")
+      ?.asKind(SyntaxKind.PropertyAssignment);
+    if (onSettledAssignment) {
+      const onSettledBody = onSettledAssignment
+        .getInitializerIfKindOrThrow(SyntaxKind.ArrowFunction)
+        .getBody()
+        .asKindOrThrow(SyntaxKind.Block);
+      onSettledBody.addStatements(
+        `mutationOptions?.${mutation}?.onSettled?.(data, error, variables, onMutateResult, context);`,
+      );
+    }
   });
 };
 
@@ -1052,7 +1099,46 @@ const buildCrudServerActionHook = (
     functionDeclaration.getVariableDeclaration("query")?.remove();
   }
 
-  if (actionInfo.mutations) {
+  if (actionInfo.mutations && argsTypes.size === 1) {
+    const mutationOptionsType = `{ ${actionInfo.mutations
+      .map(
+        (m) =>
+          `${m}?: UseMutationOptions<boolean, Error, ${getResolvedTypeText(
+            mutationDataTypeMap.get(m)!,
+            sourceFile,
+          )}, unknown>`,
+      )
+      .join(", ")} }`;
+
+    if (isArgsEmpty) {
+      functionDeclaration.addParameter({
+        name: "mutationOptions",
+        type: mutationOptionsType,
+        hasQuestionToken: true,
+      });
+    } else {
+      const argsParam = functionDeclaration.getParameterOrThrow("args");
+      const [baseArgsType] = argsTypes.get(actionSymbol)!;
+      const resolvedBaseType = getResolvedTypeText(baseArgsType, sourceFile);
+      const tupleLength = baseArgsType.isTuple()
+        ? baseArgsType.getTupleElements().length
+        : 1;
+
+      argsParam.set({ name: "_args" });
+      argsParam.setType(
+        `[...${resolvedBaseType}, (${mutationOptionsType} | undefined)?]`,
+      );
+
+      const body = functionDeclaration
+        .getBody()!
+        .asKindOrThrow(SyntaxKind.Block);
+      body.insertStatements(
+        0,
+        `const args = _args.slice(0, ${tupleLength}) as ${resolvedBaseType};
+         const mutationOptions = _args[${tupleLength}] as ${mutationOptionsType} | undefined;`,
+      );
+    }
+
     const body = functionDeclaration.getBody()!.asKindOrThrow(SyntaxKind.Block);
     const returnStatement = body.getStatementByKindOrThrow(
       SyntaxKind.ReturnStatement,
@@ -1340,6 +1426,7 @@ const main = () => {
         "useQueryClient",
         "type UseQueryResult",
         "type UseMutationResult",
+        "type UseMutationOptions",
         "type QueryClient",
       ],
     });

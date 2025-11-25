@@ -41,7 +41,7 @@ const useCrudServerActionMutation = (
         return await crudServerAction(action, data, ...args);
       },
 
-      onSettled: () => {
+      onSettled: (data, error, variables, onMutateResult, context) => {
         dependantQueryKeys.forEach((queryKey) =>
           queryClient.invalidateQueries({ queryKey }),
         );

@@ -6,10 +6,13 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type UseMutationOptions,
   type QueryClient,
 } from "@tanstack/react-query";
 
-export const useProfile = () => {
+export const useProfile = (mutationOptions?: {
+  update?: UseMutationOptions<boolean, Error, ProfileUpdateInput, unknown>;
+}) => {
   const queryKey = ["Profile"];
   const dependantQueryKeys = [["Profile"], queryKey];
   const queryClient = useQueryClient();
@@ -19,6 +22,7 @@ export const useProfile = () => {
   );
   const update = useMutation(
     {
+      ...mutationOptions?.update,
       mutationFn: async (data: ProfileUpdateInput) => {
         dependantQueryKeys.forEach((queryKey) =>
           queryClient.cancelQueries({ queryKey }),
@@ -26,9 +30,16 @@ export const useProfile = () => {
         return await userProfileCrud("update", data);
       },
 
-      onSettled: () => {
+      onSettled: (data, error, variables, onMutateResult, context) => {
         dependantQueryKeys.forEach((queryKey) =>
           queryClient.invalidateQueries({ queryKey }),
+        );
+        mutationOptions?.update?.onSettled?.(
+          data,
+          error,
+          variables,
+          onMutateResult,
+          context,
         );
       },
     },

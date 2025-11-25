@@ -5,10 +5,41 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type UseMutationOptions,
   type QueryClient,
 } from "@tanstack/react-query";
 
-export const useLinkNode = (...args: [{ linkCode: string }]) => {
+export const useLinkNode = (
+  ..._args: [
+    ...[{ linkCode: string }],
+    (
+      | {
+          create?: UseMutationOptions<
+            boolean,
+            Error,
+            {
+              referer: import("/Users/saeed/Projects/webapp/src/app/(nodock)/link/[linkCode]/components/ReflowTree").SocialMediaName;
+            },
+            unknown
+          >;
+        }
+      | undefined
+    )?,
+  ]
+) => {
+  const args = _args.slice(0, 1) as [{ linkCode: string }];
+  const mutationOptions = _args[1] as
+    | {
+        create?: UseMutationOptions<
+          boolean,
+          Error,
+          {
+            referer: import("/Users/saeed/Projects/webapp/src/app/(nodock)/link/[linkCode]/components/ReflowTree").SocialMediaName;
+          },
+          unknown
+        >;
+      }
+    | undefined;
   const queryKey = ["linkNode", ...args];
   const dependantQueryKeys = [["linkNode"], ["linkTimeline"], queryKey];
   const queryClient = useQueryClient();
@@ -21,6 +52,7 @@ export const useLinkNode = (...args: [{ linkCode: string }]) => {
   );
   const create = useMutation(
     {
+      ...mutationOptions?.create,
       mutationFn: async (data: {
         referer: import("/Users/saeed/Projects/webapp/src/app/(nodock)/link/[linkCode]/components/ReflowTree").SocialMediaName;
       }) => {
@@ -30,9 +62,16 @@ export const useLinkNode = (...args: [{ linkCode: string }]) => {
         return await linkNode("create", data, ...args);
       },
 
-      onSettled: () => {
+      onSettled: (data, error, variables, onMutateResult, context) => {
         dependantQueryKeys.forEach((queryKey) =>
           queryClient.invalidateQueries({ queryKey }),
+        );
+        mutationOptions?.create?.onSettled?.(
+          data,
+          error,
+          variables,
+          onMutateResult,
+          context,
         );
       },
     },

@@ -3,11 +3,11 @@
 import { manageItems, Item } from "../../definitions/sample/sample_actions";
 import { getItemById } from "../../definitions/sample/sample_actions";
 import {
-  useMutation,
   useQuery,
   useQueryClient,
   type UseQueryResult,
   type UseMutationResult,
+  type UseMutationOptions,
   type QueryClient,
 } from "@tanstack/react-query";
 
@@ -18,7 +18,27 @@ export interface UseManageItems {
   ): UseQueryResult<undefined | Item>;
   (
     variantName: null,
-    ...args: []
+    ...args: [
+      ...[],
+      (
+        | {
+            create?: UseMutationOptions<
+              boolean,
+              Error,
+              Omit<Item, "id">,
+              unknown
+            >;
+            update?: UseMutationOptions<boolean, Error, Item, unknown>;
+            remove?: UseMutationOptions<
+              boolean,
+              Error,
+              { id: number },
+              unknown
+            >;
+          }
+        | undefined
+      )?,
+    ]
   ): UseQueryResult<Item[]> & {
     create: UseMutationResult<boolean, Error, Omit<Item, "id">>;
     update: UseMutationResult<boolean, Error, Item>;
@@ -36,11 +56,6 @@ export const useManageItems: UseManageItems = (
       : "manageItems",
     ...args,
   ];
-  const dependantQueryKeys = [
-    ["manageItems"],
-    ["manageItems.getItemById"],
-    queryKey,
-  ];
   const queryClient = useQueryClient();
   const query = useQuery(
     {
@@ -52,60 +67,6 @@ export const useManageItems: UseManageItems = (
     },
     queryClient,
   );
-  const create = useMutation(
-    {
-      mutationFn: async (data: Omit<Item, "id">) => {
-        dependantQueryKeys.forEach((queryKey) =>
-          queryClient.cancelQueries({ queryKey }),
-        );
-        return await manageItems("create", data);
-      },
-
-      onSettled: () => {
-        dependantQueryKeys.forEach((queryKey) =>
-          queryClient.invalidateQueries({ queryKey }),
-        );
-      },
-    },
-    queryClient,
-  );
-  const update = useMutation(
-    {
-      mutationFn: async (data: Item) => {
-        dependantQueryKeys.forEach((queryKey) =>
-          queryClient.cancelQueries({ queryKey }),
-        );
-        return await manageItems("update", data);
-      },
-
-      onSettled: () => {
-        dependantQueryKeys.forEach((queryKey) =>
-          queryClient.invalidateQueries({ queryKey }),
-        );
-      },
-    },
-    queryClient,
-  );
-  const remove = useMutation(
-    {
-      mutationFn: async (data: { id: number }) => {
-        dependantQueryKeys.forEach((queryKey) =>
-          queryClient.cancelQueries({ queryKey }),
-        );
-        return await manageItems("remove", data);
-      },
-
-      onSettled: () => {
-        dependantQueryKeys.forEach((queryKey) =>
-          queryClient.invalidateQueries({ queryKey }),
-        );
-      },
-    },
-    queryClient,
-  );
-  if (!variantName) {
-    return { ...query, create, update, remove };
-  }
   return query;
 };
 export const getManageItemsQueryKey = (

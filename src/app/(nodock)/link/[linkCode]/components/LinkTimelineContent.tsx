@@ -6,7 +6,8 @@ import { Timeline } from "@/components/timeline";
 import { Avatar } from "@/components/user_avatar";
 import { SafeUser } from "@/helpers/server/auth";
 import { Button } from "@/components/button";
-import { useLinkTimelineOptimistic } from "../useLinkTimelineOptimistic";
+import { useLinkTimeline } from "@/server_actions/client/link/linkTimeline";
+import { useLinkTimelineMutationOptions } from "../useLinkTimelineMutationOptions";
 import type { SocialMediaName } from "./ReflowTree";
 import type {
   LinkTimelineReadResult,
@@ -31,7 +32,8 @@ export function LinkTimelineContent({
   const commentInputId = useId();
   const [commentText, setCommentText] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-  const timelineQuery = useLinkTimelineOptimistic({ linkCode }, { user });
+  const mutationOptions = useLinkTimelineMutationOptions({ linkCode }, user);
+  const timelineQuery = useLinkTimeline({ linkCode }, mutationOptions);
   const { data, create, update } = timelineQuery;
   const resolvedReferer: SocialMediaName = referer ?? "unknown";
 

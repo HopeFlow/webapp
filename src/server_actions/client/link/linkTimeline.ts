@@ -10,10 +10,49 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type UseMutationOptions,
   type QueryClient,
 } from "@tanstack/react-query";
 
-export const useLinkTimeline = (...args: [LinkTimelineReadParams]) => {
+export const useLinkTimeline = (
+  ..._args: [
+    ...[LinkTimelineReadParams],
+    (
+      | {
+          create?: UseMutationOptions<
+            boolean,
+            Error,
+            LinkTimelineCreateInput,
+            unknown
+          >;
+          update?: UseMutationOptions<
+            boolean,
+            Error,
+            LinkTimelineReactionInput,
+            unknown
+          >;
+        }
+      | undefined
+    )?,
+  ]
+) => {
+  const args = _args.slice(0, 1) as [LinkTimelineReadParams];
+  const mutationOptions = _args[1] as
+    | {
+        create?: UseMutationOptions<
+          boolean,
+          Error,
+          LinkTimelineCreateInput,
+          unknown
+        >;
+        update?: UseMutationOptions<
+          boolean,
+          Error,
+          LinkTimelineReactionInput,
+          unknown
+        >;
+      }
+    | undefined;
   const queryKey = ["linkTimeline", ...args];
   const dependantQueryKeys = [["linkTimeline"], ["linkStatsCard"], queryKey];
   const queryClient = useQueryClient();
@@ -26,6 +65,7 @@ export const useLinkTimeline = (...args: [LinkTimelineReadParams]) => {
   );
   const create = useMutation(
     {
+      ...mutationOptions?.create,
       mutationFn: async (data: LinkTimelineCreateInput) => {
         dependantQueryKeys.forEach((queryKey) =>
           queryClient.cancelQueries({ queryKey }),
@@ -33,9 +73,16 @@ export const useLinkTimeline = (...args: [LinkTimelineReadParams]) => {
         return await linkTimeline("create", data, ...args);
       },
 
-      onSettled: () => {
+      onSettled: (data, error, variables, onMutateResult, context) => {
         dependantQueryKeys.forEach((queryKey) =>
           queryClient.invalidateQueries({ queryKey }),
+        );
+        mutationOptions?.create?.onSettled?.(
+          data,
+          error,
+          variables,
+          onMutateResult,
+          context,
         );
       },
     },
@@ -43,6 +90,7 @@ export const useLinkTimeline = (...args: [LinkTimelineReadParams]) => {
   );
   const update = useMutation(
     {
+      ...mutationOptions?.update,
       mutationFn: async (data: LinkTimelineReactionInput) => {
         dependantQueryKeys.forEach((queryKey) =>
           queryClient.cancelQueries({ queryKey }),
@@ -50,9 +98,16 @@ export const useLinkTimeline = (...args: [LinkTimelineReadParams]) => {
         return await linkTimeline("update", data, ...args);
       },
 
-      onSettled: () => {
+      onSettled: (data, error, variables, onMutateResult, context) => {
         dependantQueryKeys.forEach((queryKey) =>
           queryClient.invalidateQueries({ queryKey }),
+        );
+        mutationOptions?.update?.onSettled?.(
+          data,
+          error,
+          variables,
+          onMutateResult,
+          context,
         );
       },
     },
