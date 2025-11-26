@@ -1,8 +1,9 @@
 "use server";
 
 import { z } from "zod";
-// import { Buffer } from "node:buffer";
+import { Buffer } from "node:buffer";
 import { defineServerFunction } from "./define_server_function";
+import { GoogleGenAI, SafetyFilterLevel } from "@google/genai";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod.mjs";
 
@@ -11,6 +12,37 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // const workersAiModel = "@cf/leonardo/lucid-origin";
 // const workersAiUrl = (accountId: string) =>
 //   `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${workersAiModel}`;
+
+if (process.env.NODE_ENV === "production" && !process.env.GEMINI_API_KEY)
+  throw new Error("GEMINI_API_KEY is not set");
+const googleGenAI =
+  process.env.NODE_ENV === "production" &&
+  !!process.env.GEMINI_API_KEY &&
+  new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+async function generateByGeminiPro(prompt: string) {
+  if (!googleGenAI) throw new Error("googleGenAI not available");
+  const response = await googleGenAI.models.generateImages({
+    model: "",
+    prompt,
+    config: {
+      numberOfImages: 1,
+      imageSize: "1k",
+      aspectRatio: "16:9",
+      outputMimeType: "image/jpeg",
+      safetyFilterLevel: SafetyFilterLevel.BLOCK_ONLY_HIGH,
+    },
+  });
+  const generatedImage = response.generatedImages?.[0].image;
+  const base64Image =
+    generatedImage &&
+    (generatedImage.imageBytes ??
+      (generatedImage?.gcsUri &&
+        (Buffer.from(
+          await fetch(generatedImage.gcsUri).then((res) => res.bytes()),
+        ).toString("base64") as string)));
+  return base64Image;
+}
 
 async function generateByGptImage1(prompt: string) {
   const response = await openai.images.generate({
@@ -60,6 +92,20 @@ async function generateByGptImage1(prompt: string) {
 //   return base64Image;
 // }
 
+const promptGenerationPrompt = `
+Create a Stable Diffusion prompt from user's description of his/her quest.
+# Rules
+- Do not copy description verbatim
+- Detect named people and search the web for context
+- Do not output the names
+- Detect important elements
+- Describe a minimalist visual graphical modern poster  in output
+- The description MUST match important elements and named person profession
+- Add SD details: composition, subtle textures. 
+- Explicitly prohibit text 
+- Output only the prompt, 1–3 sentences.
+`.trim();
+
 const promptJsonSchema = z.object({ prompt: z.string() });
 export const generateCoverPhoto = defineServerFunction({
   id: "generateCoverPhoto",
@@ -67,22 +113,20 @@ export const generateCoverPhoto = defineServerFunction({
   handler: async (description: string) => {
     // console.log("start", new Date().toTimeString());
     const { output_parsed } = await openai.responses.parse({
-      model: "gpt-5-nano",
-      reasoning: { effort: "minimal" },
+      model: "gpt-4.1-mini",
       input: [
-        {
-          role: "developer",
-          content:
-            "Your are an expert designer and idea generator. User will give you a description for a quest of his." +
-            'Generate a prompt for "gpt-image-1-mini" to generate a cover photo for the given quest',
-        },
+        { role: "developer", content: promptGenerationPrompt },
         { role: "user", content: description },
       ],
       text: { format: zodTextFormat(promptJsonSchema, "promptJson") },
     });
     if (!output_parsed)
       throw new Error("Failed to generate prompt from description");
-    const base64Image = await generateByGptImage1(output_parsed.prompt);
+    console.log({ coverPhotoPrompt: output_parsed.prompt });
+    const base64Image =
+      process.env.NODE_ENV === "development"
+        ? await generateByGptImage1(output_parsed.prompt)
+        : await generateByGeminiPro(output_parsed.prompt);
     // console.log("generate", new Date().toTimeString());
     // const base64Image = await generateByWorkersAi(output_parsed.prompt);
     // console.log("done", new Date().toTimeString());
@@ -90,3 +134,4 @@ export const generateCoverPhoto = defineServerFunction({
     return base64Image;
   },
 });
+
