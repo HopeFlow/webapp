@@ -6,10 +6,6 @@ import { useEffect, useState } from "react";
 import type { InsertQuestData } from "./types";
 import { loadBlobFromUrl, loadImageFromUrl } from "@/helpers/client/common";
 
-type SetCoverPhotoAction = (
-  v: InsertQuestData["coverPhoto"],
-) => InsertQuestData["coverPhoto"];
-
 export const GenerateDescriptionTitle = ({
   user,
   questIntentState,

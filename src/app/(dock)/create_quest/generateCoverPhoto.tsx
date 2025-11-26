@@ -1,7 +1,3 @@
-import { loadBlobFromUrl, loadImageFromUrl } from "@/helpers/client/common";
-import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
-import { useCallback, useState } from "react";
-import type { InsertQuestData } from "./types";
 import { useDebouncedEffect } from "@/helpers/client/hooks";
 
 export const GenerateCoverPhoto = ({

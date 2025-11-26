@@ -3,7 +3,10 @@
 import { z } from "zod";
 import { Buffer } from "node:buffer";
 import { defineServerFunction } from "./define_server_function";
-import { GoogleGenAI, SafetyFilterLevel } from "@google/genai";
+import {
+  GoogleGenAI,
+  PersonGeneration,
+} from "@google/genai";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod.mjs";
 
@@ -23,14 +26,14 @@ const googleGenAI =
 async function generateByGeminiPro(prompt: string) {
   if (!googleGenAI) throw new Error("googleGenAI not available");
   const response = await googleGenAI.models.generateImages({
-    model: "gemini-3-pro-preview",
+    model: "models/imagen-4.0-generate-001",
     prompt,
     config: {
       numberOfImages: 1,
       imageSize: "1k",
       aspectRatio: "16:9",
       outputMimeType: "image/jpeg",
-      safetyFilterLevel: SafetyFilterLevel.BLOCK_ONLY_HIGH,
+      personGeneration: PersonGeneration.ALLOW_ADULT,
     },
   });
   const generatedImage = response.generatedImages?.[0].image;
@@ -134,4 +137,3 @@ export const generateCoverPhoto = defineServerFunction({
     return base64Image;
   },
 });
-
