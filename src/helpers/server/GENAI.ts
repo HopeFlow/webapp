@@ -23,7 +23,7 @@ const googleGenAI =
 async function generateByGeminiPro(prompt: string) {
   if (!googleGenAI) throw new Error("googleGenAI not available");
   const response = await googleGenAI.models.generateImages({
-    model: "",
+    model: "gemini-3-pro-preview",
     prompt,
     config: {
       numberOfImages: 1,
