@@ -40,10 +40,14 @@ export function LinkEngagement({
   inviter,
   submitQuestions,
   actionLabels,
+  hasJoined,
+  handleJoin,
 }: {
   inviter: LinkInviterInfo;
   submitQuestions: LinkSubmitQuestion[];
   actionLabels: LinkActionLabels;
+  hasJoined?: boolean;
+  handleJoin?: () => void;
 }) {
   const hasMultipleInviters = (inviter.avatars?.length ?? 0) > 1;
   const inviterRowClassName = [
@@ -86,9 +90,17 @@ export function LinkEngagement({
             <BulbIcon size={18} /> {actionLabels.submit}
           </Button>
           <SubmitAnswerModal questions={submitQuestions} />
-          <Button buttonType="neutral" buttonStyle="soft" className="flex-1">
-            <BookmarkIcon size={18} />
-            {actionLabels.bookmark}
+          <Button
+            buttonType="neutral"
+            buttonStyle="soft"
+            disabled={hasJoined}
+            onClick={handleJoin}
+          >
+            <BookmarkIcon
+              size={18}
+              fill={hasJoined ? "currentColor" : "none"}
+            />
+            {hasJoined ? "Joined" : actionLabels.bookmark}
           </Button>
         </div>
       </div>

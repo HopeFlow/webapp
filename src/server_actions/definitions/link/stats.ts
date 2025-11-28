@@ -4,6 +4,7 @@ import { getHopeflowDatabase } from "@/db";
 import {
   commentTable,
   linkTable,
+  nodeTable,
   proposedAnswerTable,
   questViewTable,
 } from "@/db/schema";
@@ -27,7 +28,7 @@ const STATS_META: Record<
   { label: string; helper: string }
 > = {
   views: { label: "Views", helper: "people have seen this quest" },
-  shares: { label: "Shares", helper: "community members amplified it" },
+  contributors: { label: "Contributors", helper: "community members joined" },
   leads: { label: "Leads", helper: "qualified answers submitted" },
   comments: { label: "Comments", helper: "recent check-ins" },
 };
@@ -65,14 +66,14 @@ async function countQuestUniqueViews(
   return Number(loggedIn ?? 0) + Number(anon ?? 0);
 }
 
-async function countQuestLinks(
+async function countQuestContributors(
   db: HopeflowDb,
   questId: string,
 ): Promise<number> {
   const [{ n = 0 } = { n: 0 }] = await db
     .select({ n: sql<number>`COUNT(*)` })
-    .from(linkTable)
-    .where(eq(linkTable.questId, questId));
+    .from(nodeTable)
+    .where(and(eq(nodeTable.questId, questId), isNotNull(nodeTable.parentId)));
   return Number(n ?? 0);
 }
 
@@ -125,14 +126,14 @@ export const linkStatsCard = createServerAction<
     }
 
     const db = await getHopeflowDatabase();
-    const [views, shares, leads, comments] = await Promise.all([
+    const [views, contributors, leads, comments] = await Promise.all([
       countQuestUniqueViews(db, questId),
-      countQuestLinks(db, questId),
+      countQuestContributors(db, questId),
       countQuestLeads(db, questId),
       countQuestComments(db, questId),
     ]);
 
-    const stats = buildStatsResponse({ views, shares, leads, comments });
+    const stats = buildStatsResponse({ views, contributors, leads, comments });
     return { stats } satisfies LinkStatsCardReadResult;
   },
 });

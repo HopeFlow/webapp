@@ -38,11 +38,11 @@ const FALLBACK_STATS: LinkStatusStat[] = [
     helper: "people have seen this quest",
   },
   {
-    id: "shares",
-    icon: "shares",
-    label: "Shares",
+    id: "contributors",
+    icon: "contributors",
+    label: "Contributors",
     value: "0",
-    helper: "community members amplified it",
+    helper: "community members joined",
   },
   {
     id: "leads",
@@ -66,9 +66,9 @@ const SUBMIT_QUESTIONS: LinkSubmitQuestion[] = [
 ];
 
 const ACTION_LABELS: LinkActionLabels = {
-  reflow: "I know someone ...",
-  submit: "I've seen it",
-  bookmark: "I'll see later",
+  reflow: "Forward",
+  submit: "Propose answer",
+  bookmark: "Join",
 };
 
 type MotivatorAccordionProps = Parameters<typeof LinkMotivatorAccordion>[0];
@@ -250,6 +250,8 @@ export function LinkMain({
             inviter={inviterInfo}
             submitQuestions={SUBMIT_QUESTIONS}
             actionLabels={ACTION_LABELS}
+            hasJoined={linkNodeData?.hasJoined}
+            handleJoin={handlePotentialNodeClick}
           />
         </div>
         <div className="flex flex-col items-start gap-6 md:flex-row">

@@ -46,13 +46,14 @@ export function LinkReflowTree({
 
   return (
     <div
-      className="text-secondary flex-1 items-center justify-center self-stretch rounded-t-none p-4 pt-0"
+      className="text-secondary flex flex-1 flex-col items-center justify-center self-stretch rounded-t-none p-4 pt-0"
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           handleNodeSelection(undefined);
         }
       }}
     >
+      <div className="bg-primary mx-auto min-h-0 w-[12px] flex-1 flex-shrink-0" />
       <ReflowTree
         treeNodes={treeRoot}
         activeNodeId={resolvedActiveNodeId}
@@ -60,6 +61,7 @@ export function LinkReflowTree({
         userImageUrl={userImageUrl}
         onPotentialNodeClick={onPotentialNodeClick}
       />
+      <div className="min-h-0 flex-1 flex-shrink-0" />
     </div>
   );
 }

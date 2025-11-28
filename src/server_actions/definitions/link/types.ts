@@ -1,6 +1,10 @@
 import { SocialMediaName } from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
 
-export type LinkStatusStatIcon = "views" | "shares" | "leads" | "comments";
+export type LinkStatusStatIcon =
+  | "views"
+  | "contributors"
+  | "leads"
+  | "comments";
 
 export type LinkStatusStat = {
   id: LinkStatusStatIcon;

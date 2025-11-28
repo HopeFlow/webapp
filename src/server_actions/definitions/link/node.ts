@@ -17,7 +17,7 @@ import { ReFlowNodeSimple } from "@/app/(nodock)/link/[linkCode]/components/Refl
 
 export const linkNode = createCrudServerAction<
   { referer: SocialMediaName },
-  { treeRoot: ReFlowNodeSimple; userImageUrl?: string },
+  { treeRoot: ReFlowNodeSimple; userImageUrl?: string; hasJoined: boolean },
   never,
   never,
   [{ linkCode: string }]
@@ -111,7 +111,7 @@ export const linkNode = createCrudServerAction<
     const viewer = await currentUserNoThrow();
     const userImageUrl = viewer?.imageUrl;
 
-    return { treeRoot, userImageUrl };
+    return { treeRoot, userImageUrl, hasJoined: !!userNode };
   },
   create: async ({ referer }, { linkCode }) => {
     const viewer = await currentUserNoThrow();

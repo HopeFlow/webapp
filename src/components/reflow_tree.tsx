@@ -17,7 +17,9 @@ import {
 } from "@/components/logos/socialMedia";
 import { AppTimeAgo } from "@/helpers/client/time";
 
-const MARGIN = 42;
+const MARGIN_X = 42;
+const MARGIN_Y_BOTTOM = 42;
+const MARGIN_Y_TOP = 42;
 const NODE_RADIUS = 56;
 const NODE_SEPARATION = 95;
 // const MAX_TEXT_WIDTH = 70;
@@ -188,7 +190,10 @@ const getSvgNodes = (
   const viewportMaxX = viewport.minX + viewport.width;
   const viewportMaxY = viewport.minY + viewport.height;
   const rootNode = treeLayers[0]?.[0];
-  const topCenter: Point = [viewport.minX + viewport.width / 2, viewport.minY];
+  const topCenter: Point = [
+    rootNode ? rootNode.coords[0] : viewport.minX + viewport.width / 2,
+    viewport.minY,
+  ];
   const rootToViewportPath = rootNode
     ? [
         <path
@@ -467,12 +472,17 @@ export const ReflowTree = ({
         minY: -NODE_RADIUS,
         maxY: NODE_RADIUS,
       };
-  const viewBoxWidth = dimensions.width + 2 * MARGIN;
-  const viewBoxHeight = dimensions.height + 2 * MARGIN;
-  const contentCenterX = (bounds.minX + bounds.maxX) / 2;
-  const contentCenterY = (bounds.minY + bounds.maxY) / 2;
-  const viewBoxMinX = contentCenterX - viewBoxWidth / 2;
-  const viewBoxMinY = contentCenterY - viewBoxHeight / 2;
+  const rootNode = treeLayers[0]?.[0];
+  const rootX = rootNode ? rootNode.coords[0] : (bounds.minX + bounds.maxX) / 2;
+  const maxDist = Math.max(
+    Math.abs(bounds.minX - rootX),
+    Math.abs(bounds.maxX - rootX),
+  );
+  const viewBoxWidth = 2 * maxDist + 2 * MARGIN_X;
+  const viewBoxHeight =
+    bounds.maxY - bounds.minY + MARGIN_Y_TOP + MARGIN_Y_BOTTOM;
+  const viewBoxMinX = rootX - maxDist - MARGIN_X;
+  const viewBoxMinY = bounds.minY - MARGIN_Y_TOP;
   const viewport = {
     minX: viewBoxMinX,
     minY: viewBoxMinY,
@@ -485,6 +495,7 @@ export const ReflowTree = ({
       viewBox={`${viewBoxMinX} ${viewBoxMinY} ${viewBoxWidth} ${viewBoxHeight}`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      preserveAspectRatio="xMidYMin meet"
       className="max-h-[40vh] w-full md:h-[14.35rem]"
       onClick={() => {
         if (onNodeClick) {

@@ -8,7 +8,7 @@ import { ChatBubbleIcon } from "@/components/icons/chat_bubble";
 
 export type TimelineStat = {
   id: string;
-  icon: "views" | "shares" | "leads" | "comments";
+  icon: "views" | "contributors" | "leads" | "comments";
   text: ReactNode;
 };
 
@@ -34,7 +34,7 @@ const iconForStat = (icon: TimelineStat["icon"]) => {
   switch (icon) {
     case "views":
       return <EyeIcon />;
-    case "shares":
+    case "contributors":
       return <MediatorsIcon />;
     case "leads":
       return <BulbIcon />;
@@ -48,7 +48,11 @@ const iconForStat = (icon: TimelineStat["icon"]) => {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const TIMELINE_STATS: TimelineStat[] = [
   { id: "views", icon: "views", text: "150 people have seen this quest" },
-  { id: "shares", icon: "shares", text: "10 people shared this quest" },
+  {
+    id: "contributors",
+    icon: "contributors",
+    text: "10 people joined this quest",
+  },
   { id: "leads", icon: "leads", text: "No one submitted any leads" },
   { id: "comments", icon: "comments", text: "Martha commented on the quest" },
 ];

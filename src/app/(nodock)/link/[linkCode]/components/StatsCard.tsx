@@ -15,7 +15,7 @@ const iconForStat = (icon: LinkStatusStatIcon) => {
   switch (icon) {
     case "views":
       return <EyeIcon className={common} />;
-    case "shares":
+    case "contributors":
       return <MediatorsIcon className={common} />;
     case "leads":
       return <BulbIcon className={common} />;
@@ -43,9 +43,7 @@ export const StatsCard = ({ stats }: { stats: LinkStatusStat[] }) => {
               stat.helper ? `${stat.label}: ${stat.helper}` : stat.label
             }
           >
-            <div className="bg-base-200/80 text-primary rounded-lg p-2 shadow-inner">
-              {iconForStat(stat.icon)}
-            </div>
+            <div className="text-primary p-2">{iconForStat(stat.icon)}</div>
             <div className="flex flex-col">
               <span className="text-base-content/60 text-[0.6rem] font-semibold tracking-wide uppercase">
                 {stat.label}

@@ -12,7 +12,7 @@ export type TimelineAction = React.ComponentProps<
 
 export type TimelineStat = {
   id: string;
-  icon: "views" | "shares" | "leads" | "comments";
+  icon: "views" | "contributors" | "leads" | "comments";
   text: ReactNode;
 };
 
