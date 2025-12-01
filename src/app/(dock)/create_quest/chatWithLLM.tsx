@@ -70,6 +70,7 @@ export const ChatWithLLM = ({
       if (textAreaRef.current) {
         textAreaRef.current.value = "";
         textAreaRef.current.style.height = "";
+        textAreaRef.current.focus();
       }
     },
     [postUserMessage],
@@ -126,11 +127,13 @@ export const ChatWithLLM = ({
                               Promise.resolve().then(() =>
                                 continueToNextStep(),
                               );
-                            } else if (m.toLowerCase() === "reject")
+                            } else if (m.toLowerCase() === "reject") {
                               postUserMessage(
                                 "Recap is not accurate. Please revise.",
                               );
-                            else commit(`Ambiguous confirmation: ${m}`);
+                              if (textAreaRef.current)
+                                textAreaRef.current.focus();
+                            } else commit(`Ambiguous confirmation: ${m}`);
                           }}
                         >
                           {m}
@@ -198,7 +201,7 @@ export const ChatWithLLM = ({
               textArea.style.height = `calc(${textArea.scrollHeight}px + .2rem)`;
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && e.shiftKey === false) {
+              if (!thinking && e.key === "Enter" && e.shiftKey === false) {
                 e.preventDefault();
                 commit();
               }
@@ -220,7 +223,12 @@ export const ChatWithLLM = ({
             <MicIcon />
           </Button>
           <div className="w-1"></div>
-          <Button buttonType="neutral" className="p-2" onClick={() => commit()}>
+          <Button
+            disabled={thinking}
+            buttonType="neutral"
+            className="p-2"
+            onClick={() => commit()}
+          >
             <ArrowUpIcon />
           </Button>
         </label>
