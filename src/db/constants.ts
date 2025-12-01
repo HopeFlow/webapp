@@ -60,8 +60,6 @@ export type ScreeningQuestion = {
   answer: string;
 };
 
-export type ScreeningAnswer = { questionIndex: number; answer: string; };
-
 export type QuestMedia = {
   url: string;
   width: number;
@@ -69,3 +67,12 @@ export type QuestMedia = {
   alt: string;
   type: "image" | "video";
 };
+
+export type CoverPhoto = {
+  url: string;
+  width: number;
+  height: number;
+  alt: string;
+};
+
+export type ScreeningAnswer = { questionIndex: number; answer: string };

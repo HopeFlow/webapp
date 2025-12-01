@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 
-export const Step6 = ({
+export const ConfirmScreeningQuestions = ({
   continueToNextStep,
 }: {
   continueToNextStep: () => void;
@@ -39,13 +39,13 @@ export const Step6 = ({
         )}
       >
         <h1 className="font-normal text-2xl">
-          Add screening questions to ensure quality submissions (optional)
+          Add screening questions (optional)
         </h1>
         <div className="flex-1 flex flex-col items-center justify-center overflow-x-hidden overflow-y-auto">
           {screeningQuestions && screeningQuestions.length && (
             <ul className="flex flex-col gap-4 w-full">
               {screeningQuestions.map((q, index) => (
-                <li key={index} className="flex flex-row gap-2">
+                <li key={index} className="flex flex-row gap-2 shrink-0">
                   <div className="flex-1 flex flex-col ml-auto gap-1">
                     <h3 className="font-normal">
                       <b>Q-{index + 1}: </b>

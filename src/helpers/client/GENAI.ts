@@ -1,17 +1,6 @@
-import { useEffect, useState } from "react";
-import { getGenAIResponse } from "../server/GENAI";
+import { useCallback, useEffect, useState } from "react";
+import { generateCoverPhoto } from "../server/GENAI";
 import { loadImageFromUrl } from "./common";
-
-const getGeneratedCoverImagePrompt = (title: string) => `
-Create a cover image for a ‘${title}’
-IMPORTANT CONSTRAINTS:
-1-No text, logos, or UI elements — just the art.
-2-Only use center 1024x576 area of 1024x1024 canvas
-IMAGE DESCRIPTION:
-The image should be minimal. Creative design of a graphistic. With a dark background,
-suitable for display on a light themed UI. The focus should be clear and centered, with
-balanced negative space around the subject.
-`;
 
 const canvas =
   typeof document !== "undefined" && document.createElement("canvas");
@@ -21,39 +10,62 @@ if (canvas) {
 }
 const canvasContext = canvas && canvas.getContext("2d");
 
-export const useGeneratedCoverImage = (title: string) => {
+export const useGeneratedCoverImage = () => {
+  const [description, setDescriptionInternal] = useState<string>();
+  const [generating, setGenerating] = useState(false);
   const [imageDataUrl, setImageDataUrl] = useState<string>();
+  const setDescription = useCallback(
+    (newDescription: string) => {
+      if (generating) return;
+      if (description === newDescription) {
+        setImageDataUrl((urlCopy) => {
+          setTimeout(() => setImageDataUrl(urlCopy), 250);
+          return undefined;
+        });
+      } else {
+        setGenerating(true);
+        setDescriptionInternal(newDescription);
+      }
+    },
+    [description, generating],
+  );
   useEffect(() => {
-    if (!title || title.trim() === "") return;
-    const throttledCallTimeout = setTimeout(async () => {
-      const imageData = await getGenAIResponse(
-        getGeneratedCoverImagePrompt(title),
-      );
-      // if (imageData) setImageData(imageData);
-      // return;
-      if (imageData && canvas && canvasContext) {
-        const squareImage = await loadImageFromUrl(
-          `data:image/png;base64,${imageData}`,
-        );
-        canvasContext.drawImage(
-          squareImage,
-          0,
-          224,
-          1024,
-          576,
-          0,
-          0,
-          1024,
-          576,
-        );
-        const resizedImageDataUrl = canvas.toDataURL("image/png");
-        setImageDataUrl(resizedImageDataUrl);
-      } else if (imageData)
-        setImageDataUrl(`data:image/png;base64,${imageData}`);
-    }, 4000);
-    return () => {
-      clearTimeout(throttledCallTimeout);
-    };
-  }, [title]);
-  return imageDataUrl;
+    if (!generating || !description) return;
+    (async () => {
+      try {
+        const imageData = await generateCoverPhoto(description);
+        if (imageData && canvas && canvasContext) {
+          const unprocessedImage = await loadImageFromUrl(
+            `data:image/jpeg;base64,${imageData}`,
+          );
+          const scale = Math.min(
+            unprocessedImage.width / canvas.width,
+            unprocessedImage.height / canvas.height,
+          );
+          canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+          const sx = (unprocessedImage.width - canvas.width * scale) / 2;
+          const sy = (unprocessedImage.height - canvas.height * scale) / 2;
+          canvasContext.drawImage(
+            unprocessedImage,
+            sx,
+            sy,
+            canvas.width * scale,
+            canvas.height * scale,
+            0,
+            0,
+            canvas.width,
+            canvas.height,
+          );
+          const resizedImageDataUrl = canvas.toDataURL("image/png");
+          setImageDataUrl(resizedImageDataUrl);
+        } else if (imageData)
+          setImageDataUrl(`data:image/png;base64,${imageData}`);
+      } catch (e) {
+        console.error({ error: e });
+      } finally {
+        setGenerating(false);
+      }
+    })();
+  }, [description, generating]);
+  return { imageDataUrl, generating, setDescription };
 };

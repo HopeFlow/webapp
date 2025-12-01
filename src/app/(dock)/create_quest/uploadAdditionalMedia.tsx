@@ -8,47 +8,43 @@ import { FilmIcon } from "@/components/icons/film";
 import { TrashIcon } from "@/components/icons/trash";
 import { MediaCarousel } from "@/components/media_carousel";
 import { Modal, showModal } from "@/components/modal";
-import type { QuestMedia } from "@/db/constants";
+
 import { loadImageFromBlob } from "@/helpers/client/common";
 // import { useGeneratedCoverImage } from "@/helpers/client/GENAI";
 import { useFileUpload } from "@/helpers/client/hooks";
 import { cn } from "@/helpers/client/tailwind_helpers";
-import {
-  useRef,
-  useState,
-} from "react";
+import { useRef, useState } from "react";
+import { MediaSource } from "./types";
 
-export type MediaSource = Omit<QuestMedia, "type" | "url"> &
-  ({ type: "video"; url: string } | { type: "image"; content: File });
-
-export const Step5 = ({
+export const UploadAdditionalMedia = ({
+  media,
+  setMedia,
   continueToNextStep,
 }: {
+  media: MediaSource[];
+  setMedia: (media: MediaSource[]) => void;
   continueToNextStep: () => void;
 }) => {
   const videoUrlModalRef = useRef<HTMLDialogElement | null>(null);
-  const [media, setMedia] = useState<MediaSource[]>();
+  const [value, setValue] = useState<MediaSource[]>(media);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
-  const fileUpload = useFileUpload({
-    accept: "image/*",
-    multiple: true,
-  });
+  const fileUpload = useFileUpload({ accept: "image/*", multiple: true });
   return (
-    <div className="flex-1 flex flex-col items-center justify-center">
+    <div className="flex flex-1 flex-col items-center justify-center">
       <div
         className={cn(
-          "w-full max-w-4xl p-4 md:p-8 flex-1 flex flex-col gap-4 justify-center",
+          "flex w-full max-w-4xl flex-1 flex-col justify-center gap-4 p-4 md:p-8",
         )}
       >
-        <h1 className="font-normal text-2xl">
+        <h1 className="text-2xl font-normal">
           Upload any additional media for your quest (optional)
         </h1>
         <MediaCarousel
-          className="w-full aspect-video card overflow-hidden relative"
+          className="card relative aspect-video w-full overflow-hidden"
           initialIndex={activeMediaIndex}
           onIndexChange={setActiveMediaIndex}
           controls={
-            <div className="absolute bottom-4 right-4 flex flex-row gap-2">
+            <div className="absolute right-4 bottom-4 flex flex-row gap-2">
               <Button
                 buttonType="info"
                 onClick={async () => {
@@ -66,7 +62,7 @@ export const Step5 = ({
                         } as const;
                       }),
                     );
-                    setMedia((m) => (m ? [...m, ...newMedia] : newMedia));
+                    setValue((m) => (m ? [...m, ...newMedia] : newMedia));
                   }
                 }}
               >
@@ -86,13 +82,13 @@ export const Step5 = ({
             </div>
           }
         >
-          {media?.map((m, index) => {
+          {value?.map((m, index) => {
             return m.type === "image" ? (
               <FileImage
                 key={index}
                 src={m.content}
                 alt={`media-${index}`}
-                className="w-full h-auto object-cover"
+                className="h-auto w-full object-cover"
               />
             ) : (
               false
@@ -101,14 +97,8 @@ export const Step5 = ({
         </MediaCarousel>
         <Modal
           ref={videoUrlModalRef}
-          defaultButton={{
-            children: "OK",
-            onClick: (close) => close(),
-          }}
-          cancelButton={{
-            children: "Cancel",
-            onClick: (close) => close(),
-          }}
+          defaultButton={{ children: "OK", onClick: (close) => close() }}
+          cancelButton={{ children: "Cancel", onClick: (close) => close() }}
         >
           <label>Youtube Video URL</label>
           <input type="text" className="input input-bordered w-full" />
@@ -116,6 +106,7 @@ export const Step5 = ({
         <Button
           buttonType="primary"
           onClick={() => {
+            setMedia(value);
             continueToNextStep();
           }}
         >

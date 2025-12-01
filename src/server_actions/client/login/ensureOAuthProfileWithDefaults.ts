@@ -13,10 +13,7 @@ export const useEnsureOAuthProfileWithDefaults = () => {
   const dependantQueryKeys = [["ensureOAuthProfileWithDefaults"]];
   const queryClient = useQueryClient();
   const query = useQuery(
-    {
-      queryKey,
-      queryFn: async () => await ensureOAuthProfileWithDefaults("read"),
-    },
+    { queryKey, queryFn: async () => await ensureOAuthProfileWithDefaults("read") },
     queryClient,
   );
   const update = useMutation(

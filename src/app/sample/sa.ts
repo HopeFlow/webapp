@@ -1,5 +1,6 @@
+"use server";
+
 import { withUser } from "@/helpers/server/page_component";
-import { Test } from "./test";
 import { JWTPayload, SignJWT } from "jose";
 
 const createRealtimeJwt = async (payload: JWTPayload) => {
@@ -17,7 +18,22 @@ const createRealtimeJwt = async (payload: JWTPayload) => {
     .sign(secretKey);
 };
 
-export default withUser(async function SamplePage({ user }) {
+const doSomething = withUser(async function ({ user }) {
   const jwt = await createRealtimeJwt({ userId: user?.id });
-  return <Test jwt={jwt} />;
+  await fetch("https://realtime.vedadian.workers.dev/publish", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      userId: user?.id,
+      type: "message",
+      message: new Date().toISOString(),
+    }),
+  });
+  console.warn({ jwt });
+  return null;
 });
+
+export default doSomething;

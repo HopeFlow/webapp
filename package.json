@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.30.2",
-    "@google/genai": "^1.21.0",
+    "@google/genai": "^1.30.0",
     "@lexical/link": "^0.34.0",
     "@lexical/list": "^0.34.0",
     "@lexical/react": "^0.34.0",
@@ -34,10 +34,11 @@
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.44.4",
     "drizzle-zod": "^0.8.2",
+    "jose": "^6.1.0",
     "lexical": "^0.34.0",
     "moment-timezone": "^0.6.0",
     "next": "15.5.5",
-    "openai": "^6.1.0",
+    "openai": "^6.9.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",
@@ -73,7 +74,13 @@
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.44.0",
-    "wrangler": "^4.40.2"
+    "wrangler": "^4.50.0"
+  },
+  "lint-staged": {
+    "**/*.{ts,tsx}": [
+      "prettier --write",
+      "eslint --fix --no-warn-ignored"
+    ]
   },
   "lint-staged": {
     "**/*.{ts,tsx}": [

@@ -13,6 +13,7 @@ import {
 
 import { relations, sql } from "drizzle-orm";
 import {
+  type CoverPhoto,
   emailFrequencyDef,
   linkTypeDef,
   messageStatusDef,
@@ -63,9 +64,7 @@ export const questTable = sqliteTable(
     status: text({ enum: questStatusDef }).notNull().default("active"),
     farewellMessage: text(),
 
-    coverPhoto: text({ mode: "json" })
-      .$type<{ url: string; width: number; height: number; alt: string }>()
-      .notNull(),
+    coverPhoto: text({ mode: "json" }).$type<CoverPhoto>().notNull(),
     media: text({ mode: "json" }).$type<QuestMedia[]>(),
 
     screeningQuestions: text({ mode: "json" }).$type<ScreeningQuestion[]>(),
@@ -90,12 +89,13 @@ export const questTable = sqliteTable(
       check(
         "quest_coverphoto_aspect_ratio_chk",
         sql`
-        json_type(${table.coverPhoto}, '$.width') IN ('integer','real') AND
-        json_type(${table.coverPhoto}, '$.height') IN ('integer','real') AND
-        json_extract(${table.coverPhoto}, '$.width') > 0 AND
-        json_extract(${table.coverPhoto}, '$.height') > 0 AND
-        (json_extract(${table.coverPhoto}, '$.width') * 9) =
-        (json_extract(${table.coverPhoto}, '$.height') * 16)
+        json_type(${table.coverPhoto}, '$.width') IN ('integer','real')
+        AND json_type(${table.coverPhoto}, '$.height') IN ('integer','real')
+        AND json_extract(${table.coverPhoto}, '$.width') > 0
+        AND json_extract(${table.coverPhoto}, '$.height') > 0
+        AND abs(
+          ((1.0 * json_extract(${table.coverPhoto}, '$.width')) / (1.0 * json_extract(${table.coverPhoto}, '$.height'))) - (16.0 / 9.0)
+        ) < 0.1
       `,
       ),
 

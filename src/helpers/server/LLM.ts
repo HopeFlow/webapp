@@ -5,19 +5,30 @@ import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 import { defineServerFunction } from "./define_server_function";
 
+// #region preamble
+
 // const defineServerFunction = (params: object) => {
 //   return async () => {};
 // };
 
-const getTransliteratePrompt = (inputName: string) =>
-  `
-transliterate "${inputName}" as a sequence of ASCII characters.
-OUTPUT ONLY THE TRANSLITERATION WITHOUT ANY EXTRA TEXT OR INFORMATION.
+if (!process.env.OPENAI_API_KEY) {
+  throw new Error("OPENAI_API_KEY is not set");
+}
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// #endregion
+
+// #region Transliterate
+
+const getTransliteratePrompt = (inputName: string) => `
+Transliterate the following name as ASCII-only characters.
+Return only the transliteration, no quotes, no extra text.
+
+Name: ${JSON.stringify(inputName)}
 `;
 
 export const transliterate = defineServerFunction({
   handler: async (inputName: string) => {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await openai.responses.create({
       model: "gpt-5-nano",
       input: getTransliteratePrompt(inputName),
@@ -28,149 +39,447 @@ export const transliterate = defineServerFunction({
   scope: "global::llm",
 });
 
-const createQuestChatSystemPrompt = `
-You are an expert counselor who helps people clarify what they are looking for so they can efficiently leverage their social connections to find it.
-The user will describe what they are searching for. Do the following:
-1. Decide if the information so far is sufficient for another person to clearly understand the user's need.
-2. Consider a few possible clarifying questions.
-3. Ask exactly ONE best clarifying question (short and specific).
-4. If the quest is crystal clear, generate no questions and just report that the quest is clear
-IMPORTANT:
-- Follow each message  with four (4) empty lines and then a number between 0 and 100. This number designates a clarity score.
-- The tool is logging-only. Do NOT wait for any response from it
-`;
+// #endregion
+
+// #region general LLM helpers
+
+export type ReasoningEvent = { type: "reasoning-part"; title: string };
+
+async function* streamProxy<E extends OpenAI.Responses.ResponseStreamEvent>(
+  stream: AsyncIterable<E, void, unknown>,
+) {
+  let deltaReasonBuffer = "";
+  for await (const event of stream) {
+    switch (event.type) {
+      case "response.reasoning_summary_text.delta": {
+        deltaReasonBuffer += event.delta;
+        const m =
+          deltaReasonBuffer.match(/\*\*\s*(.+?)\s*\*\*/) ??
+          deltaReasonBuffer.match(/#+\s*(.+?)\s*\n/);
+        if (m) {
+          deltaReasonBuffer = "";
+          yield { type: "reasoning-part", title: m[1] } as ReasoningEvent;
+        }
+        break;
+      }
+      case "error":
+        throw new Error(event.message);
+      default:
+        yield event;
+    }
+  }
+}
+
+// #endregion
+
+// #region Create Quest Chat
 
 export type CreateQuestChatMessage = {
   role: "user" | "assistant";
   content: string;
 };
 
-type TextDeltaEvent = { type: "text-delta"; text: string };
-type SetClarityEvent = { type: "set-clarity"; level: number };
-type ReasoningEvent = { type: "reasoning-part"; title: string };
+export type ConfidenceLevel =
+  | "ZERO"
+  | "POOR"
+  | "DOUBTFUL"
+  | "GOOD"
+  | "CONFIDENT"
+  | "SURE";
+
+export type TextDeltaEvent = { type: "text-delta"; text: string };
+export type OptionDeltaEvent = {
+  type: "option-delta";
+  text: string;
+  confirmation?: boolean;
+};
+export type UpdateQuestIntentStateEvent = {
+  type: "update-quest-intent-state";
+  questIntentState: QuestIntentState;
+};
+export type SetConfidenceEvent = {
+  type: "set-confidence";
+  level: ConfidenceLevel;
+};
+
+const updateQuestIntentStateSystemPrompt = `
+You are an expert psychologist and sociologist. User will mix a summary of previous chat and a new message
+in a single message.
+
+Task:
+1. Summarize the text. Keep important information. Consider the text as a whole.
+2. Rate the summary with these booleans:
+   - clear: purpose is clear
+   - noAmbiguity: free of ambiguity
+   - understandable: easy to understand
+   - comprehensible: meaning fully graspable
+   - concise: gives a relatable picture fully transparent
+   - adequate: enough info to understand the purpose and individuals that can help
+   - sufficient: enough data for reader to feel the situation and personality of ones more probably can help
+   - covering: covers enough details to create a vivid picture of what is sought and who can help
+   - complete: fully states the intended purpose and what people can help most
+
+One-shot example:
+Input:
+User wants to find a lost bicycle\n\nIt was stolen last night
+Output:
+{
+  "summary": "User wants to find a lost bicycle stolen last night",
+  "clear": true,
+  "noAmbiguity": true,
+  "understandable": true,
+  "comprehensible": true,
+  "concise": true,
+  "adequate": false,
+  "sufficient": false,
+  "covering": false,
+  "complete": false
+}
+
+Now process the actual input and return only the JSON object.
+`.trim();
+
+const generateClarifyingQuestionsSystemPrompt = `
+You help user clearly express his goal. You are not going to help user with his goal, just help him/her express it clearly.
+
+Input:
+{
+  "summary": string, // What we know from user's chat
+  "issues": {
+    "ambiguous": bool, // Goal is not completely clear
+    "missingInfo": bool, // Additional info can help people better understand user's goal or feel who will more probably be able to help
+  },
+  "clarityLabel": "ZERO"|"POOR"|"DOUBTFUL"|"GOOD"|"CONFIDENT"|"SURE"
+}
+
+Rules:
+- ONE overall clarifying question unless the state is crystal clear.
+- Crystal clear = clarityLabel=="SURE" or clarityLabel=="CONFIDENT" AND issues.ambiguous==false AND issues.missingInfo==false.
+- A question may have parts but must end as one question.
+- Add <option>...</option> (short answers) wherever obvious. Each option in ITS OWN LINE
+- No "other" <option>s. In these cases add a sentence after options meaning "if it is something else, write it yourself"
+- If crystal clear: give 1-sentence recap, then on new lines: <accept/> and <reject/>.
+- No explanations. Output only the question+options OR recap+accept/reject.
+
+One-shot examples:
+(1) Example: ambiguous → ask question with options
+Input:
+{ "summary":"User is seeking a possible donor", "issues":{"ambiguous":true,"missingInfo":true}, "clarityLabel":"POOR" }
+Output:
+What kind of donation are you looking for?
+<option>Biological Donor</option>
+<option>Financial Donor</option>
+<option>In-Kind Donor</option>
+Something else? write it down.
+
+(2) Example: ambiguous → ask question with options
+Input:
+{ "summary":"User is seeking a physical copy of Dante's purgatory", "issues":{"ambiguous":false,"missingInfo":true}, "clarityLabel":"GOOD" }
+Output:
+What happens if you find someone who has access?
+<option>Borrow the book</option>
+<option>Buy it</option>
+
+(3) Example: ambiguous → ask question with options
+Input:
+{ "summary":"User is seeking a physical copy of Dante's purgatory to borrow", "issues":{"ambiguous":false,"missingInfo":true}, "clarityLabel":"POOR" }
+Output:
+What do you want to do with the book?
+<option>Compare to a contemporary translation</option>
+<option>Analyse physical condition of the books that old</option>
+Or may be something completely different. Describe it!
+
+(4) Example: missing info → ask question (no options needed)
+Input:
+{ "summary":"User wants help researching on a 17th century literary work", "issues":{"ambiguous":false,"missingInfo":true}, "clarityLabel":"POOR" }
+Output:
+Is it a novel or a play? Or something else?
+
+(5) Example: crystal clear → recap + accept/reject
+Input:
+{ "summary":"User wants guidance on renewing their German passport from someone who recently had similar experience", "issues":{"ambiguous":false,"missingInfo":false}, "clarityLabel":"CONFIDENT" }
+Output:
+Lets recap. You want to renew your passport and seek guidance from someone who has recently done that. Correct?
+<accept/>
+<reject/>
+`.trim();
+
+const questIntentStateSchema = z.object({
+  summary: z.string(),
+  clear: z.boolean(),
+  noAmbiguity: z.boolean(),
+  understandable: z.boolean(),
+  comprehensible: z.boolean(),
+  concise: z.boolean(),
+  adequate: z.boolean(),
+  sufficient: z.boolean(),
+  covering: z.boolean(),
+  complete: z.boolean(),
+});
+
+export type QuestIntentState = z.infer<typeof questIntentStateSchema>;
 
 export const createQuestChat = defineServerFunction({
   id: "createQuestChat",
   scope: "global::llm",
-
   handler: async function* (
-    messages: CreateQuestChatMessage[],
+    previousState: QuestIntentState | null,
+    newUserMessage: string,
   ): AsyncGenerator<
-    ReasoningEvent | TextDeltaEvent | SetClarityEvent,
+    | TextDeltaEvent
+    | OptionDeltaEvent
+    | SetConfidenceEvent
+    | ReasoningEvent
+    | UpdateQuestIntentStateEvent,
     void,
     unknown
   > {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    // 1) Update quest intent state
+    yield { type: "reasoning-part", title: "Updating quest intent state..." };
 
-    const input = [
-      { role: "system" as const, content: createQuestChatSystemPrompt },
-      ...messages.map((m) => ({ role: m.role, content: m.content })),
-    ];
-
-    const stream = await openai.responses.create({
-      model: "gpt-5-nano",
-      input,
-      reasoning: { effort: "low", summary: "detailed" },
-      text: { format: { type: "text" } },
+    const updateIntentStateStream = openai.responses.stream({
+      model: "gpt-5-mini",
+      // temperature: 0,
+      reasoning: { effort: "low", summary: "auto" },
+      text: {
+        format: zodTextFormat(questIntentStateSchema, "questIntentState"),
+        verbosity: "medium",
+      },
+      input: [
+        { role: "system", content: updateQuestIntentStateSystemPrompt },
+        {
+          role: "user",
+          content: `${previousState?.summary ?? ""}\n\n${newUserMessage}`,
+        },
+      ],
+      store: false,
       stream: true,
     });
 
-    yield { type: "reasoning-part", title: "Thinking to better be at service" };
-    let populatedText = "";
-    let populatedReasoning = "";
-    let consumedLength = 0;
-    for await (const event of stream) {
-      let done = false;
+    for await (const event of streamProxy(updateIntentStateStream)) {
+      if (event.type === "reasoning-part") {
+        yield event;
+      }
+    }
+
+    const updatedState = (await updateIntentStateStream.finalResponse())
+      .output_parsed;
+    if (!updatedState) {
+      throw new Error("Failed to update QuestIntentState");
+    }
+
+    yield { type: "update-quest-intent-state", questIntentState: updatedState };
+
+    const clarity = ((score): ConfidenceLevel => {
+      if (score <= 0.12) return "ZERO";
+      if (score <= 0.25) return "POOR";
+      if (score <= 0.5) return "DOUBTFUL";
+      if (score <= 0.7) return "GOOD";
+      if (score <= 0.9) return "CONFIDENT";
+      return "SURE";
+    })(
+      [
+        updatedState.clear,
+        updatedState.noAmbiguity,
+        updatedState.understandable,
+        updatedState.comprehensible,
+        updatedState.concise,
+        updatedState.adequate,
+        updatedState.sufficient,
+        updatedState.covering,
+        updatedState.complete,
+      ].filter(Boolean).length / 9,
+    );
+    yield { type: "set-confidence", level: clarity };
+
+    // 3) Generate clarifying question + options
+    yield {
+      type: "reasoning-part",
+      title: "Generating clarifying question...",
+    };
+
+    const generateQuestionsStream = openai.responses.stream({
+      model: "gpt-5-nano",
+      // temperature: 0.7,
+      reasoning: { effort: "low", summary: "auto" },
+      text: { verbosity: "medium" },
+      store: false,
+      input: [
+        { role: "system", content: generateClarifyingQuestionsSystemPrompt },
+        {
+          role: "user",
+          content: JSON.stringify({
+            questIntentState: updatedState,
+            newUserMessage,
+            clarity,
+          }),
+        },
+      ],
+      stream: true,
+    });
+
+    let lineBuffer = "";
+    for await (const event of streamProxy(generateQuestionsStream)) {
       switch (event.type) {
+        case "reasoning-part": {
+          yield event;
+          break;
+        }
         case "response.output_text.delta": {
-          populatedText += event.delta;
-          const m = populatedText.match(/^(.*)(?:\s*\n){4,}(\d+)$/);
-          if (m) {
-            done = true;
-            const delta = m[1].slice(consumedLength);
-            if (delta) yield { type: "text-delta", text: delta };
-            yield { type: "set-clarity", level: parseInt(m[2]) };
-            break;
-          } else {
-            const delta = populatedText.slice(consumedLength);
-            if (!/^[\s\n]+$/.test(delta)) {
-              yield { type: "text-delta", text: event.delta };
-              consumedLength = populatedText.length;
+          const delta: string = event.delta ?? "";
+          if (!delta) break;
+
+          lineBuffer += delta;
+          if (lineBuffer.indexOf("accept") !== -1) {
+          }
+
+          const lines = lineBuffer.split("\n");
+          for (const line of lines.slice(0, -1)) {
+            const trimmed = line.trim();
+            if (/^<option>.*<\/option>$/.test(trimmed.toLowerCase())) {
+              yield { type: "option-delta", text: trimmed.slice(8, -9).trim() };
+            } else if (trimmed.toLowerCase() === "<accept/>") {
+              yield {
+                type: "option-delta",
+                text: "Accept",
+                confirmation: true,
+              };
+            } else if (trimmed.toLowerCase() === "<reject/>") {
+              yield {
+                type: "option-delta",
+                text: "Reject",
+                confirmation: true,
+              };
+            } else {
+              yield { type: "text-delta", text: trimmed + "\n" };
             }
           }
-          break;
-        }
-        case "response.reasoning_summary_text.delta": {
-          populatedReasoning += event.delta;
-          const m =
-            populatedReasoning.match(/\*\*\s*(.+?)\s*\*\*/) ??
-            populatedReasoning.match(/#+\s*(.+?)\s*\n/);
-          if (m) {
-            populatedReasoning = "";
-            yield { type: "reasoning-part", title: m[1] };
-          }
-          break;
+          if (
+            lines.length > 0 &&
+            !"<option>".startsWith(lines.at(-1)!.trim().slice(0, 8)) &&
+            !"<accept/".startsWith(lines.at(-1)!.trim().slice(0, 8)) &&
+            !"<reject/".startsWith(lines.at(-1)!.trim().slice(0, 8))
+          ) {
+            // Do not trim the last line as it may be a part of a larger line and
+            // spaces between words may be significant
+            yield { type: "text-delta", text: lines.at(-1)! };
+            lineBuffer = "";
+          } else lineBuffer = lines.at(-1) ?? "";
         }
       }
-      if (done) break;
+    }
+    if (lineBuffer.length > 0) {
+      const trimmed = lineBuffer.trim();
+      // Only trim the end as beginning spaces might be significant
+      if (/^\s*<option>.*<\/option>\s*$/.test(trimmed.toLowerCase())) {
+        yield { type: "option-delta", text: trimmed.slice(8, -9).trim() };
+      } else if (trimmed.toLowerCase() === "<accept/>") {
+        yield { type: "option-delta", text: "Accept", confirmation: true };
+      } else if (trimmed.toLowerCase() === "<reject/>") {
+        yield { type: "option-delta", text: "Reject", confirmation: true };
+      } else {
+        yield { type: "text-delta", text: lineBuffer };
+      }
     }
   },
 });
 
+// #endregion
+
+// #region Generate Title and Description for Quest
+
 const getQuestTitleAndDescriptionSystemPrompt = `
-You are a concise copywriter.
-Task:
-— Read the conversation and infer exactly what the person is seeking.
-— Produce:
-   1) description: 1–4 paragraphs, plain language, specific, action-oriented, no fluff.
-   2) title: 4–7 words, shown to the seeker; vivid, concrete, respectful.
-   3) askTitle: 4–7 words, addressed to the seeker's friends/network; contains the seeker’s first name when natural.
+Generate a quest description and two titles from the provided QuestIntentState.
+
 Rules:
-— Titles must be 4–7 words (count words, not characters).
-— Avoid sensationalism; be clear and credible.
-`;
+- Description: at least two paragraphs; clear, engaging, faithful to the state; NO INVENTED FACTS.
+- UserTitle: max 8 words, direct, describes what the user seeks.
+- PublicTitle: max 8 words, addressed to helpers (e.g., “Help <name> …”).
+- Stay concise and factual; follow style and emotional tone from writingFeatures.
+
+Output only this JSON:
+{
+  "description": "...",
+  "seekerTitle": "...",
+  "contributorTitle": "..."
+}
+`.trim();
+
+const generatedDescriptionTitle = z
+  .object({
+    description: z
+      .string()
+      .min(30, "Description must be at least 30 characters long")
+      .describe(
+        "Around 3 paragraphs describing what the user is trying to do.",
+      ),
+    seekerTitle: z
+      .string()
+      .min(3, "Title must be at least 3 characters long")
+      .max(120, "Title must be at most 120 characters long")
+      .describe("A short title addressed to the user."),
+    contributorTitle: z
+      .string()
+      .min(3, "Title must be at least 3 characters long")
+      .max(120, "Title must be at most 120 characters long")
+      .describe(
+        "A short title addressed to friends or the public asking for help.",
+      ),
+  })
+  .strict();
+
+export type GeneratedTitleAndDescription = z.infer<
+  typeof generatedDescriptionTitle
+>;
+export type GeneratedTitleAndDescriptionEvent = {
+  type: "generated-title-and-description";
+  value: GeneratedTitleAndDescription;
+};
 
 export const getQuestTitleAndDescription = defineServerFunction({
   id: "getQuestTitleAndDescription",
   scope: "global::llm",
-  handler: async (messasges: CreateQuestChatMessage[]) => {
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const response = await openai.responses.parse({
+  handler: async function* (
+    nameOfUser: string,
+    questIntentState: QuestIntentState,
+  ): AsyncGenerator<
+    ReasoningEvent | GeneratedTitleAndDescriptionEvent,
+    void,
+    unknown
+  > {
+    yield {
+      type: "reasoning-part",
+      title: "Generating title and description...",
+    };
+    const generateTitleDescriptionStream = openai.responses.stream({
       model: "gpt-5-nano",
-      reasoning: { effort: "minimal" },
+      // temperature: 0.7,
+      reasoning: { effort: "low", summary: "auto" },
+      text: {
+        format: zodTextFormat(
+          generatedDescriptionTitle,
+          "generatedTitleAndDescription",
+        ),
+        verbosity: "medium",
+      },
       input: [
         { role: "system", content: getQuestTitleAndDescriptionSystemPrompt },
         {
           role: "user",
-          content:
-            "Return only the JSON. Here is the data:\n" +
-            JSON.stringify(messasges, null, 2),
+          content: JSON.stringify({ nameOfUser, ...questIntentState }),
         },
       ],
-      text: {
-        format: zodTextFormat(
-          z
-            .object({
-              title: z.string(),
-              description: z.string(),
-              askTitle: z.string(),
-            })
-            .strict(),
-          "specs",
-        ),
-      },
+      stream: true,
     });
-    return response.output_parsed;
+    for await (const event of streamProxy(generateTitleDescriptionStream))
+      if (event.type === "reasoning-part") yield event;
+    const result = (await generateTitleDescriptionStream.finalResponse())
+      .output_parsed;
+    if (!result) {
+      throw new Error("Failed to generate title and description");
+    }
+    yield { type: "generated-title-and-description", value: result };
   },
 });
 
-/*
-const titleGenerationPrompt =
-  'You are an expert on literature and psychology. The user will give you a passage and title. You have to generate one 4-7 word sentence to ask the reader of the sentence to help the writer of passage reach his/her goal. Try to include key points of the passage that may affect help. The input will be in JSON format. "name" field holding name of the writer of passage and "passage" indicating the content of the passage. The sentence should be in third person voice e.g. `Help Nolan recover his stolen totem` or `Aid Susan find her beloved cat (Maggy)` or `Stand with John in search for "Arabian Nights"';
-
-const reasonGenerationPrompt =
-  'Given a reason to pass a request from a friend of you to someone you know or a group of people you know, convert it to a SMALL paragraph length text from the third person perspective addressing the reader. If no reason is provided, generate a general paragraph that is true implicitly and make it explicit. Do not add any unspecified claims. e.g. "Because he is in the neighborhood and knows cars well" to "Because you are in the neighborhood and know cars." or "Because she has a large connection pool with painters and artists" to "As you have vast connections with painters and art people". For empty reasons for example "Because he thinks you can help Mat find his stolen car".';
-
-const callForActionSentenceGenerationPrompt =
-  'The user will give you a passage containing description of a request for help and title. Generate 4 4-7 word sentences and output a JSON array. First sentence checking with reader if he has the answer, lead and can directly help e.g. "If you know where to find it". Second checking with reader if he knows someone that MAY be able to help or even pass the word e.g. "If you know someone who may help". Third sentence encoraging to connect with the starter of quest and providing them with answer. And finally fourth to encourage passing the word via Reflow. Reflow is a term used in the application. The first two sentences must be INCOMPLETE and must NOT be questions.';
-*/
+// #endregion
