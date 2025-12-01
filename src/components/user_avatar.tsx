@@ -1,6 +1,7 @@
 import { cn } from "@/helpers/client/tailwind_helpers";
 import Image from "next/image";
 import { useId } from "react";
+import { AVATAR_SIZE } from "@/helpers/client/constants";
 
 export type UserAvatarProps = {
   name: string;
@@ -26,8 +27,8 @@ export const Avatar = ({
       <Image
         src={imageUrl ?? "/img/unknown_user.svg"}
         alt={name}
-        width={imageWidth ?? 48}
-        height={imageHeight ?? 48}
+        width={imageWidth ?? AVATAR_SIZE}
+        height={imageHeight ?? AVATAR_SIZE}
         className="rounded-full object-cover shadow"
         onClick={onClick}
       />

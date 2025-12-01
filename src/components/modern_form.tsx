@@ -32,6 +32,9 @@ export const ModernFormModal = ({
 }: ModernFormModalProps) => {
   const [stepIndex, setStepIndex] = useState(0);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
+  const childArray = (Array.isArray(children) ? children : [children]).filter(
+    (c) => !!c,
+  );
   return (
     <Modal
       ref={ref}
@@ -39,14 +42,14 @@ export const ModernFormModal = ({
       header={
         <Steps
           currentStep={activeStepIndex}
-          numberOfSteps={children.length}
+          numberOfSteps={childArray.length}
           onClick={(stepIndex) => setStepIndex(stepIndex)}
         />
       }
       defaultButton={{
         children: nextButtonContent ? (
           nextButtonContent(activeStepIndex)
-        ) : stepIndex === children.length - 1 ? (
+        ) : stepIndex === childArray.length - 1 ? (
           "Submit"
         ) : (
           <>
@@ -59,7 +62,7 @@ export const ModernFormModal = ({
             return;
           }
           setStepIndex(
-            Math.min(Math.max(0, stepIndex + 1), children.length - 1),
+            Math.min(Math.max(0, stepIndex + 1), childArray.length - 1),
           );
         },
       }}
@@ -84,7 +87,7 @@ export const ModernFormModal = ({
         }}
         childClassName={contentClassName}
       >
-        {children}
+        {childArray}
       </Carousel>
     </Modal>
   );

@@ -38,7 +38,6 @@ export default function Create() {
     },
     [latestVisitedState, description, stepIndex, title],
   );
-  console.log([latestVisitedState, description, stepIndex, title]);
   const continueToNextStep = useCallback(() => {
     const nextStepIndex = sanitizeStepIndex(stableStepIndex + 1);
     setLatestVisitedState((s) => Math.max(s, nextStepIndex));

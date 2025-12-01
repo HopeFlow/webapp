@@ -399,7 +399,6 @@ export const quests = createServerAction({
       ? params.offset + pageRelations.length
       : undefined;
     const result = { items: cards, hasMore, nextOffset };
-    console.log("result", result);
     return result;
   },
 });

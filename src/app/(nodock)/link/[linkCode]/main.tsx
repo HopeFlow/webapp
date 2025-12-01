@@ -66,7 +66,7 @@ const SUBMIT_QUESTIONS: LinkSubmitQuestion[] = [
 ];
 
 const ACTION_LABELS: LinkActionLabels = {
-  reflow: "Forward",
+  reflow: "Reflow",
   submit: "Propose answer",
   bookmark: "Join",
 };
@@ -252,6 +252,7 @@ export function LinkMain({
             actionLabels={ACTION_LABELS}
             hasJoined={linkNodeData?.hasJoined}
             handleJoin={handlePotentialNodeClick}
+            questType={linkNodeData?.questType}
           />
         </div>
         <div className="flex flex-col items-start gap-6 md:flex-row">

@@ -186,7 +186,6 @@ export const trackLinkPageView = defineServerFunction({
       const ipPrefix = !!clientIpFromHeaders
         ? anonymizeIp(clientIpFromHeaders)
         : "ip:unknown";
-      console.log("ipPrefix", ipPrefix);
       const userAgent = headerList.get("user-agent") || "ua:unknown";
 
       await db

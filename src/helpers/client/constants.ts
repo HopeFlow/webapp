@@ -5,3 +5,5 @@ export const USER_PROFILE_DEFAULTS = {
 } as const;
 
 export const HOPEFLOW_EMAILS = { support: "support@mg.hopeflow.org" };
+
+export const AVATAR_SIZE = 40;

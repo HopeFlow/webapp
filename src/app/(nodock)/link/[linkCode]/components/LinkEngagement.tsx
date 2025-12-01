@@ -42,12 +42,14 @@ export function LinkEngagement({
   actionLabels,
   hasJoined,
   handleJoin,
+  questType,
 }: {
   inviter: LinkInviterInfo;
   submitQuestions: LinkSubmitQuestion[];
   actionLabels: LinkActionLabels;
   hasJoined?: boolean;
   handleJoin?: () => void;
+  questType?: "restricted" | "unrestricted";
 }) {
   const hasMultipleInviters = (inviter.avatars?.length ?? 0) > 1;
   const inviterRowClassName = [
@@ -78,7 +80,7 @@ export function LinkEngagement({
         <Button buttonType="primary" onClick={() => showReflowModal()}>
           <ReflowIcon size={18} /> {actionLabels.reflow}
         </Button>
-        <ReflowModal />
+        <ReflowModal questType={questType} />
         <div className="flex w-full flex-row items-stretch justify-between gap-2">
           <Button
             buttonType="secondary"
