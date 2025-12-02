@@ -373,44 +373,6 @@ export const questHistoryTable = sqliteTable(
 
 /**
  * ==========================
- * BOOKMARKS
- * ==========================
- */
-export const bookmarkTable = sqliteTable(
-  "bookmark",
-  {
-    id: primaryKey(),
-    questId: text()
-      .notNull()
-      .references((): AnySQLiteColumn => questTable.id, {
-        onDelete: "cascade",
-      }),
-    userId: text().notNull(),
-    linkId: text()
-      .notNull()
-      .references((): AnySQLiteColumn => linkTable.id, { onDelete: "cascade" }),
-    createdAt: timestamp()
-      .notNull()
-      .$defaultFn(() => new Date()),
-  },
-  (table) => [
-    uniqueIndex("uniq_bookmark_per_user_per_quest").on(
-      table.questId,
-      table.userId,
-    ),
-    // Link must belong to same quest
-    foreignKey({
-      name: "fk_bookmark_link_same_quest",
-      columns: [table.linkId, table.questId] as const,
-      foreignColumns: [linkTable.id, linkTable.questId] as const,
-    })
-      .onUpdate("cascade")
-      .onDelete("cascade"),
-  ],
-);
-
-/**
- * ==========================
  * PROPOSED ANSWERS
  * ==========================
  */
@@ -514,7 +476,6 @@ export const questRelations = relations(questTable, ({ one, many }) => ({
   comments: many(commentTable),
   histories: many(questHistoryTable),
   proposedAnswers: many(proposedAnswerTable),
-  bookmarks: many(bookmarkTable),
   chatMessages: many(chatMessagesTable),
 }));
 
@@ -551,7 +512,6 @@ export const linkRelations = relations(linkTable, ({ one, many }) => ({
   }),
   usedByNodes: many(nodeTable, { relationName: "viewLinkUsage" }),
   histories: many(questHistoryTable),
-  bookmarks: many(bookmarkTable),
 }));
 
 export const commentRelations = relations(commentTable, ({ one, many }) => ({
@@ -591,17 +551,6 @@ export const questHistoryRelations = relations(
     }),
   }),
 );
-
-export const bookmarkRelations = relations(bookmarkTable, ({ one }) => ({
-  quest: one(questTable, {
-    fields: [bookmarkTable.questId],
-    references: [questTable.id],
-  }),
-  link: one(linkTable, {
-    fields: [bookmarkTable.linkId],
-    references: [linkTable.id],
-  }),
-}));
 
 export const proposedAnswerRelations = relations(
   proposedAnswerTable,

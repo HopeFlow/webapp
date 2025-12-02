@@ -2,7 +2,6 @@
 import { getHopeflowDatabase } from "@/db";
 import { questStatusDef } from "@/db/constants";
 import {
-  bookmarkTable,
   linkTable,
   nodeTable,
   proposedAnswerTable,
@@ -139,10 +138,6 @@ export const quests = createServerAction({
             SELECT ${nodeTable.questId} AS questId, ${nodeTable.createdAt} AS createdAt
             FROM ${nodeTable}
             WHERE ${nodeTable.userId} = ${user.id}
-          UNION ALL
-            SELECT ${bookmarkTable.questId} AS questId, ${bookmarkTable.createdAt} AS createdAt
-            FROM ${bookmarkTable}
-            WHERE ${bookmarkTable.userId} = ${user.id}
           ),
           dedup AS (
             SELECT questId, MIN(createdAt) AS createdAt
@@ -211,15 +206,6 @@ export const quests = createServerAction({
       .from(nodeTable)
       .where(inArray(nodeTable.questId, questIds));
 
-    const bookmarkParticipants = await db
-      .select({
-        questId: bookmarkTable.questId,
-        userId: bookmarkTable.userId,
-        createdAt: bookmarkTable.createdAt,
-      })
-      .from(bookmarkTable)
-      .where(inArray(bookmarkTable.questId, questIds));
-
     const participantAccumulator = new Map<
       string,
       Map<string, ParticipantRow>
@@ -236,7 +222,6 @@ export const quests = createServerAction({
     };
 
     nodeParticipants.forEach(upsertParticipant);
-    bookmarkParticipants.forEach(upsertParticipant);
     // Treat seekers as participants so their own quests show them first.
     quests.forEach((questRow) => {
       if (!questRow.seekerId) return;
@@ -285,40 +270,22 @@ export const quests = createServerAction({
     const questLinkIdByQuest = new Map<string, string>();
     const linkCodeById = new Map<string, string>();
     if (nonSeekerQuestIds.length > 0) {
-      const [userNodeLinks, userBookmarks] = await Promise.all([
-        db
-          .select({
-            questId: nodeTable.questId,
-            viewLinkId: nodeTable.viewLinkId,
-          })
-          .from(nodeTable)
-          .where(
-            and(
-              eq(nodeTable.userId, user.id),
-              inArray(nodeTable.questId, nonSeekerQuestIds),
-            ),
+      const userNodeLinks = await db
+        .select({
+          questId: nodeTable.questId,
+          viewLinkId: nodeTable.viewLinkId,
+        })
+        .from(nodeTable)
+        .where(
+          and(
+            eq(nodeTable.userId, user.id),
+            inArray(nodeTable.questId, nonSeekerQuestIds),
           ),
-        db
-          .select({
-            questId: bookmarkTable.questId,
-            linkId: bookmarkTable.linkId,
-          })
-          .from(bookmarkTable)
-          .where(
-            and(
-              eq(bookmarkTable.userId, user.id),
-              inArray(bookmarkTable.questId, nonSeekerQuestIds),
-            ),
-          ),
-      ]);
+        );
 
       for (const row of userNodeLinks) {
         if (!row.viewLinkId) continue;
         questLinkIdByQuest.set(row.questId, row.viewLinkId);
-      }
-      for (const row of userBookmarks) {
-        if (questLinkIdByQuest.has(row.questId)) continue;
-        questLinkIdByQuest.set(row.questId, row.linkId);
       }
 
       if (questLinkIdByQuest.size > 0) {
