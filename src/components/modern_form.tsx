@@ -15,8 +15,11 @@ export type ModernFormModalProps = {
   cancelButtonContent?: (stepIndex: number) => ReactNode;
   onNextButtonClick?: (stepIndex: number, close: () => void) => void;
   onCancelButtonClick?: (stepIndex: number, close: () => void) => void;
+  onCloseAttempt?: (close: () => void) => void;
+  onClose?: () => void;
   modalId?: string;
   contentClassName?: string;
+  stepValidity?: boolean[];
   ref?: React.Ref<HTMLDialogElement | null>;
 };
 
@@ -26,27 +29,55 @@ export const ModernFormModal = ({
   cancelButtonContent,
   onNextButtonClick,
   onCancelButtonClick,
+  onCloseAttempt,
+  onClose,
   children,
   contentClassName,
   ref,
+  stepValidity,
 }: ModernFormModalProps) => {
   const [stepIndex, setStepIndex] = useState(0);
   const [activeStepIndex, setActiveStepIndex] = useState(0);
   const childArray = (Array.isArray(children) ? children : [children]).filter(
     (c) => !!c,
   );
+
+  const isCurrentStepValid =
+    !stepValidity || stepValidity[activeStepIndex] !== false;
+
+  const handleInternalClose = () => {
+    setStepIndex(0);
+    setActiveStepIndex(0);
+    onClose?.();
+  };
+
   return (
     <Modal
       ref={ref}
       id={modalId}
+      onCloseAttempt={onCloseAttempt}
+      onClose={handleInternalClose}
       header={
         <Steps
           currentStep={activeStepIndex}
           numberOfSteps={childArray.length}
-          onClick={(stepIndex) => setStepIndex(stepIndex)}
+          stepValidity={stepValidity}
+          onClick={(targetIndex) => {
+            // Allow navigation only if all steps before the target step are valid
+            const canNavigate =
+              !stepValidity ||
+              stepValidity
+                .slice(0, targetIndex)
+                .every((isValid) => isValid !== false);
+
+            if (canNavigate) {
+              setStepIndex(targetIndex);
+            }
+          }}
         />
       }
       defaultButton={{
+        disabled: !isCurrentStepValid,
         children: nextButtonContent ? (
           nextButtonContent(activeStepIndex)
         ) : stepIndex === childArray.length - 1 ? (
@@ -57,6 +88,7 @@ export const ModernFormModal = ({
           </>
         ),
         onClick: (close) => {
+          if (!isCurrentStepValid) return;
           if (onNextButtonClick) {
             onNextButtonClick(activeStepIndex, close);
             return;

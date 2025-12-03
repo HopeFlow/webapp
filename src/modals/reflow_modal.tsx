@@ -1,7 +1,8 @@
 "use client";
 
 import { showModal } from "@/components/modal";
-import React, { useState } from "react";
+import React, { ReactNode, useMemo, useState } from "react";
+import { ArrowRightIcon } from "@/components/icons/arrow_right";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { ExclamationCircleIcon } from "@/components/icons/exclamation_circle";
 import Image from "next/image";
@@ -267,12 +268,20 @@ const EndorsementNoteInput = ({
         move this quest forward. This will be visible to the community once your
         recipient accepts your invitation link.
       </p>
+    </>
+  );
+};
+
+const LinkGeneration = ({ name }: { name: string }) => {
+  const [message, setMessage] = useState<string>("");
+  return (
+    <>
       <label>Message to {!!name ? name : "Your friend"}</label>
       <div className="flex flex-col gap-1 p-1 md:flex-row md:items-center">
         <textarea
           className="textarea h-36 w-full resize-none p-1 text-lg"
-          value={endorsementNote}
-          onChange={(e) => setEndorsementNote(e.target.value)}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
         />
       </div>
       <p className="text-success text-sm">
@@ -282,22 +291,86 @@ const EndorsementNoteInput = ({
   );
 };
 
-const LinkPreview = () => {
-  return <>TO BE IMPLEMENTED</>;
-};
+const INITIAL_TYPE = "targeted";
+const INITIAL_NAME = "";
+const INITIAL_ENDORSEMENT_NOTE = "";
+const INITIAL_CONNECTION_STRENGTH = 2;
 
 export const ReflowModal = ({
   questType,
 }: {
   questType?: "restricted" | "unrestricted";
 }) => {
-  const [type, setType] = useState<"targeted" | "broadcast">("targeted");
-  const [name, setName] = useState<string>("");
-  const [endorsementNote, setEndorsementNote] = useState<string>("");
-  const [connectionStrength, setConnectionStrength] = useState(2);
+  const [type, setType] = useState<"targeted" | "broadcast">(INITIAL_TYPE);
+  const [name, setName] = useState<string>(INITIAL_NAME);
+  const [endorsementNote, setEndorsementNote] = useState<string>(
+    INITIAL_ENDORSEMENT_NOTE,
+  );
+  const [connectionStrength, setConnectionStrength] = useState(
+    INITIAL_CONNECTION_STRENGTH,
+  );
+
+  const stepValidity = useMemo(() => {
+    if (type === "targeted") {
+      return [
+        true, // LinkTypeSelection
+        !!name, // InviteeNameInput
+        true, // ConnectionStrengthInput
+        !!endorsementNote, // EndorsementNoteInput
+        true, // LinkPreview
+      ];
+    } else {
+      return [
+        true, // LinkTypeSelection
+        true, // EndorsementNoteInput
+        true, // LinkPreview
+      ];
+    }
+  }, [type, name]);
+
+  const nextButtonContent: (stepIndex: number) => ReactNode = (stepIndex) => {
+    if (stepIndex === stepValidity.length - 2) {
+      return "Generate Link";
+    }
+    if (stepIndex === stepValidity.length - 1) {
+      return "Copy Link";
+    }
+    return (
+      <>
+        Next <ArrowRightIcon size={18} />
+      </>
+    );
+  };
+
+  const handleCloseAttempt = (close: () => void) => {
+    const isDirty = !!name || !!endorsementNote;
+    if (isDirty) {
+      if (
+        window.confirm(
+          "You have not generated a link yet. Are you sure you want to close?",
+        )
+      ) {
+        close();
+      }
+    } else {
+      close();
+    }
+  };
+
+  const resetState = () => {
+    setType(INITIAL_TYPE);
+    setName(INITIAL_NAME);
+    setEndorsementNote(INITIAL_ENDORSEMENT_NOTE);
+    setConnectionStrength(INITIAL_CONNECTION_STRENGTH);
+  };
+
   return (
     <ModernFormModal
       modalId={modalId}
+      stepValidity={stepValidity}
+      nextButtonContent={nextButtonContent}
+      onCloseAttempt={handleCloseAttempt}
+      onClose={resetState}
       contentClassName="flex flex-col gap-4 w-full h-full p-2 items-stretch justify-start [&>label:not(.radio-label)]:text-2xl [&>label.radio-label]:text-sm"
     >
       <LinkTypeSelection
@@ -324,7 +397,10 @@ export const ReflowModal = ({
         type={type}
         name={name}
       />
-      <LinkPreview />
+      <LinkGeneration
+        key={type === "targeted" ? "step5" : "step3"}
+        name={name}
+      />
     </ModernFormModal>
   );
 };
