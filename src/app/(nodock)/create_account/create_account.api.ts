@@ -3,16 +3,16 @@ import { createApiEndpoint } from "@/helpers/server/create_server_action";
 import {
   readCurrentUserProfile as readCurrentUserProfile__,
   updateCurrentUserProfile as updateCurrentUserProfile__,
-} from "../common/profile";
+} from "@/helpers/server/profile";
 
 export const readCurrentUserProfile = createApiEndpoint({
-  uniqueKey: "profile::readCurrentUserProfile",
+  uniqueKey: "createAccount::getCurrentUserProfile",
   type: "query",
   handler: readCurrentUserProfile__,
 });
 
 export const updateCurrentUserProfile = createApiEndpoint({
-  uniqueKey: "profile::updateCurrentUserProfile",
+  uniqueKey: "createAccount::updateCurrentUserProfile",
   type: "mutation",
   handler: updateCurrentUserProfile__,
 });

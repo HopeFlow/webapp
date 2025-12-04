@@ -209,20 +209,87 @@ function generateKeysModule(project: Project, endpoints: ApiEndpointInfo[]) {
   finalizeSourceFile(sourceFile);
 }
 
+function paramDeclToInfo(paramDecl: ParameterDeclaration): ParamInfo {
+  return {
+    name: paramDecl.getName(),
+    typeText: paramDecl.getType().getText(paramDecl),
+    isRest: paramDecl.isRestParameter(),
+    hasQuestionToken: paramDecl.hasQuestionToken(),
+  };
+}
+
+function getParamInfosFromExpression(
+  expr: Node | undefined,
+  seen = new Set<string>(),
+): ParamInfo[] | null {
+  if (!expr) return null;
+
+  if (Node.isArrowFunction(expr) || Node.isFunctionExpression(expr)) {
+    return expr.getParameters().map(paramDeclToInfo);
+  }
+
+  if (Node.isFunctionDeclaration(expr)) {
+    return expr.getParameters().map(paramDeclToInfo);
+  }
+
+  if (Node.isIdentifier(expr)) {
+    const symbol = expr.getSymbol();
+    const decls = [
+      ...(symbol?.getDeclarations() ?? []),
+      ...(symbol?.getAliasedSymbol()?.getDeclarations() ?? []),
+    ];
+    const key =
+      symbol?.getFullyQualifiedName() ||
+      symbol?.getAliasedSymbol()?.getFullyQualifiedName();
+    if (key) {
+      if (seen.has(key)) return null;
+      seen.add(key);
+    }
+
+    for (const decl of decls) {
+      if (Node.isVariableDeclaration(decl)) {
+        const next = getParamInfosFromExpression(decl.getInitializer(), seen);
+        if (next) return next;
+      }
+      if (Node.isFunctionDeclaration(decl)) {
+        return decl.getParameters().map(paramDeclToInfo);
+      }
+    }
+  }
+
+  if (Node.isCallExpression(expr)) {
+    const firstArg = expr.getArguments().at(0);
+    const obj = firstArg?.asKind(SyntaxKind.ObjectLiteralExpression);
+    const handler = obj
+      ?.getProperty("handler")
+      ?.asKind(SyntaxKind.PropertyAssignment)
+      ?.getInitializer();
+    if (handler) {
+      const next = getParamInfosFromExpression(handler, seen);
+      if (next) return next;
+    }
+  }
+
+  return null;
+}
+
 // --- NEW: get parameter infos from the function type ---
 function getEndpointParamInfos(endpoint: ApiEndpointInfo): ParamInfo[] {
   const createApiEndpointCallArgs = endpoint.declaration
     .getInitializerIfKind(SyntaxKind.CallExpression)
     ?.getArguments()
     .at(0);
-  if (!createApiEndpointCallArgs) return [];
-  const callSignatures = createApiEndpointCallArgs
-    .asKind(SyntaxKind.ObjectLiteralExpression)
+  const handlerInit = createApiEndpointCallArgs
+    ?.asKind(SyntaxKind.ObjectLiteralExpression)
     ?.getProperty("handler")
     ?.asKind(SyntaxKind.PropertyAssignment)
-    ?.getInitializer()
-    ?.getType()
-    ?.getCallSignatures();
+    ?.getInitializer();
+
+  const fromHandler = getParamInfosFromExpression(handlerInit);
+  if (fromHandler !== null) return fromHandler;
+
+  // Fallback to type inspection when we cannot reach the handler implementation.
+  const callSignatures = handlerInit?.getType()?.getCallSignatures();
   if (!callSignatures || callSignatures.length === 0) return [];
 
   const sig = callSignatures[0];
@@ -276,6 +343,7 @@ function generateHookFiles(project: Project, endpoints: ApiEndpointInfo[]) {
       namedImports: [
         "useQuery",
         "useMutation",
+        "QueryClient",
         "UseQueryResult",
         "UseMutationResult",
         "UseQueryOptions",
@@ -294,7 +362,8 @@ function generateHookFiles(project: Project, endpoints: ApiEndpointInfo[]) {
     });
 
     const { exportName, type } = endpoint;
-    const hookName = `use${upperCaseFirstLetter(exportName)}`;
+    const pascalName = upperCaseFirstLetter(exportName);
+    const hookName = `use${pascalName}`;
     const keyPartsText = endpoint.uniqueKey
       .split("::")
       .map((e) => JSON.stringify(e))
@@ -302,77 +371,153 @@ function generateHookFiles(project: Project, endpoints: ApiEndpointInfo[]) {
 
     const params = getEndpointParamInfos(endpoint);
 
-    if (type !== "query")
-      sourceFile.addTypeAlias({
-        name: "ParamsType",
-        type: `Parameters<typeof ${exportName}>`,
-      });
+    sourceFile.addTypeAlias({
+      name: "ParamsType",
+      type: `Parameters<typeof ${exportName}>`,
+    });
     sourceFile.addTypeAlias({
       name: "RetType",
       type: `Awaited<ReturnType<typeof ${exportName}>>`,
     });
 
     if (type === "query") {
+      sourceFile.addTypeAlias({
+        name: "OptionsType",
+        type: `Omit<UseQueryOptions<RetType, unknown>, "queryKey" | "queryFn">`,
+      });
+
+      const getQueryKeyName = `get${pascalName}QueryKey`;
+      const getQueryOptionsName = `get${pascalName}QueryOptions`;
+      const prefetchName = `prefetch${pascalName}`;
+      const hasParams = params.length > 0;
+
+      sourceFile.addFunction({
+        isExported: true,
+        name: getQueryKeyName,
+        parameters: hasParams
+          ? [{ name: "params", isRestParameter: true, type: "ParamsType" }]
+          : [],
+        returnType: "readonly unknown[]",
+        statements: (writer) => {
+          writer.write(
+            `return [${keyPartsText}${
+              hasParams ? ", ...(params as readonly unknown[])" : ""
+            }] as const;`,
+          );
+        },
+      });
+
+      sourceFile.addFunction({
+        isExported: true,
+        name: getQueryOptionsName,
+        parameters: hasParams
+          ? [{ name: "params", isRestParameter: true, type: "ParamsType" }]
+          : [],
+        statements: (writer) => {
+          writer.writeLine("return {");
+          writer.write(
+            `  queryKey: ${getQueryKeyName}(${hasParams ? "...params" : ""}),`,
+          );
+          writer.writeLine(
+            `  queryFn: () => ${exportName}(${hasParams ? "...params" : ""}),`,
+          );
+          writer.writeLine("} as const;");
+        },
+      });
+
+      sourceFile.addFunction({
+        isExported: true,
+        name: prefetchName,
+        parameters: hasParams
+          ? [{ name: "params", isRestParameter: true, type: "ParamsType" }]
+          : [],
+        statements: (writer) => {
+          writer.write(
+            `return (qc: QueryClient) => qc.prefetchQuery(${getQueryOptionsName}(${hasParams ? "...params" : ""}));`,
+          );
+        },
+      });
+
       sourceFile.addFunction({
         isExported: true,
         name: hookName,
-        parameters: [
-          ...params.map((p) => ({
-            name: p.name,
-            type: p.typeText,
-            hasQuestionToken: p.hasQuestionToken,
-            isRestParameter: p.isRest,
-          })),
-          {
-            name: "options",
-            hasQuestionToken: true,
-            type: `Omit<UseQueryOptions<RetType, unknown>, "queryKey" | "queryFn">`,
-          },
-        ],
+        parameters:
+          params.length === 0
+            ? [{ name: "options", hasQuestionToken: true, type: "OptionsType" }]
+            : [
+                {
+                  name: "args",
+                  isRestParameter: true,
+                  type: `[...ParamsType, OptionsType?]`,
+                },
+              ],
         statements: (writer) => {
-          const argsArray =
-            params.length === 0
-              ? "[]"
-              : `[${params
-                  .map((p) => (p.isRest ? `...${p.name}` : p.name))
-                  .join(", ")}]`;
-
-          writer.writeLine(`const args = ${argsArray} as const;`);
-          writer.writeLine("return useQuery({");
-          writer.write(`  queryKey: [${keyPartsText}`);
           if (params.length > 0) {
-            writer.write(", ...args");
+            writer.writeLine(
+              `const options = args.length > ${params.length} ? (args[args.length - 1] as OptionsType) : undefined;`,
+            );
+            writer.writeLine(
+              `const paramsOnly = (options ? args.slice(0, -1) : args) as ParamsType;`,
+            );
           }
-          writer.write("] as const,");
-          writer.writeLine(
-            `  queryFn: () => ${exportName}(${params
-              .map((p) => (p.isRest ? `...${p.name}` : p.name))
-              .join(", ")}),`,
+          writer.writeLine("return useQuery({");
+          writer.write(
+            `  ...${getQueryOptionsName}(${params.length > 0 ? "..." : ""}${
+              params.length > 0 ? "(paramsOnly as ParamsType)" : ""
+            }),`,
           );
-          writer.writeLine("  ...(options ?? {}),");
+          writer.writeLine(
+            `  ...(${params.length === 0 ? "options" : "(options as OptionsType | undefined)"} ?? {}),`,
+          );
           writer.writeLine("});");
         },
       });
     } else {
+      const mutationVariablesType =
+        params.length === 0
+          ? "void"
+          : params.length === 1
+            ? params[0].isRest
+              ? "ParamsType"
+              : "ParamsType[0]"
+            : `{ ${params
+                .map(
+                  (p, i) =>
+                    `${p.name}${p.hasQuestionToken ? "?" : ""}: ${
+                      p.isRest ? p.typeText : `ParamsType[${i}]`
+                    }`,
+                )
+                .join("; ")} }`;
+
+      sourceFile.addTypeAlias({
+        name: "OptionsType",
+        type: `Omit<UseMutationOptions< RetType, unknown, ${mutationVariablesType}, unknown>, "mutationFn">`,
+      });
+
       sourceFile.addFunction({
         isExported: true,
         name: hookName,
         parameters: [
-          {
-            name: "options",
-            hasQuestionToken: true,
-            type: `Omit<UseMutationOptions< RetType, unknown, ${
-              params.length > 1
-                ? "{ " +
-                  params
-                    .map((p, i) => `${p.name}: ParamsType[${i}]`)
-                    .join(", ") +
-                  " }"
-                : "ParamsType"
-            }, unknown>, "mutationFn">`,
-          },
+          { name: "options", hasQuestionToken: true, type: "OptionsType" },
         ],
         statements: (writer) => {
+          let mutationFnParam = "";
+          let mutationCall = "";
+          if (params.length === 0) {
+            mutationFnParam = "";
+            mutationCall = "";
+          } else if (params.length === 1) {
+            mutationFnParam = params[0].name;
+            mutationCall = params[0].isRest
+              ? `...${params[0].name}`
+              : params[0].name;
+          } else {
+            mutationFnParam = `{ ${params.map((p) => p.name).join(", ")} }`;
+            mutationCall = params
+              .map((p) => (p.isRest ? `...${p.name}` : p.name))
+              .join(", ");
+          }
+
           writer.writeLine("return useMutation({");
           writer.writeLine(
             `  mutationKey: [${endpoint.uniqueKey
@@ -381,19 +526,7 @@ function generateHookFiles(project: Project, endpoints: ApiEndpointInfo[]) {
               .join(", ")}] as const,`,
           );
           writer.writeLine(
-            `  mutationFn: (${
-              params.length === 0
-                ? ""
-                : params.length === 1
-                  ? "[" + params[0].name + "]"
-                  : "{" +
-                    params
-                      .map((p) => (p.isRest ? `...${p.name}` : p.name))
-                      .join(", ") +
-                    "}"
-            }) => ${exportName}(${params
-              .map((p) => (p.isRest ? `...${p.name}` : p.name))
-              .join(", ")}),`,
+            `  mutationFn: (${mutationFnParam}) => ${exportName}(${mutationCall}),`,
           );
           writer.writeLine("  ...(options ?? {}),");
           writer.writeLine("});");

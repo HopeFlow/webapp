@@ -14,8 +14,8 @@
     "cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
     "dk-dev": "drizzle-kit --config=drizzle.dev.config.ts",
     "dk-cf": "drizzle-kit --config=drizzle.cf.config.ts",
-    "gen-hooks": "tsx scripts/gen_server_action_hooks.ts",
-    "gen-routes": "tsx scripts/gen_route_helpers.ts",
+    "gen-hooks": "tsx scripts/generate_api_hooks.ts && prettier --write \"src/apiHooks/**/*.{ts,tsx}\"",
+    "gen-routes": "tsx scripts/gen_route_helpers.ts && prettier --write src/helpers/client/routes.ts src/helpers/server/routes.ts",
     "prepare": "husky"
   },
   "dependencies": {
@@ -75,12 +75,6 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.44.0",
     "wrangler": "^4.50.0"
-  },
-  "lint-staged": {
-    "**/*.{ts,tsx}": [
-      "prettier --write",
-      "eslint --fix --no-warn-ignored"
-    ]
   },
   "lint-staged": {
     "**/*.{ts,tsx}": [

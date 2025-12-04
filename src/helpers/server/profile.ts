@@ -1,4 +1,3 @@
-// server_actions/definitions/profile/_core.ts
 import { eq } from "drizzle-orm";
 import { USER_PROFILE_DEFAULTS } from "@/helpers/client/constants";
 import { getHopeflowDatabase } from "@/db";

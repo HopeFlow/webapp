@@ -10,7 +10,7 @@ import {
   EmailSettings,
   useEmailDefaults,
 } from "@/components/profile/emailSettings";
-import { useCreateAccount } from "@/server_actions/client/create_account/userProfileCrud";
+import { useUpdateCurrentUserProfile } from "@/apiHooks/createAccount/updateCurrentUserProfile";
 import { useGoto, useGotoHome } from "@/helpers/client/routes";
 
 export function CreateAccountMain({
@@ -22,7 +22,7 @@ export function CreateAccountMain({
 }) {
   const { name, setName, file, setFile, previewUrl, loadingImage } =
     useProfileFields(user);
-  const { update } = useCreateAccount();
+  const update = useUpdateCurrentUserProfile();
   const goTo = useGoto();
   const goToHome = useGotoHome();
 

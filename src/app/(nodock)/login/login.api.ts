@@ -2,7 +2,7 @@
 
 import { createApiEndpoint } from "@/helpers/server/create_server_action";
 import { currentUserNoThrow, clerkClientNoThrow } from "@/helpers/server/auth";
-import { upsertUserProfile, ensureCreatedFlag } from "../common/profile";
+import { upsertUserProfile, ensureCreatedFlag } from "@/helpers/server/profile";
 
 type EnsureOAuthInput = {
   timezone: string; // from browser
