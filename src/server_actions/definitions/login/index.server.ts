@@ -5,8 +5,7 @@ import { getHopeflowDatabase } from "@/db";
 import { defineServerFunction } from "@/helpers/server/define_server_function";
 
 export const isUserProfileCreated = defineServerFunction({
-  id: "isUserProfileCreated",
-  scope: "login",
+  uniqueKey: "login::isUserProfileCreated",
   handler: async (userId: string) => {
     const db = await getHopeflowDatabase();
     const row = await db.query.userProfileTable.findFirst({

@@ -1,8 +1,6 @@
 "use server";
 
-import {
-  createCrudServerAction,
-} from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_server_action";
 import { currentUserNoThrow, clerkClientNoThrow } from "@/helpers/server/auth";
 import { upsertUserProfile, ensureCreatedFlag } from "../common/profile";
 
@@ -12,10 +10,10 @@ type EnsureOAuthInput = {
   emailFrequency?: "immediate" | "daily" | "weekly";
 };
 
-export const ensureOAuthProfileWithDefaults = createCrudServerAction({
-  id: "ensureOAuthProfileWithDefaults",
-  scope: "login",
-  update: async (input: EnsureOAuthInput): Promise<boolean> => {
+export const ensureOAuthProfileWithDefaults = createApiEndpoint({
+  uniqueKey: "login::ensureOAuthProfileWithDefaults",
+  type: "mutation",
+  handler: async (input: EnsureOAuthInput): Promise<boolean> => {
     const user = await currentUserNoThrow();
     const client = await clerkClientNoThrow();
     if (!user || !client) return false;

@@ -8,7 +8,7 @@ import {
   questTable,
 } from "@/db/schema";
 import { clerkClientNoThrow, currentUserNoThrow } from "@/helpers/server/auth";
-import { createServerAction } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_server_action";
 import { executeWithDateParsing } from "@/helpers/server/db";
 import { inArray, sql } from "drizzle-orm";
 
@@ -112,10 +112,10 @@ export type QuestsPage = {
   nextOffset?: number;
 };
 
-export const quests = createServerAction({
-  id: "quests",
-  scope: "home",
-  execute: async (params: {
+export const quests = createApiEndpoint({
+  uniqueKey: "home::quests",
+  type: "query",
+  handler: async (params: {
     offset: number;
     limit: number;
   }): Promise<QuestsPage> => {

@@ -1,24 +1,18 @@
 "use server";
-import { createCrudServerAction } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_server_action";
 import {
-  ProfileRead,
-  ProfileUpdateInput,
-  readCurrentUserProfile,
-  updateCurrentUserProfile,
+  readCurrentUserProfile as readCurrentUserProfile__,
+  updateCurrentUserProfile as updateCurrentUserProfile__,
 } from "../common/profile";
 
-export const userProfileCrud = createCrudServerAction({
-  id: "Profile",
-  scope: "profile",
+export const readCurrentUserProfile = createApiEndpoint({
+  uniqueKey: "profile::readCurrentUserProfile",
+  type: "query",
+  handler: readCurrentUserProfile__,
+});
 
-  /**
-   * READ — returns current user core fields + drizzle prefs (if any)
-   */
-  read: async (): Promise<ProfileRead> => readCurrentUserProfile(),
-
-  /**
-   * UPDATE
-   */
-  update: async (data: ProfileUpdateInput): Promise<boolean> =>
-    updateCurrentUserProfile(data),
+export const updateCurrentUserProfile = createApiEndpoint({
+  uniqueKey: "profile::updateCurrentUserProfile",
+  type: "mutation",
+  handler: updateCurrentUserProfile__,
 });
