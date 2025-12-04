@@ -4,39 +4,12 @@ import type { NextRequest } from "next/server";
 // export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
-const ROUTE_PREFIX = "/r2";
-
-const decodePathComponent = (component: string) => {
-  try {
-    return decodeURIComponent(component);
-  } catch {
-    return component;
-  }
-};
-
-const extractKeyFromRequest = (request: NextRequest) => {
-  const { pathname, searchParams } = request.nextUrl;
-
-  let rawKey = "";
-
-  if (pathname === ROUTE_PREFIX || pathname === `${ROUTE_PREFIX}/`) {
-    rawKey = searchParams.get("key") ?? "";
-  } else if (pathname.startsWith(`${ROUTE_PREFIX}/`)) {
-    rawKey = pathname.slice(ROUTE_PREFIX.length + 1);
-  }
-
-  if (!rawKey) {
-    rawKey = searchParams.get("key") ?? "";
-  }
-
-  rawKey = rawKey.replace(/^\/+/, "").replace(/\/{2,}/g, "/");
-  if (!rawKey) return undefined;
-
-  return rawKey.split("/").map(decodePathComponent).join("/");
-};
-
-export async function GET(request: NextRequest) {
-  const key = extractKeyFromRequest(request);
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ slug: string[] }> },
+) {
+  const key = (await params).slug.join("/");
+  console.log({ key });
   if (!key) {
     return new Response("Missing R2 object key", { status: 400 });
   }
@@ -55,7 +28,23 @@ export async function GET(request: NextRequest) {
     }
 
     const headers = new Headers();
-    object.writeHttpMetadata(headers);
+    // object.writeHttpMetadata(headers);
+    const meta = object.httpMetadata;
+    if (meta?.contentType) {
+      headers.set("content-type", meta.contentType);
+    }
+    if (meta?.contentLanguage) {
+      headers.set("content-language", meta.contentLanguage);
+    }
+    if (meta?.cacheControl) {
+      headers.set("cache-control", meta.cacheControl);
+    }
+    if (meta?.contentDisposition) {
+      headers.set("content-disposition", meta.contentDisposition);
+    }
+    if (meta?.contentEncoding) {
+      headers.set("content-encoding", meta.contentEncoding);
+    }
 
     if (!headers.has("content-type")) {
       headers.set("content-type", "application/octet-stream");
