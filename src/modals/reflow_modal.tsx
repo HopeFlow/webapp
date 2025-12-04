@@ -333,7 +333,7 @@ export const ReflowModal = ({
       return "Generate Link";
     }
     if (stepIndex === stepValidity.length - 1) {
-      return "Copy Link";
+      return "Save and Share";
     }
     return (
       <>
