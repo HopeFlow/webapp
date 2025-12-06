@@ -4,7 +4,6 @@ import {
   Project,
   Node,
   VariableDeclaration,
-  VariableDeclarationKind,
   SourceFile,
   ParameterDeclaration,
   SyntaxKind,
@@ -35,7 +34,6 @@ const API_ENDPOINT_GLOBS = [path.join(PROJECT_ROOT, "src/**/*.ts")];
 
 // Base generated folder
 const GENERATED_DIR = path.join(PROJECT_ROOT, "src/apiHooks");
-const KEYS_MODULE_PATH = path.join(GENERATED_DIR, "apiEndpointKeys.ts");
 
 const CREATE_API_ENDPOINT_NAME = "createApiEndpoint";
 
@@ -146,67 +144,6 @@ function finalizeSourceFile(sourceFile: SourceFile) {
   sourceFile.fixMissingImports();
   sourceFile.fixUnusedIdentifiers();
   sourceFile.formatText();
-}
-
-function generateKeysModule(project: Project, endpoints: ApiEndpointInfo[]) {
-  fs.mkdirSync(path.dirname(KEYS_MODULE_PATH), { recursive: true });
-
-  const sourceFile = project.createSourceFile(KEYS_MODULE_PATH, "", {
-    overwrite: true,
-  });
-
-  // Deduplicate keys (just in case)
-  const uniqueKeys = Array.from(
-    new Set(endpoints.map((e) => e.uniqueKey)),
-  ).sort();
-
-  const keyTypeMap = new Map<string, EndpointApiType>(
-    endpoints.map((e) => [e.uniqueKey, e.type]),
-  );
-
-  for (const endpointType of ["query", "mutation"] as EndpointApiType[]) {
-    const pcEndpointType = upperCaseFirstLetter(endpointType);
-    sourceFile.addVariableStatement({
-      isExported: true,
-      declarationKind: VariableDeclarationKind.Const,
-      declarations: [
-        {
-          name: `api${pcEndpointType}EndpointKeys`,
-          initializer: (writer) => {
-            writer.write("[");
-            if (uniqueKeys.length > 0) writer.newLine();
-            uniqueKeys.forEach((k, i) => {
-              if (keyTypeMap.get(k) !== endpointType) return;
-              writer.write(`  "${k}"`);
-              if (i < uniqueKeys.length - 1) writer.write(",");
-              writer.newLine();
-            });
-            writer.write("] as const");
-          },
-        },
-      ],
-    });
-    sourceFile.addTypeAlias({
-      isExported: true,
-      name: `Api${pcEndpointType}EndpointKey`,
-      type: `typeof api${pcEndpointType}EndpointKeys[number]`,
-    });
-  }
-
-  sourceFile.addFunction({
-    name: "createQueryKey",
-    isExported: true,
-    parameters: [
-      { name: "key", type: "ApiQueryEndpointKey" },
-      { name: "variables", type: "readonly unknown[]" },
-    ],
-    returnType: "readonly unknown[]",
-    statements: (writer) => {
-      writer.writeLine('return [...key.split("::"), ...variables] as const;');
-    },
-  });
-
-  finalizeSourceFile(sourceFile);
 }
 
 function paramDeclToInfo(paramDecl: ParameterDeclaration): ParamInfo {
@@ -547,7 +484,6 @@ async function main() {
     console.warn("No API endpoints found via createApiEndpoint.");
   }
 
-  generateKeysModule(project, endpoints);
   generateHookFiles(project, endpoints);
 
   await project.save();
