@@ -48,7 +48,58 @@ export function LinkTimelineContent({
   } = useReadLinkTimeline({ linkCode });
   const queryClient = useQueryClient();
   const create = useAddLinkTimelineComment({
-    onSuccess: () => {
+    async onMutate(variables) {
+      await queryClient.cancelQueries({
+        queryKey: getReadLinkTimelineQueryKey({ linkCode }),
+      });
+      const previousTimeline = queryClient.getQueryData<LinkTimelineReadResult>(
+        getReadLinkTimelineQueryKey({ linkCode }),
+      );
+
+      const optimisticId = `optimistic-${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`;
+      const optimisticName =
+        user?.fullName?.trim() ||
+        user?.firstName?.trim() ||
+        user?.lastName?.trim() ||
+        "You";
+
+      const optimisticAction: LinkTimelineReadResult["actions"][number] = {
+        id: optimisticId,
+        type: "commented on the quest",
+        name: optimisticName,
+        imageUrl: user?.imageUrl,
+        timestamp: new Date().toISOString(),
+        description: variables.content,
+        comment: {
+          id: `${optimisticId}-comment`,
+          content: variables.content,
+          likeCount: 0,
+          dislikeCount: 0,
+          viewerReaction: null,
+        },
+      };
+
+      queryClient.setQueryData<LinkTimelineReadResult>(
+        getReadLinkTimelineQueryKey({ linkCode }),
+        (oldData) => ({
+          actions: [...(oldData?.actions ?? []), optimisticAction],
+        }),
+      );
+
+      return { previousTimeline };
+    },
+    onError: (_error, _variables, context) => {
+      const previousTimeline = (
+        context as { previousTimeline?: LinkTimelineReadResult } | undefined
+      )?.previousTimeline;
+      if (previousTimeline) {
+        queryClient.setQueryData<LinkTimelineReadResult>(
+          getReadLinkTimelineQueryKey({ linkCode }),
+          previousTimeline,
+        );
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: getReadLinkTimelineQueryKey({ linkCode }),
       });
@@ -58,7 +109,61 @@ export function LinkTimelineContent({
     },
   });
   const update = useReactToLinkTimelineComment({
-    onSuccess: () => {
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({
+        queryKey: getReadLinkTimelineQueryKey({ linkCode }),
+      });
+      const previousTimeline = queryClient.getQueryData<LinkTimelineReadResult>(
+        getReadLinkTimelineQueryKey({ linkCode }),
+      );
+
+      queryClient.setQueryData<LinkTimelineReadResult>(
+        getReadLinkTimelineQueryKey({ linkCode }),
+        (oldData) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            actions: oldData.actions.map((action) => {
+              if (action.comment?.id !== variables.commentId) return action;
+              const previousReaction = action.comment.viewerReaction;
+              let likeCount = action.comment.likeCount;
+              let dislikeCount = action.comment.dislikeCount;
+
+              if (previousReaction === "like")
+                likeCount = Math.max(0, likeCount - 1);
+              if (previousReaction === "dislike")
+                dislikeCount = Math.max(0, dislikeCount - 1);
+
+              if (variables.reaction === "like") likeCount += 1;
+              if (variables.reaction === "dislike") dislikeCount += 1;
+
+              return {
+                ...action,
+                comment: {
+                  ...action.comment,
+                  viewerReaction: variables.reaction,
+                  likeCount,
+                  dislikeCount,
+                },
+              };
+            }),
+          };
+        },
+      );
+      return { previousTimeline };
+    },
+    onError: (_error, _variables, context) => {
+      const previousTimeline = (
+        context as { previousTimeline?: LinkTimelineReadResult } | undefined
+      )?.previousTimeline;
+      if (previousTimeline) {
+        queryClient.setQueryData<LinkTimelineReadResult>(
+          getReadLinkTimelineQueryKey({ linkCode }),
+          previousTimeline,
+        );
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: getReadLinkTimelineQueryKey({ linkCode }),
       });
@@ -77,7 +182,7 @@ export function LinkTimelineContent({
         continue;
       }
 
-      const isOptimisticEntry = false; //Boolean(entryOptimisticMeta);
+      const isOptimisticEntry = entry.id.startsWith("optimistic-");
 
       const action: TimelineAction = {
         id: entry.id,
@@ -112,7 +217,7 @@ export function LinkTimelineContent({
             : undefined,
         };
       }
-      mapped.push(action);
+      mapped.unshift(action);
     }
     return mapped;
   }, [
