@@ -31,7 +31,7 @@ export function withLoading<P>(
     }
 
     // Not loading: render the wrapped component with its real props.
-    const { isLoading: _i, ...rest } = props as Record<string, unknown>;
+    const { /* isLoading: _i,*/ ...rest } = props as Record<string, unknown>;
     return <Wrapped {...(rest as P & React.Attributes)} />;
   };
 

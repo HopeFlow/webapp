@@ -23,11 +23,13 @@ import { LinkBotonicalTree } from "./components/LinkBotonicalTree";
 import { LinkReflowTree } from "./components/LinkReflowTree";
 import { LinkMediaCarousel } from "./components/LinkMediaCarousel";
 import { StatsCard } from "./components/StatsCard";
-import { useLinkStatsCard } from "@/server_actions/client/link/linkStatsCard";
-import type { LinkStatusStat } from "@/server_actions/definitions/link/types";
-import { useLinkNode } from "@/server_actions/client/link/linkNode";
-import { useLinkNodeMutationOptions } from "./useLinkNodeMutationOptions";
+import { useLinkStatsCard } from "@/apiHooks/link/linkStatsCard";
+import type { LinkStatusStat } from "../types";
+import { useReadNodes } from "@/apiHooks/link/readNodes";
 import { useGotoLogin } from "@/helpers/client/routes";
+import { useAddNode } from "@/apiHooks/link/addNode";
+import { createQueryKey } from "@/apiHooks/apiEndpointKeys";
+import { useQueryClient } from "@tanstack/react-query";
 
 const FALLBACK_STATS: LinkStatusStat[] = [
   {
@@ -219,13 +221,24 @@ export function LinkMain({
   const statsQuery = useLinkStatsCard({ questId });
   const stats = statsQuery.data?.stats ?? FALLBACK_STATS;
   const redirectUrl = `link/${linkCode}`;
-  const mutationOptions = useLinkNodeMutationOptions(linkCode, user);
 
-  const {
-    data: linkNodeData,
-    isLoading: isLinkNodeLoading,
-    create: createNode,
-  } = useLinkNode({ linkCode }, mutationOptions);
+  const { data: linkNodeData, isLoading: isLinkNodeLoading } = useReadNodes({
+    linkCode,
+  });
+  const queryClient = useQueryClient();
+  const createNode = useAddNode({
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: createQueryKey("link::linkStatsCard", [questId]),
+      });
+      queryClient.invalidateQueries({
+        queryKey: createQueryKey("link::readNodes", [linkCode]),
+      });
+      queryClient.invalidateQueries({
+        queryKey: createQueryKey("link::readLinkTimeline", [linkCode]),
+      });
+    },
+  });
   const gotoLogin = useGotoLogin();
 
   const handlePotentialNodeClick = async () => {
@@ -233,7 +246,7 @@ export function LinkMain({
       gotoLogin({ url: `/link/${linkCode}` });
       return;
     }
-    await createNode.mutateAsync({ referer });
+    await createNode.mutateAsync({ referer, linkCode });
   };
 
   return (
@@ -267,6 +280,7 @@ export function LinkMain({
               linkCode={linkCode}
               user={user}
               referer={referer}
+              questId={questId}
             />
           </div>
           {/* right stack */}

@@ -14,14 +14,14 @@
     "cf-typegen": "wrangler types --env-interface CloudflareEnv ./cloudflare-env.d.ts",
     "dk-dev": "drizzle-kit --config=drizzle.dev.config.ts",
     "dk-cf": "drizzle-kit --config=drizzle.cf.config.ts",
-    "gen-hooks": "tsx scripts/gen_server_action_hooks.ts",
-    "gen-routes": "tsx scripts/gen_route_helpers.ts",
+    "gen-hooks": "tsx scripts/generate_api_hooks.ts && prettier --write \"src/apiHooks/**/*.{ts,tsx}\"",
+    "gen-routes": "tsx scripts/gen_route_helpers.ts && prettier --write src/helpers/client/routes.ts src/helpers/server/routes.ts",
     "prepare": "husky"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.30.2",
     "@dgreenheck/ez-tree": "^1.0.0",
-    "@google/genai": "^1.21.0",
+    "@google/genai": "^1.30.0",
     "@lexical/link": "^0.34.0",
     "@lexical/list": "^0.34.0",
     "@lexical/react": "^0.34.0",
@@ -38,10 +38,11 @@
     "drizzle-zod": "^0.8.2",
     "jsonwebtoken": "^9.0.2",
     "lexical": "^0.34.0",
+    "pg": "^8.16.3",
+    "jose": "^6.1.0",
     "moment-timezone": "^0.6.0",
     "next": "15.5.5",
-    "openai": "^6.1.0",
-    "pg": "^8.16.3",
+    "openai": "^6.9.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",
@@ -85,7 +86,7 @@
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.44.0",
-    "wrangler": "^4.40.2"
+    "wrangler": "^4.50.0"
   },
   "lint-staged": {
     "**/*.{ts,tsx}": [

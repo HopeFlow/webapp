@@ -15,12 +15,11 @@ import { headers } from "next/headers";
 import { ReadonlyHeaders } from "next/dist/server/web/spec-extension/adapters/headers";
 import {
   getQuestAndNodesForLinkByLinkCode,
-  getWinnerPathsForQuests,
   trackLinkPageView,
-} from "@/server_actions/definitions/link/index.server";
-import { prefetchLinkTimeline } from "@/server_actions/client/link/linkTimeline";
-import { prefetchLinkStatsCard } from "@/server_actions/client/link/linkStatsCard";
-import { prefetchLinkNode } from "@/server_actions/client/link/linkNode";
+} from "../link.server";
+import { prefetchReadLinkTimeline } from "@/apiHooks/link/readLinkTimeline";
+import { prefetchLinkStatsCard } from "@/apiHooks/link/linkStatsCard";
+import { prefetchReadNodes } from "@/apiHooks/link/readNodes";
 import AccessRestricted from "./components/accessRestricted";
 import { notFound } from "next/navigation";
 import QuestOwnerNotice from "./components/questOwnerNotice";
@@ -163,9 +162,9 @@ async function ContentsForUser({
   return (
     <Prefetch
       actions={[
-        prefetchLinkTimeline({ linkCode }),
+        prefetchReadLinkTimeline({ linkCode }),
         prefetchLinkStatsCard({ questId: quest.id }),
-        prefetchLinkNode({ linkCode }),
+        prefetchReadNodes({ linkCode }),
       ]}
     >
       <LinkMain

@@ -4,10 +4,7 @@ import { BulbIcon } from "@/components/icons/bulb";
 import { EyeIcon } from "@/components/icons/eye";
 import { MediatorsIcon } from "@/components/icons/mediators";
 import { ChatBubbleIcon } from "@/components/icons/chat_bubble";
-import type {
-  LinkStatusStat,
-  LinkStatusStatIcon,
-} from "@/server_actions/definitions/link/types";
+import type { LinkStatusStat, LinkStatusStatIcon } from "../../types";
 
 const iconForStat = (icon: LinkStatusStatIcon) => {
   const common = "h-5 w-5";

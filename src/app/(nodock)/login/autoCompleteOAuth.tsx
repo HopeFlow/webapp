@@ -5,13 +5,13 @@ import { useEffect } from "react";
 import { USER_PROFILE_DEFAULTS } from "@/helpers/client/constants";
 import { useGoto, useGotoHome } from "@/helpers/client/routes";
 import { getBrowserTimeZone } from "@/helpers/client/time";
-import { useEnsureOAuthProfileWithDefaults } from "@/server_actions/client/login/ensureOAuthProfileWithDefaults";
+import { useEnsureOAuthProfileWithDefaults } from "@/apiHooks/login/ensureOAuthProfileWithDefaults";
 import { LoadingElement } from "@/components/loading";
 
 export function AutoCompleteOAuth({ url }: { url?: string }) {
   const goto = useGoto();
   const gotoHome = useGotoHome();
-  const { update } = useEnsureOAuthProfileWithDefaults();
+  const update = useEnsureOAuthProfileWithDefaults();
 
   useEffect(() => {
     (async () => {

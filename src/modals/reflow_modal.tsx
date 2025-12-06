@@ -34,7 +34,7 @@ const LinkTypeSelection = ({
           name="type"
           value="targeted"
           checked={type === "targeted"}
-          onChange={() => setType("targeted")}
+          onChange={(e) => e.target.checked && setType("targeted")}
         />{" "}
         Targeted (One-time link to a specific friend)
       </label>
@@ -50,7 +50,7 @@ const LinkTypeSelection = ({
           name="type"
           value="broadcast"
           checked={type === "broadcast"}
-          onChange={() => setType("broadcast")}
+          onChange={(e) => e.target.checked && setType("broadcast")}
           disabled={isRestricted}
         />{" "}
         Broadcast (Multi-use link for a group of friends)

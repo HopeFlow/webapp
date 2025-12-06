@@ -6,13 +6,16 @@ import { Timeline } from "@/components/timeline";
 import { Avatar } from "@/components/user_avatar";
 import { SafeUser } from "@/helpers/server/auth";
 import { Button } from "@/components/button";
-import { useLinkTimeline } from "@/server_actions/client/link/linkTimeline";
-import { useLinkTimelineMutationOptions } from "./useLinkTimelineMutationOptions";
+import {
+  getReadLinkTimelineQueryKey,
+  useReadLinkTimeline,
+} from "@/apiHooks/link/readLinkTimeline";
+import { useAddLinkTimelineComment } from "@/apiHooks/link/addLinkTimelineComment";
+import { useReactToLinkTimelineComment } from "@/apiHooks/link/reactToLinkTimelineComment";
 import type { SocialMediaName } from "./ReflowTree";
-import type {
-  LinkTimelineReadResult,
-  LinkTimelineReaction,
-} from "@/server_actions/definitions/link/types";
+import type { LinkTimelineReadResult, LinkTimelineReaction } from "../../types";
+import { useQueryClient } from "@tanstack/react-query";
+import { getLinkStatsCardQueryKey } from "@/apiHooks/link/linkStatsCard";
 
 export type TimelineAction = React.ComponentProps<
   typeof Timeline
@@ -24,23 +27,48 @@ export function LinkTimelineContent({
   linkCode,
   user,
   referer,
+  questId,
 }: {
   linkCode: string;
   user?: SafeUser;
   referer?: SocialMediaName;
+  questId: string;
 }) {
   const commentInputId = useId();
   const [commentText, setCommentText] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-  const mutationOptions = useLinkTimelineMutationOptions({ linkCode }, user);
-  const timelineQuery = useLinkTimeline({ linkCode }, mutationOptions);
-  const { data, create, update } = timelineQuery;
+  // const mutationOptions = useLinkTimelineMutationOptions({ linkCode }, user);
+  // const timelineQuery = useLinkTimeline({ linkCode }, mutationOptions);
+  // const { data, create, update } = timelineQuery;
+
+  const {
+    data,
+    isError: readHasError,
+    error: readError,
+  } = useReadLinkTimeline({ linkCode });
+  const queryClient = useQueryClient();
+  const create = useAddLinkTimelineComment({
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: getReadLinkTimelineQueryKey({ linkCode }),
+      });
+      queryClient.invalidateQueries({
+        queryKey: getLinkStatsCardQueryKey({ questId }),
+      });
+    },
+  });
+  const update = useReactToLinkTimelineComment({
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: getReadLinkTimelineQueryKey({ linkCode }),
+      });
+    },
+  });
   const resolvedReferer: SocialMediaName = referer ?? "unknown";
 
   const timelineData: LinkTimelineReadResult =
     data && typeof data !== "boolean" ? data : EMPTY_TIMELINE;
   const pendingReactionId = update.variables?.commentId ?? null;
-
   const timelineActions = useMemo<TimelineAction[]>(() => {
     const mapped: TimelineAction[] = [];
     for (const entry of timelineData.actions) {
@@ -49,13 +77,7 @@ export function LinkTimelineContent({
         continue;
       }
 
-      const entryOptimisticMeta =
-        (
-          entry as LinkTimelineReadResult["actions"][number] & {
-            optimistic?: boolean;
-          }
-        ).optimistic ?? false;
-      const isOptimisticEntry = Boolean(entryOptimisticMeta);
+      const isOptimisticEntry = false; //Boolean(entryOptimisticMeta);
 
       const action: TimelineAction = {
         id: entry.id,
@@ -74,15 +96,7 @@ export function LinkTimelineContent({
           likeCount: entry.comment.likeCount,
           dislikeCount: entry.comment.dislikeCount,
           viewerReaction: entry.comment.viewerReaction,
-          optimistic:
-            isOptimisticEntry ||
-            Boolean(
-              (
-                entry.comment as NonNullable<typeof entry.comment> & {
-                  optimistic?: boolean;
-                }
-              )?.optimistic,
-            ),
+          optimistic: isOptimisticEntry,
           isPending: update.isPending && pendingReactionId === entry.comment.id,
           onReact: !!user
             ? (desired: LinkTimelineReaction | null) => {
@@ -92,16 +106,23 @@ export function LinkTimelineContent({
                   commentId: entry.comment!.id,
                   reaction: nextReaction,
                   referer: resolvedReferer,
+                  linkCode,
                 });
               }
             : undefined,
         };
       }
-
-      mapped.unshift(action); // unshift to put comments at the top
+      mapped.push(action);
     }
     return mapped;
-  }, [timelineData.actions, pendingReactionId, update, resolvedReferer, user]);
+  }, [
+    timelineData,
+    pendingReactionId,
+    update,
+    resolvedReferer,
+    user,
+    linkCode,
+  ]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -113,7 +134,11 @@ export function LinkTimelineContent({
     }
     setFormError(null);
     try {
-      await create.mutateAsync({ content: trimmed, referer: resolvedReferer });
+      await create.mutateAsync({
+        content: trimmed,
+        referer: resolvedReferer,
+        linkCode,
+      });
       setCommentText("");
     } catch (error) {
       setFormError(
@@ -182,10 +207,10 @@ export function LinkTimelineContent({
         <Timeline actions={timelineActions} />
       </ReadMore>
 
-      {timelineQuery.error && (
+      {readHasError && (
         <p className="text-warning mt-2 text-xs" role="status">
-          {timelineQuery.error instanceof Error
-            ? timelineQuery.error.message
+          {readError instanceof Error
+            ? readError.message
             : "Unable to refresh timeline"}
         </p>
       )}

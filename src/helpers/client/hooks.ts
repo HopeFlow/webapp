@@ -1,5 +1,34 @@
 import { useCallback, useEffect, useRef } from "react";
 
+type UseEffectParamTypes = Parameters<typeof useEffect>;
+type UseEffectReturnType = ReturnType<typeof useEffect>;
+
+interface UseDebouncedEffect {
+  (
+    effect: UseEffectParamTypes[0],
+    dep?: UseEffectParamTypes[1],
+    timeout?: number,
+  ): UseEffectReturnType;
+}
+
+export const useDebouncedEffect: UseDebouncedEffect = (
+  effect,
+  dep?,
+  timeout?,
+) => {
+  let effectReturnValue: ReturnType<typeof effect> | undefined;
+  return useEffect(() => {
+    const timeoutHandle = setTimeout(() => {
+      // eslint-disable-next-line react-hooks/immutability, react-hooks/exhaustive-deps
+      effectReturnValue = effect();
+    }, timeout ?? 500);
+    return () => {
+      if (effectReturnValue) effectReturnValue();
+      else clearTimeout(timeoutHandle);
+    };
+  }, dep);
+};
+
 export const useFileUpload = ({
   accept,
   multiple,
