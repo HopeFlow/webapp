@@ -41,6 +41,7 @@ export function LinkEngagement({
   submitQuestions,
   actionLabels,
   hasJoined,
+  isJoining,
   handleJoin,
   questType,
 }: {
@@ -48,6 +49,7 @@ export function LinkEngagement({
   submitQuestions: LinkSubmitQuestion[];
   actionLabels: LinkActionLabels;
   hasJoined?: boolean;
+  isJoining?: boolean;
   handleJoin?: () => void;
   questType?: "restricted" | "unrestricted";
 }) {
@@ -95,7 +97,8 @@ export function LinkEngagement({
           <Button
             buttonType="neutral"
             buttonStyle="soft"
-            disabled={hasJoined}
+            withSpinner={isJoining}
+            disabled={hasJoined || isJoining}
             onClick={handleJoin}
           >
             <BookmarkIcon

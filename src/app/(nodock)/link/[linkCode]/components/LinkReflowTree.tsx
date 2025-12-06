@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ReFlowNodeSimple, SocialMediaName } from "./ReflowTree";
+import { ReFlowNodeSimple } from "./ReflowTree";
 import { ReflowTree } from "@/components/reflow_tree";
 
 type LinkReflowTreeProps = {

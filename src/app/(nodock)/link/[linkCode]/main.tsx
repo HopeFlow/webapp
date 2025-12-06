@@ -23,18 +23,13 @@ import { LinkBotonicalTree } from "./components/LinkBotonicalTree";
 import { LinkReflowTree } from "./components/LinkReflowTree";
 import { LinkMediaCarousel } from "./components/LinkMediaCarousel";
 import { StatsCard } from "./components/StatsCard";
-import {
-  getLinkStatsCardQueryKey,
-  useLinkStatsCard,
-} from "@/apiHooks/link/linkStatsCard";
+import { useLinkStatsCard } from "@/apiHooks/link/linkStatsCard";
 import type { LinkStatusStat } from "../types";
 import { getReadNodesQueryKey, useReadNodes } from "@/apiHooks/link/readNodes";
 import { useGotoLogin } from "@/helpers/client/routes";
 import { useAddNode } from "@/apiHooks/link/addNode";
-import { createQueryKey } from "@/apiHooks/apiEndpointKeys";
 import { useQueryClient } from "@tanstack/react-query";
-import { get } from "http";
-import { getReadLinkTimelineQueryKey } from "@/apiHooks/link/readLinkTimeline";
+import type { readNodes } from "../node.api";
 
 const FALLBACK_STATS: LinkStatusStat[] = [
   {
@@ -231,20 +226,116 @@ export function LinkMain({
     linkCode,
   });
   const queryClient = useQueryClient();
+
+  const hasOptimisticNode = (
+    node: Awaited<ReturnType<typeof readNodes>>["treeRoot"] | undefined,
+  ) => {
+    if (!node) return false;
+    const queue = [node];
+    while (queue.length) {
+      const current = queue.shift();
+      if (current?.optimistic) return true;
+      if (current?.children?.length) {
+        queue.push(...current.children);
+      }
+    }
+    return false;
+  };
+
+  //
   const createNode = useAddNode({
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: getLinkStatsCardQueryKey({ questId }),
-      });
-      queryClient.invalidateQueries({
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({
         queryKey: getReadNodesQueryKey({ linkCode }),
       });
+      const previousNodes = queryClient.getQueryData<
+        Awaited<ReturnType<typeof readNodes>>
+      >(getReadNodesQueryKey({ linkCode }));
+      queryClient.setQueryData<Awaited<ReturnType<typeof readNodes>>>(
+        getReadNodesQueryKey({ linkCode }),
+        (oldData) => {
+          if (!oldData?.treeRoot) return oldData;
+          const optimisticId = `optimistic-${Date.now().toString(36)}-${Math.random().toString(16).slice(2)}`;
+          const viewerName =
+            user?.fullName?.trim() ||
+            user?.firstName?.trim() ||
+            user?.lastName?.trim() ||
+            "You";
+          const optimisticNode = {
+            id: optimisticId,
+            title: viewerName,
+            createdAt: new Date(),
+            imageUrl: user?.imageUrl ?? oldData.userImageUrl,
+            referer: variables.referer,
+            children: [] as typeof oldData.treeRoot.children,
+            targetNode: true,
+            potentialNode: false,
+            optimistic: true,
+          };
+
+          // Walks the tree depth-first, cloning nodes as it goes.
+          // - Finds the first placeholder/potential node and replaces it with the optimistic node.
+          // - If no placeholder is found, the caller can append at the root.
+          // Returns: [updatedNode, didInsertHereOrBelow]
+          const injectOptimisticNode = (
+            node: typeof oldData.treeRoot,
+          ): [typeof oldData.treeRoot, boolean] => {
+            let inserted = false;
+            const children = node.children.map((child) => {
+              if (inserted) return child;
+              if (child.potentialNode) {
+                inserted = true;
+                return { ...optimisticNode };
+              }
+              const [updatedChild, childInserted] = injectOptimisticNode(child);
+              if (childInserted) inserted = true;
+              return updatedChild;
+            });
+            return [{ ...node, children }, inserted];
+          };
+
+          const [updatedRoot, inserted] = injectOptimisticNode(
+            oldData.treeRoot,
+          );
+          const treeRoot = inserted
+            ? updatedRoot
+            : {
+                ...oldData.treeRoot,
+                children: [...oldData.treeRoot.children, optimisticNode],
+              };
+
+          return {
+            ...oldData,
+            hasJoined: true,
+            userImageUrl: optimisticNode.imageUrl ?? oldData.userImageUrl,
+            treeRoot,
+          };
+        },
+      );
+      return { previousNodes };
+    },
+    onError: (_error, _variables, context) => {
+      const previousNodes = (
+        context as
+          | { previousNodes?: Awaited<ReturnType<typeof readNodes>> }
+          | undefined
+      )?.previousNodes;
+      if (previousNodes) {
+        queryClient.setQueryData<Awaited<ReturnType<typeof readNodes>>>(
+          getReadNodesQueryKey({ linkCode }),
+          previousNodes,
+        );
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: getReadLinkTimelineQueryKey({ linkCode }),
+        queryKey: getReadNodesQueryKey({ linkCode }),
       });
     },
   });
   const gotoLogin = useGotoLogin();
+  const isJoining =
+    createNode.isPending || hasOptimisticNode(linkNodeData?.treeRoot);
 
   const handlePotentialNodeClick = async () => {
     if (!user) {
@@ -269,6 +360,7 @@ export function LinkMain({
             submitQuestions={SUBMIT_QUESTIONS}
             actionLabels={ACTION_LABELS}
             hasJoined={linkNodeData?.hasJoined}
+            isJoining={isJoining}
             handleJoin={handlePotentialNodeClick}
             questType={linkNodeData?.questType}
           />
