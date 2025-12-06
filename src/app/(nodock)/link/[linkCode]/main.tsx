@@ -23,13 +23,18 @@ import { LinkBotonicalTree } from "./components/LinkBotonicalTree";
 import { LinkReflowTree } from "./components/LinkReflowTree";
 import { LinkMediaCarousel } from "./components/LinkMediaCarousel";
 import { StatsCard } from "./components/StatsCard";
-import { useLinkStatsCard } from "@/apiHooks/link/linkStatsCard";
+import {
+  getLinkStatsCardQueryKey,
+  useLinkStatsCard,
+} from "@/apiHooks/link/linkStatsCard";
 import type { LinkStatusStat } from "../types";
-import { useReadNodes } from "@/apiHooks/link/readNodes";
+import { getReadNodesQueryKey, useReadNodes } from "@/apiHooks/link/readNodes";
 import { useGotoLogin } from "@/helpers/client/routes";
 import { useAddNode } from "@/apiHooks/link/addNode";
 import { createQueryKey } from "@/apiHooks/apiEndpointKeys";
 import { useQueryClient } from "@tanstack/react-query";
+import { get } from "http";
+import { getReadLinkTimelineQueryKey } from "@/apiHooks/link/readLinkTimeline";
 
 const FALLBACK_STATS: LinkStatusStat[] = [
   {
@@ -229,13 +234,13 @@ export function LinkMain({
   const createNode = useAddNode({
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: createQueryKey("link::linkStatsCard", [questId]),
+        queryKey: getLinkStatsCardQueryKey({ questId }),
       });
       queryClient.invalidateQueries({
-        queryKey: createQueryKey("link::readNodes", [linkCode]),
+        queryKey: getReadNodesQueryKey({ linkCode }),
       });
       queryClient.invalidateQueries({
-        queryKey: createQueryKey("link::readLinkTimeline", [linkCode]),
+        queryKey: getReadLinkTimelineQueryKey({ linkCode }),
       });
     },
   });
