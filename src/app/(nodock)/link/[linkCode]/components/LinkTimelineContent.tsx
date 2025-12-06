@@ -37,9 +37,6 @@ export function LinkTimelineContent({
   const commentInputId = useId();
   const [commentText, setCommentText] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
-  // const mutationOptions = useLinkTimelineMutationOptions({ linkCode }, user);
-  // const timelineQuery = useLinkTimeline({ linkCode }, mutationOptions);
-  // const { data, create, update } = timelineQuery;
 
   const {
     data,
@@ -128,14 +125,19 @@ export function LinkTimelineContent({
               const previousReaction = action.comment.viewerReaction;
               let likeCount = action.comment.likeCount;
               let dislikeCount = action.comment.dislikeCount;
+              const hasReactionChanged =
+                previousReaction !== variables.reaction;
 
-              if (previousReaction === "like")
-                likeCount = Math.max(0, likeCount - 1);
-              if (previousReaction === "dislike")
-                dislikeCount = Math.max(0, dislikeCount - 1);
+              if (hasReactionChanged) {
+                // Remove the old reaction (covers toggling off, e.g. dislike -> dislike) and apply the new one.
+                if (previousReaction === "like")
+                  likeCount = Math.max(0, likeCount - 1);
+                if (previousReaction === "dislike")
+                  dislikeCount = Math.max(0, dislikeCount - 1);
 
-              if (variables.reaction === "like") likeCount += 1;
-              if (variables.reaction === "dislike") dislikeCount += 1;
+                if (variables.reaction === "like") likeCount += 1;
+                if (variables.reaction === "dislike") dislikeCount += 1;
+              }
 
               return {
                 ...action,
