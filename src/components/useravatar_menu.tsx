@@ -1,5 +1,6 @@
 "use client";
 
+import { AVATAR_SIZE } from "@/helpers/client/constants";
 import { useGotoProfile } from "@/helpers/client/routes";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import type { SafeUser } from "@/helpers/server/auth";
@@ -16,9 +17,7 @@ export const UserAvatarAndMenu = ({
   const { signOut } = useClerk();
 
   const handleSignOut = () => {
-    signOut({
-      redirectUrl: "/login",
-    });
+    signOut({ redirectUrl: "/login" });
   };
   const gotoProfile = useGotoProfile();
   return (
@@ -31,15 +30,15 @@ export const UserAvatarAndMenu = ({
       )}
     >
       <div
-        className="w-10 h-10 rounded-full overflow-hidden cursor-pointer border-2 border-primary"
+        className="border-primary h-10 w-10 cursor-pointer overflow-hidden rounded-full border-2"
         tabIndex={0}
       >
         <Image
           src={user.imageUrl}
           alt={user.fullName || "image avatar"}
-          width={40}
-          height={40}
-          className="object-cover w-full h-full"
+          width={AVATAR_SIZE}
+          height={AVATAR_SIZE}
+          className="h-full w-full object-cover"
         />
       </div>
       <div tabIndex={0}>

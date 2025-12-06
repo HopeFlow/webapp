@@ -3,10 +3,10 @@ import { CreateAccountMain } from "./main";
 import { publicPage, withParamsAndUser } from "@/helpers/server/page_component";
 import { user2SafeUser } from "@/helpers/server/auth";
 import { redirectToHome, redirectToLogin } from "@/helpers/server/routes";
-import { userProfileCrud } from "@/server_actions/definitions/create_account";
+import { readCurrentUserProfile } from "./create_account.api";
 
 const hasAlreadyCreatedProfile = async () => {
-  const result = await userProfileCrud("read");
+  const result = await readCurrentUserProfile();
   return result.exists;
 };
 
@@ -26,10 +26,6 @@ export default publicPage(
       // Otherwise, render the profile page
       return <CreateAccountMain url={url} user={safeUser} />;
     },
-    {
-      searchParamsTypeDef: z.object({
-        url: z.string().optional(),
-      }),
-    },
+    { searchParamsTypeDef: z.object({ url: z.string().optional() }) },
   ),
 );

@@ -1,20 +1,18 @@
-import { AnyArgs } from "@/helpers/client/type_helpers";
+import type { AnyArgs } from "@/helpers/client/type_helpers";
 
 export const defineServerFunction = <
   P extends AnyArgs,
   V,
   R extends Promise<V> | AsyncGenerator<V, void, unknown>,
->(params: {
-  id: string;
-  scope: string;
+>({
+  uniqueKey,
+  handler,
+  ...rest
+}: {
+  uniqueKey: string;
   handler: (...args: P) => R;
+  [key: string]: unknown;
 }) => {
-  const { id, scope, handler } = params;
-
   const run = handler;
-
-  return Object.assign(run, {
-    id,
-    scope,
-  });
+  return Object.assign(run, { uniqueKey, ...rest });
 };

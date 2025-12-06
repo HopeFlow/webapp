@@ -17,7 +17,7 @@ import { GenerateCoverPhoto } from "./generateCoverPhoto";
 import type { InsertQuestData } from "./types";
 import { ConfirmQuestType } from "./confirmQuestType";
 import { Overview } from "./overview";
-import { useInsertQuest } from "@/server_actions/client/create_quest/insertQuest";
+import { useInsertQuest } from "@/apiHooks/createQuest/insertQuest";
 
 export function CreateQuestMain({ user }: { user: SafeUser }) {
   const [gotoNextStep, setGotoNextStep] = useState(false);
@@ -36,9 +36,8 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
     type: "unrestricted",
     rewardAmount: 500,
   });
-  const {
-    create: { mutateAsync: createQuest, isPending: isCreatingQuest },
-  } = useInsertQuest();
+  const { mutateAsync: createQuest, isPending: isCreatingQuest } =
+    useInsertQuest();
 
   const setType = useCallback(
     (v: typeof type) => setInserQuestData((d) => ({ ...d, type: v })),

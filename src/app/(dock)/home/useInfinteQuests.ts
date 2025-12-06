@@ -2,7 +2,7 @@
 "use client";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { quests } from "@/server_actions/definitions/home/index"; // same import your generator uses
+import { quests } from "./home.api"; // same import your generator uses
 
 type Quest = {
   id?: string;

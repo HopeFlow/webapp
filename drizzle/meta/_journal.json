@@ -18,9 +18,16 @@
     },
     {
       "idx": 2,
-      "version": "7",
-      "when": 1762562400000,
-      "tag": "0002_drop_node_status",
+      "version": "6",
+      "when": 1762944682809,
+      "tag": "0002_add-quest-view-table",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1763986734172,
+      "tag": "0003_futuristic_the_fallen",
       "breakpoints": true
     }
   ]

@@ -1,6 +1,6 @@
 import { ShareIcon } from "@/components/icons/share";
 import { Avatar } from "@/components/user_avatar";
-import { elapsedTime2String } from "@/helpers/client/time";
+import { AppTimeAgo } from "@/helpers/client/time";
 
 export const StarterQuestCardNodes = ({
   nodes,
@@ -23,7 +23,7 @@ export const StarterQuestCardNodes = ({
       {nodes.length > 1 && (
         <>
           <div className="flex flex-row items-center justify-center text-xs">
-            {elapsedTime2String(nodes[nodes.length - 1].activityDate)}
+            <AppTimeAgo date={nodes[nodes.length - 1].activityDate} />
           </div>
           <Avatar
             className="border-primary w-6 rounded-full border-1 md:w-9"
@@ -57,7 +57,9 @@ export const StarterQuestCardNodes = ({
       />
       <div className="absolute bottom-0 left-[calc(100%+0.5rem)] w-auto text-sm whitespace-nowrap">
         <h1 className="font-bold">{nodes[0].name.replace(" ", "\xA0")}</h1>
-        <p className="text-xs">{elapsedTime2String(nodes[0].activityDate)}</p>
+        <p className="text-xs">
+          <AppTimeAgo date={nodes[0].activityDate} />
+        </p>
       </div>
     </div>
   );
@@ -97,7 +99,9 @@ export const ContributorQuestCardNodes = ({
       />
       <div className="absolute bottom-0 left-[calc(100%+0.5rem)] w-auto text-sm whitespace-nowrap">
         <h1 className="font-bold">{nodes[0].name.replace(" ", "\xA0")}</h1>
-        <p className="text-xs">{elapsedTime2String(nodes[0].activityDate)}</p>
+        <p className="text-xs">
+          <AppTimeAgo date={nodes[0].activityDate} />
+        </p>
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import { ContributorQuestCardNodes, StarterQuestCardNodes } from "./card_nodes";
 import { ShareIcon } from "@/components/icons/share";
 import { withLoading } from "@/helpers/client/HOCs";
 import { QuestCardSkeleton } from "./card_skeleton";
+import { useGotoLink, useGotoQuest } from "@/helpers/client/routes";
 
 export type QuestState =
   | "Young"
@@ -157,9 +158,11 @@ function LeadsBadge({ numberOfLeads }: { numberOfLeads: number }) {
 function ActionButton({
   label,
   className,
+  onClick,
 }: {
   label: string;
   className?: string;
+  onClick?: () => void;
 }) {
   return (
     <div className="flex h-10 w-full flex-row items-end justify-end">
@@ -168,6 +171,7 @@ function ActionButton({
         buttonType="base"
         buttonStyle="outline"
         className={cn("w-28", className)}
+        onClick={onClick}
       >
         {label} <ArrowRightIcon />
       </Button>
@@ -192,6 +196,7 @@ type StaterQuestCardProps = {
   numberOfLeads: number;
   questState: QuestState;
   nodes: Node[];
+  id: string;
 };
 
 function StarterQuestCard({
@@ -201,7 +206,9 @@ function StarterQuestCard({
   numberOfLeads,
   questState,
   nodes,
+  // id,
 }: StaterQuestCardProps) {
+  // const gotoQuest = useGotoQuest();
   return (
     <div className="flex h-auto max-w-4xl flex-1 flex-row gap-2 border-b py-4">
       <StarterQuestCardNodes nodes={nodes} />
@@ -210,7 +217,12 @@ function StarterQuestCard({
         <CoverCarousel coverMedia={coverMedia} title={title} />
         <BountyAndStateRow bounty={bounty} state={questState} />
         <LeadsBadge numberOfLeads={numberOfLeads} />
-        <ActionButton label="Manage" />
+        <ActionButton
+          label="Manage"
+          // onClick={
+          // () => gotoQuest(id)
+          // }
+        />
       </div>
     </div>
   );
@@ -228,6 +240,7 @@ function ContributorQuestCard({
   numberOfLeads,
   questState,
   nodes,
+  id,
 }: {
   title: string;
   coverMedia: CoverMedia;
@@ -235,7 +248,9 @@ function ContributorQuestCard({
   numberOfLeads: number;
   questState: QuestState;
   nodes: Node[];
+  id: string;
 }) {
+  const gotoLink = useGotoLink();
   return (
     <div className="flex h-auto max-w-4xl flex-1 flex-col gap-2 border-b py-4">
       <div className="flex h-auto flex-1 flex-row gap-2">
@@ -253,7 +268,12 @@ function ContributorQuestCard({
         <div className="flex flex-1 flex-col gap-2">
           <BountyAndStateRow bounty={bounty} state={questState} />
           <LeadsBadge numberOfLeads={numberOfLeads} />
-          <ActionButton label="View" />
+          <ActionButton
+            label="View"
+            onClick={() => {
+              gotoLink({ linkCode: id });
+            }}
+          />
         </div>
       </div>
     </div>

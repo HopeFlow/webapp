@@ -1,9 +1,13 @@
 import type { IconProps } from "./types";
 
-export const BookmarkIcon = ({ size = 24, className }: IconProps) => (
+export const BookmarkIcon = ({
+  size = 24,
+  className,
+  fill = "none",
+}: IconProps & { fill?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
-    fill="none"
+    fill={fill}
     width={size}
     height={size}
     viewBox="0 0 24 24"

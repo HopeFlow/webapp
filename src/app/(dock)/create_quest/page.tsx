@@ -4,6 +4,6 @@ import { user2SafeUser } from "@/helpers/server/auth";
 
 export default withUser(async function CreateQuest({ user }) {
   // TODO: Protected routes are guaranteed to have user defined
-  if(!user) return null;
+  if (!user) return null;
   return <CreateQuestMain user={user2SafeUser(user)} />;
 });

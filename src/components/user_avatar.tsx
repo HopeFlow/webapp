@@ -1,8 +1,13 @@
 import { cn } from "@/helpers/client/tailwind_helpers";
 import Image from "next/image";
 import { useId } from "react";
+import { AVATAR_SIZE } from "@/helpers/client/constants";
 
-export type UserAvatarProps = { name: string; className?: string } & (
+export type UserAvatarProps = {
+  name: string;
+  className?: string;
+  onClick?: () => void;
+} & (
   | { imageUrl: string; imageWidth?: number; imageHeight?: number }
   | { imageUrl?: undefined; imageWidth?: undefined; imageHeight?: undefined }
 );
@@ -13,15 +18,19 @@ export const Avatar = ({
   imageUrl,
   imageWidth,
   imageHeight,
+  onClick,
 }: UserAvatarProps) => (
   <div className="avatar">
-    <div className={cn("w-12", "bg-white", className)}>
+    <div
+      className={cn("w-12", "bg-white", onClick && "cursor-pointer", className)}
+    >
       <Image
-        src={imageUrl ?? "/img/generic_user_image.webp"}
+        src={imageUrl ?? "/img/unknown_user.svg"}
         alt={name}
-        width={imageWidth ?? 48}
-        height={imageHeight ?? 48}
+        width={imageWidth ?? AVATAR_SIZE}
+        height={imageHeight ?? AVATAR_SIZE}
         className="rounded-full object-cover shadow"
+        onClick={onClick}
       />
     </div>
   </div>

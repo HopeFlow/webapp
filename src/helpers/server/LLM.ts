@@ -28,6 +28,7 @@ Name: ${JSON.stringify(inputName)}
 `;
 
 export const transliterate = defineServerFunction({
+  uniqueKey: "llm::transliterate",
   handler: async (inputName: string) => {
     const response = await openai.responses.create({
       model: "gpt-5-nano",
@@ -220,8 +221,7 @@ const questIntentStateSchema = z.object({
 export type QuestIntentState = z.infer<typeof questIntentStateSchema>;
 
 export const createQuestChat = defineServerFunction({
-  id: "createQuestChat",
-  scope: "global::llm",
+  uniqueKey: "llm::createQuestChat",
   handler: async function* (
     previousState: QuestIntentState | null,
     newUserMessage: string,
@@ -437,8 +437,7 @@ export type GeneratedTitleAndDescriptionEvent = {
 };
 
 export const getQuestTitleAndDescription = defineServerFunction({
-  id: "getQuestTitleAndDescription",
-  scope: "global::llm",
+  uniqueKey: "llm::getQuestTitleAndDescription",
   handler: async function* (
     nameOfUser: string,
     questIntentState: QuestIntentState,

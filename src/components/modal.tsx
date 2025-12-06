@@ -8,6 +8,7 @@ export type ModalButtonProps = {
   children?: React.ReactNode;
   className?: string;
   onClick?: (close: () => void) => void;
+  disabled?: boolean;
 };
 
 export const showModal = (idOrRef: string | HTMLDialogElement | null) => {
@@ -31,6 +32,7 @@ type ModalProps = {
   restButtons?: ModalButtonProps[];
   containerClassName?: string;
   onClose?: () => void;
+  onCloseAttempt?: (close: () => void) => void;
   ref?: React.Ref<HTMLDialogElement | null>;
 };
 
@@ -43,10 +45,19 @@ export const Modal = ({
   restButtons,
   containerClassName,
   onClose,
+  onCloseAttempt,
   ref,
 }: ModalProps) => {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const close = useCallback(() => dialogRef.current?.close(), []);
+  const handleCloseAttempt = useCallback(() => {
+    if (onCloseAttempt) {
+      onCloseAttempt(close);
+    } else {
+      close();
+    }
+  }, [close, onCloseAttempt]);
+
   return (
     <dialog
       ref={(dialog) => {
@@ -59,25 +70,32 @@ export const Modal = ({
       }}
       id={id}
       onClose={onClose}
-      className="modal left-0 top-0 w-full h-full"
+      onCancel={(e) => {
+        if (onCloseAttempt) {
+          e.preventDefault();
+          onCloseAttempt(close);
+        }
+      }}
+      className="modal top-0 left-0 h-full w-full"
     >
       <div
         className={cn(
           "modal-box w-[calc(100%-2rem)]",
-          "md:w-auto h-[calc(100%-2rem)]",
+          "h-[calc(100%-2rem)] md:w-auto",
           "max-w-4xl md:h-auto",
           "flex flex-col gap-2 md:gap-4",
         )}
       >
-        <div className="flex flex-row gap-2 items-center justify-end">
+        <div className="flex flex-row items-center justify-end gap-2">
           {header}
-          <CloseButton onClick={close} />
+          <CloseButton onClick={handleCloseAttempt} />
         </div>
         <div className={cn(containerClassName, "flex-1")}>{children}</div>
         <div className="flex flex-row justify-end gap-2">
           <Button
             buttonType="primary"
             className={defaultButton.className}
+            disabled={defaultButton.disabled}
             onClick={() =>
               defaultButton.onClick && defaultButton.onClick(close)
             }
@@ -87,7 +105,13 @@ export const Modal = ({
           <Button
             buttonType="neutral"
             className={cancelButton.className}
-            onClick={() => cancelButton.onClick && cancelButton.onClick(close)}
+            onClick={() => {
+              if (cancelButton.onClick) {
+                cancelButton.onClick(close);
+              } else {
+                handleCloseAttempt();
+              }
+            }}
           >
             {cancelButton.children}
           </Button>
@@ -104,7 +128,16 @@ export const Modal = ({
             ))}
         </div>
       </div>
-      <form method="dialog" className="modal-backdrop">
+      <form
+        method="dialog"
+        className="modal-backdrop"
+        onSubmit={(e) => {
+          if (onCloseAttempt) {
+            e.preventDefault();
+            onCloseAttempt(close);
+          }
+        }}
+      >
         <button>close</button>
       </form>
     </dialog>

@@ -10,13 +10,15 @@ import {
 import { ImagePicker } from "@/components/profile/imagePicker";
 import { useProfileFields } from "@/components/profile/useProfileFields";
 import type { SafeUser } from "@/helpers/server/auth";
-import { useProfile } from "@/server_actions/client/profile/userProfileCrud";
+import { useReadCurrentUserProfile } from "@/apiHooks/profile/readCurrentUserProfile";
+import { useUpdateCurrentUserProfile } from "@/apiHooks/profile/updateCurrentUserProfile";
 import { useState } from "react";
 
 export function ProfileMain({ user }: { user: SafeUser }) {
   const { name, setName, file, setFile, previewUrl, loadingImage, hasImage } =
     useProfileFields(user);
-  const { data, update } = useProfile();
+  const { data } = useReadCurrentUserProfile();
+  const update = useUpdateCurrentUserProfile();
   const defaults = useEmailDefaults();
   const {
     emailEnabled: emailEnabledFromData,

@@ -5,11 +5,17 @@ export type StepsProps = {
   numberOfSteps: number;
   currentStep: number;
   onClick?: (step: number) => void;
+  stepValidity?: boolean[];
 };
 
 const maxVisibleSteps = 7;
 
-export function Steps({ onClick, numberOfSteps, currentStep }: StepsProps) {
+export function Steps({
+  onClick,
+  numberOfSteps,
+  currentStep,
+  stepValidity,
+}: StepsProps) {
   const visibleSteps = (() => {
     if (numberOfSteps <= maxVisibleSteps)
       return new Array(numberOfSteps).fill(null).map((_, i) => i);
@@ -48,19 +54,30 @@ export function Steps({ onClick, numberOfSteps, currentStep }: StepsProps) {
   })();
   return (
     <ul className="steps w-full">
-      {visibleSteps.map((i, j) => (
-        <div
-          key={i < 0 ? `s-n-${j}` : `s-${i}`}
-          className={cn(
-            "step",
-            i >= 0 && i <= currentStep && "step-neutral",
-            onClick && "cursor-pointer",
-          )}
-          onClick={() => i >= 0 && onClick && onClick(i)}
-        >
-          <span className="step-icon">{i < 0 ? "..." : i + 1}</span>
-        </div>
-      ))}
+      {visibleSteps.map((i, j) => {
+        const isReachable =
+          !stepValidity ||
+          stepValidity.slice(0, i).every((isValid) => isValid !== false);
+        return (
+          <div
+            key={i < 0 ? `s-n-${j}` : `s-${i}`}
+            className={cn(
+              "step",
+              i >= 0 && i <= currentStep && "step-neutral",
+              onClick && isReachable
+                ? "cursor-pointer"
+                : "cursor-not-allowed after:text-gray-300 after:content-[counter(step)]",
+            )}
+            onClick={() => {
+              if (onClick && isReachable) {
+                onClick(i);
+              }
+            }}
+          >
+            <span className="step-icon">{i < 0 ? "..." : i + 1}</span>
+          </div>
+        );
+      })}
     </ul>
   );
 }

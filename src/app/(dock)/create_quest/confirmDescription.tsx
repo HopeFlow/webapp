@@ -13,18 +13,18 @@ export const ConfirmDescription = ({
 }) => {
   const [value, setValue] = useState(description);
   return (
-    <div className="flex-1 flex flex-col items-center justify-center">
+    <div className="flex flex-1 flex-col items-center justify-center">
       <div
         className={cn(
-          "w-full max-w-4xl p-4 md:p-8 flex-1 flex flex-col gap-4 justify-center",
+          "flex w-full max-w-4xl flex-1 flex-col justify-center gap-4 p-4 md:p-8",
         )}
       >
-        <h1 className="font-normal text-2xl">
+        <h1 className="text-2xl font-normal">
           Does this description adequately convey the quest? if not, change it
           😄
         </h1>
         <textarea
-          className="textarea text-lg w-full min-h-48"
+          className="textarea min-h-48 w-full text-lg"
           value={value}
           onChange={(e) => setValue(e.target.value)}
         />

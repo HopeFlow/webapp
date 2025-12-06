@@ -21,13 +21,6 @@ const eslintConfig = [
   },
   { ignores: ["src/3rdparty/**", "scripts/**"] },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
-  {
-    files: ["src/server_actions/client/**/*.{js,ts,jsx,tsx}"],
-    linterOptions: {
-      reportUnusedDisableDirectives: "off",
-    },
-    rules: { "eslint-comments/no-unused-disable": "off" },
-  },
 ];
 
 export default eslintConfig;

@@ -96,395 +96,95 @@ See [LICENSE](LICENSE) for details.
 
 ## Server Actions and Hooks
 
-This project utilizes Next.js Server Actions for backend logic and automatically
-generates React Hooks for seamless client-side interaction. This system enforces
-a "scope" for each server action, ensuring that hooks are used in their intended
-feature areas, which is validated by a custom ESLint rule.
+We wrap every Next.js Server Action with one of two helpers:
+`defineServerAction` or `createApiEndpoint`.
 
-### 1. Defining Server Actions
+- `defineServerAction`: use this for server actions that you call manually. It
+  simply wraps your handler so we can later layer in logging and error checks,
+  while keeping the handler signature unchanged.
+- `createApiEndpoint`: use this when you also want an auto-generated TanStack
+  Query hook. It forwards to `defineServerAction`, but requires a `uniqueKey`
+  (namespaced with `::`) plus a `type: "query" | "mutation"` so the hook
+  generator knows how to scaffold the client API.
 
-Server Actions are defined in `src/server_actions/` and its subdirectories. They
-are created using `createServerAction` for simple actions or
-`createCrudServerAction` for CRUD operations.
-
-**Key Concept: Scope**
-
-Every server action _must_ be assigned a `scope`. This string identifies the
-feature area or page the action belongs to (e.g., `"home"`, `"sample"`,
-`"quest"`). This scope is crucial for organizing generated hooks and for
-linting.
-
-**Example: `src/server_actions/sample_actions.ts`**
+### Defining server actions
 
 ```typescript
-// src/server_actions/sample_actions.ts
-"use server";
-import {
-  createCrudServerAction,
-  createServerAction,
-} from "@/helpers/server/create_server_action";
-
-// A simple server action with 'sample' scope
-export const simpleAction = createServerAction({
-  id: "simpleAction",
-  scope: "sample", // Define the scope here
-  execute: async (message: string) => {
-    console.log(`Message from simpleAction: ${message}`);
-    return `Server received: ${message}`;
+// Define a server-only action (no auto hook)
+export const isUserProfileCreated = defineServerAction({
+  uniqueKey: "login::isUserProfileCreated",
+  handler: async (userId: string) => {
+    // ...return a value that can be awaited or yielded to the client
   },
 });
 
-// A CRUD server action for managing 'items' with 'sample' scope
-export interface Item {
-  id: string;
-  name: string;
-  description?: string;
-}
-
-// Mock database (for demonstration)
-const items: Item[] = [
-  { id: "1", name: "First Item", description: "A default item" },
-  { id: "2", name: "Second Item" },
-];
-
-export const manageItems = createCrudServerAction({
-  id: "manageItems",
-  scope: "sample", // Define the scope here
-  read: async () => {
-    return items;
-  },
-  create: async (newItem: Omit<Item, "id">) => {
-    const item = { ...newItem, id: String(items.length + 1) };
-    items.push(item);
-    console.log("Created new item:", item);
-    return true;
-  },
-  update: async (itemToUpdate: Item) => {
-    const index = items.findIndex((item) => item.id === itemToUpdate.id);
-    if (index !== -1) {
-      items[index] = { ...items[index], ...itemToUpdate };
-      console.log("Updated item:", items[index]);
-      return true;
-    }
-    return false;
-  },
-  remove: async (itemToRemove: { id: string }) => {
-    const index = items.findIndex((item) => item.id === itemToRemove.id);
-    if (index !== -1) {
-      items.splice(index, 1);
-      console.log("Removed item with id:", itemToRemove.id);
-      return true;
-    }
-    return false;
+// Define an action that should get a generated hook
+export const quests = createApiEndpoint({
+  uniqueKey: "home::quests", // drives hook filename + query key
+  type: "query", // "query" for read operations, "mutation" for writes
+  handler: async (params: { offset: number; limit: number }) => {
+    // ...fetch and return data
   },
 });
-
-// A variant of 'manageItems' to get a single item by ID
-export const getItemById = manageItems.createVariant(
-  "getItemById",
-  async (id: string) => {
-    console.log(`Getting item with id: ${id}`);
-    return items.find((item) => item.id === id);
-  },
-);
 ```
 
-### Variants for Read Queries
+### Generating TanStack Query hooks
 
-Variants are specialized versions of a `CrudServerAction`'s `read` operation.
-While a `CrudServerAction` typically provides a generic `read` method (e.g., to
-fetch all items), a variant allows you to define a _specific_ read operation
-with its own unique parameters and return type.
+- Run `pnpm gen-hooks` to scan all exports created with `createApiEndpoint` and
+  generate strongly typed hooks.
+- Output lives under `src/apiHooks`. The `uniqueKey` determines the path:
+  `home::quests` becomes `src/apiHooks/home/quests.ts` exporting `useQuests`.
+- Query hooks accept the same parameters as your handler, plus an optional
+  TanStack options object as the final argument. Mutation hooks take an optional
+  options object when you call the hook.
+- `src/apiHooks/apiEndpointKeys.ts` also lists the generated query/mutation keys
+  and helpers for constructing query keys.
 
-**Why use Variants?**
-
-1.  **Specificity:** They allow you to create more granular read operations
-    without cluttering the main action. For instance, `manageItems` has a `read`
-    to get all items, but `getItemById` is a variant to get a _single_ item by
-    its ID.
-2.  **Type Safety:** Each variant can have its own distinct input parameters and
-    return type, which is strongly typed. This improves type safety and
-    developer experience compared to trying to overload a single `read` method
-    with many different signatures.
-3.  **Clearer API:** It provides a cleaner and more explicit API for consuming
-    specific read operations. Instead of calling
-    `manageItems("read", { id: "123" })`, you call `getItemById("123")`, which
-    is more readable and less prone to errors.
-4.  **Hook Generation:** This pattern integrates well with the hook generation
-    script. Each variant gets its own dedicated hook (e.g., `useGetItemById`),
-    making it easy to consume in client components.
-5.  **Caching/Invalidation:** While the current implementation of
-    `createVariant` throws an error for invalidation, in a more advanced setup,
-    each variant could potentially have its own caching and invalidation
-    strategies, allowing for more fine-grained control over data freshness.
-
-**When to use Variants:**
-
-- When you have a `CrudServerAction` that needs multiple ways to "read" data,
-  each with different input parameters or return shapes.
-- When the main `read` operation is too generic for certain common use cases.
-- When you want to provide a more specific and type-safe API for fetching
-  particular subsets or single instances of data.
-- When you want to generate distinct client-side hooks for these specific read
-  operations.
-
-**Example from our code:**
+### Using generated hooks
 
 ```typescript
-// In src/server_actions/sample_actions.ts:
+// Query example
+import { useQuests } from "@/apiHooks/home/quests";
+const { data, isLoading } = useQuests({ offset: 0, limit: 10 });
 
-export const manageItems = createCrudServerAction({
-  id: "manageItems",
-  scope: "sample",
-  read: async () => {
-    // Fetches all items
-    return items;
-  },
-  // ... create, update, remove
+// Mutation example
+import { useUpdateCurrentUserProfile } from "@/apiHooks/profile/updateCurrentUserProfile";
+const updateProfile = useUpdateCurrentUserProfile({
+  onSuccess: () => console.log("Profile updated"),
 });
-
-export const getItemById = manageItems.createVariant(
-  "getItemById",
-  async (id: string) => {
-    // Fetches a single item by ID
-    return items.find((item) => item.id === id);
-  },
-);
+updateProfile.mutate({ fullName: "Ada Lovelace" });
 ```
 
-### 2. Generating Hooks
+### Prefetching query data in server components
 
-Client-side React Hooks are automatically generated from your server actions.
-These hooks are placed into subdirectories corresponding to their action's
-`scope`.
+- Use `<Prefetch actions={[]}>` from `src/helpers/server/page_component.tsx` to
+  hydrate TanStack Query data on the server for components that call `useQuery`
+  immediately.
+- Each entry in `actions` is a prefetcher function that accepts a `QueryClient`
+  and returns a promise. Generated hook files already export helpers (e.g.
+  `prefetchReadCurrentUserProfile`, `prefetchQuests`) that set the right query
+  keys and options.
+- Only wrap server components; `Prefetch` runs on the server, fills the cache,
+  and renders a `HydrationBoundary` so the client can use the cached result
+  without a loading flicker.
+- Reach for it when the data is required to render above-the-fold UI on first
+  paint (e.g., profile basics gated behind `withUser`). Skip it for data that is
+  optional, expensive, or only needed after user interaction; let the client
+  fetch those normally.
 
-**How to Generate:**
+Example:
 
-- **Manual Generation:** To generate all hooks once, run:
-  ```bash
-  pnpm gen-hooks
-  ```
-  **Generated Hook Location:**
+```tsx
+import { Prefetch, withUser } from "@/helpers/server/page_component";
+import { prefetchReadCurrentUserProfile } from "@/apiHooks/profile/readCurrentUserProfile";
 
-Hooks for a server action with `scope: "myScope"` and `id: "myAction"` will be
-generated at: `src/server_actions/client/myScope/myAction.ts`
-
-For example, `simpleAction` (scope: `"sample"`) generates
-`src/server_actions/client/sample/simpleAction.ts`.
-
-### 3. Using Generated Hooks in Client Components
-
-Generated hooks can be imported and used in your client-side React components.
-
-**Example: `src/app/sample/page.tsx`**
-
-```typescript
-// src/app/sample/page.tsx
-"use client";
-import { useManageItems } from "@/server_actions/client/sample/manageItems";
-import { useSimpleAction } from "@/server_actions/client/sample/simpleAction";
-import { useState } from "react";
-
-export default function SamplePage() {
-  const [itemId, setItemId] = useState("1");
-  // Use the useManageItems hook (read all items)
-  const { data: items, isLoading: isLoadingItems } = useManageItems(null);
-  // Use the useManageItems hook (variant to get item by ID)
-  const { data: item, isLoading: isLoadingItem } = useManageItems(
-    "getItemById",
-    itemId,
-  );
-  // Use the useSimpleAction hook
-  const { data: simpleActionResult, refetch: runSimpleAction } =
-    useSimpleAction("Hello from client");
-
-  // Access mutation functions from useManageItems
-  const { create, update, remove } = useManageItems(null);
+export default withUser(async function Profile({ user }) {
+  if (!user) return null;
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">
-        Sample Page for Server Action Hooks
-      </h1>
-
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-2">useSimpleAction</h2>
-        <button className="btn" onClick={() => runSimpleAction()}>
-          Run Simple Action
-        </button>
-        {simpleActionResult && (
-          <p className="mt-2">Result: {simpleActionResult}</p>
-        )}
-      </div>
-
-      <div>
-        <h2 className="text-xl font-semibold mb-2">useManageItems</h2>
-        <div className="flex gap-2 mb-4">
-          <button
-            className="btn btn-primary"
-            onClick={() =>
-              create.mutate({
-                name: "New Item",
-                description: "A new item created from the client",
-              })
-            }
-          >
-            Create Item
-          </button>
-          <button
-            className="btn btn-secondary"
-            onClick={() =>
-              items &&
-              items.length > 0 &&
-              update.mutate({ ...items[0], name: "Updated Item Name" })
-            }
-            disabled={!items || items.length === 0}
-          >
-            Update First Item
-          </button>
-          <button
-            className="btn btn-accent"
-            onClick={() =>
-              items && items.length > 0 && remove.mutate({ id: items[0].id })
-            }
-            disabled={!items || items.length === 0}
-          >
-            Remove First Item
-          </button>
-        </div>
-
-        {isLoadingItems && <p>Loading items...</p>}
-
-        <h3 className="text-lg font-semibold mt-4">All Items:</h3>
-        <ul className="list-disc list-inside">
-          {items?.map((item) => (
-            <li key={item.id}>
-              {item.name}: {item.description}
-            </li>
-          ))}
-        </ul>
-
-        <div className="mt-8">
-          <h3 className="text-lg font-semibold">Get Item by ID (variant)</h3>
-          <div className="flex items-center gap-2 mt-2">
-            <input
-              type="text"
-              value={itemId}
-              onChange={(e) => setItemId(e.target.value)}
-              className="input input-bordered"
-              placeholder="Enter Item ID"
-            />
-          </div>
-          {isLoadingItem && <p className="mt-2">Loading item...</p>}
-          {item && (
-            <div className="mt-2">
-              <p>
-                <b>ID:</b> {item.id}
-              </p>
-              <p>
-                <b>Name:</b> {item.name}
-              </p>
-              <p>
-                <b>Description:</b> {item.description}
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <Prefetch actions={[prefetchReadCurrentUserProfile()]}>
+      <ProfileMain user={user} />
+    </Prefetch>
   );
-}
+});
 ```
-
-### 5. Optimistic Updates
-
-To enhance user experience, the generated hooks support optimistic updates out
-of the box. This allows the UI to update instantly when a mutation is performed,
-without waiting for the server to respond. The system automatically handles
-rolling back the changes if the server action fails.
-
-#### How to Enable Optimistic Updates
-
-To enable optimistic updates for a `createCrudServerAction`, you simply need to
-create a corresponding configuration file next to your server action file.
-
-1.  **Create a configuration file:** If your server action is defined in
-    `myAction.ts`, create a new file named `myAction.optimistic.ts` in the same
-    directory.
-
-2.  **Define the optimistic configuration:** Inside the `.optimistic.ts` file,
-    export a configuration object that matches the `CrudOptimisticConfig` type.
-    This object specifies how to update the `react-query` cache for `create`,
-    `update`, and `remove` mutations.
-
-#### Configuration Structure
-
-The configuration object allows you to define updaters for the main `read` query
-and any of its `variants`.
-
-- `read`: A function that receives the previous cache data for the main `read`
-  operation and returns the new, updated data.
-- `variants`: An object where you can define updaters for each variant of your
-  CRUD action.
-- `buildVariantArgs`: An object that helps in constructing query keys for
-  variants, especially when the arguments depend on the data from a `create`
-  mutation (e.g., when you don't have an ID yet).
-
-#### Example: `src/server_actions/sample_actions.optimistic.ts`
-
-Here is the optimistic configuration for the `manageItems` server action. It
-defines how to optimistically update the cache for creating, updating, and
-removing items.
-
-```typescript
-// src/server_actions/sample_actions.optimistic.ts
-import type { CrudOptimisticConfig } from "@/helpers/client/type_helpers";
-import type { Item } from "./sample_actions";
-
-// Define a map for variants to get strong typing
-type VMap = {
-  getItemById: { result: Item | undefined; args: [string] };
-};
-
-export const manageItemsOptimistic: CrudOptimisticConfig<
-  Omit<Item, "id">, // Create data type
-  Item[], // Read return type
-  Item, // Update data type
-  { id: string }, // Delete data type
-  [], // Extra parameters for the action (none in this case)
-  VMap // Variant map
-> = {
-  create: {
-    // Optimistically add the new item to the main list
-    read: (prev, { data }) => [...(prev ?? []), { ...data, id: "__temp__" }],
-  },
-  update: {
-    // Optimistically update an item in the main list
-    read: (prev, { data }) =>
-      (prev ?? []).map((i) => (i.id === data.id ? { ...i, ...data } : i)),
-    // Optimistically update the cache for the 'getItemById' variant
-    variants: {
-      getItemById: (prev, { data }) =>
-        prev && prev.id === data.id ? { ...prev, ...data } : prev,
-    },
-  },
-  remove: {
-    // Optimistically remove an item from the main list
-    read: (prev, { data }) => (prev ?? []).filter((i) => i.id !== data.id),
-    // Optimistically clear the cache for the 'getItemById' variant if the removed item is being viewed
-    variants: {
-      getItemById: (prev, { data }) => {
-        if (prev && prev.id === data.id) {
-          return undefined; // The item was deleted
-        }
-        return prev;
-      },
-    },
-  },
-};
-```
-
-Once this file is in place, run the hook generator (`pnpm gen-hooks`). The
-generated `useManageItems` hook will automatically include the optimistic update
-logic. No changes are needed in the client component other than using the
-`mutate` function returned by the hook.

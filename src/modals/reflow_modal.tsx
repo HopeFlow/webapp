@@ -1,7 +1,8 @@
 "use client";
 
 import { showModal } from "@/components/modal";
-import React, { useState } from "react";
+import React, { ReactNode, useMemo, useState } from "react";
+import { ArrowRightIcon } from "@/components/icons/arrow_right";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { ExclamationCircleIcon } from "@/components/icons/exclamation_circle";
 import Image from "next/image";
@@ -13,8 +14,16 @@ export const showReflowModal = () => {
   showModal(modalId);
 };
 
-const Step1 = () => {
-  const [type, setType] = useState<"targeted" | "broadcast">("targeted");
+const LinkTypeSelection = ({
+  type,
+  setType,
+  questType,
+}: {
+  type: "targeted" | "broadcast";
+  setType: (type: "targeted" | "broadcast") => void;
+  questType?: "restricted" | "unrestricted";
+}) => {
+  const isRestricted = questType === "restricted";
   return (
     <>
       <label>How would you like to reflow the quest (pass it on) ?</label>
@@ -27,18 +36,29 @@ const Step1 = () => {
           checked={type === "targeted"}
           onChange={(e) => e.target.checked && setType("targeted")}
         />{" "}
-        Targeted
+        Targeted (One-time link to a specific friend)
       </label>
-      <label className="radio-label label cursor-pointer">
+      <label
+        className={cn(
+          "radio-label label cursor-pointer",
+          isRestricted && "cursor-not-allowed opacity-50",
+        )}
+      >
         <input
           type="radio"
           className="radio radio-sm"
           name="type"
-          value="targeted"
+          value="broadcast"
           checked={type === "broadcast"}
           onChange={(e) => e.target.checked && setType("broadcast")}
+          disabled={isRestricted}
         />{" "}
-        Broadcast
+        Broadcast (Multi-use link for a group of friends)
+        {isRestricted && (
+          <span className="text-error ml-2 text-xs">
+            (Not available for restricted quests)
+          </span>
+        )}
       </label>
       <div className="bg-base-300 rounded-box relative h-20 overflow-hidden sm:h-32">
         <div
@@ -80,30 +100,41 @@ const Step1 = () => {
       <p
         className={cn("text-success text-sm", type !== "targeted" && "hidden")}
       >
-        In targeted reflow, you create a one-time link that includes name of the
-        person you invite. The content of the link will be addressin that very
-        person
+        In targeted reflow, you create a exclusive one-time link that includes
+        name of the person you invite. The content of the link will be addressed
+        to that very person
       </p>
       <p
         className={cn("text-success text-sm", type !== "broadcast" && "hidden")}
       >
         In broadcase reflow, the link will not specifically address anyone. It
-        is suitable for sharing with small groups or communities
+        is suitable for sharing as story or with small groups or communities
       </p>
       <p className="bg-warning text-warning-content rounded-box p-4 text-sm">
         <ExclamationCircleIcon className="inline-block align-bottom" /> We
-        encourage targeted reflow as it strengthens the trust and minimizes
-        mis-communication
+        encourage <b>Targeted</b> reflow as it strengthens the trust and
+        minimizes mis-communication
       </p>
     </>
   );
 };
 
-const Step2 = () => {
+const InviteeNameInput = ({
+  name,
+  setName,
+}: {
+  name: string;
+  setName: (name: string) => void;
+}) => {
   return (
     <>
       <label>What is the name of the person you want to invite?</label>
-      <input className="input w-full" />
+      <input
+        className="input w-full"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="John Doe"
+      />
       <div className="bg-base-300 rounded-box flex h-20 flex-row items-start justify-between overflow-hidden sm:h-32">
         <Image
           src="/img/man_filling_name.png"
@@ -122,9 +153,7 @@ const Step2 = () => {
         />
       </div>
       <p className="text-success text-sm">
-        This name will be used in targeted reflow both in the URL and contents
-        of the page. In broadcase this will be included in URL if provided (can
-        be empty)
+        This name will be used both in the URL and contents of the page.
       </p>
     </>
   );
@@ -141,11 +170,18 @@ const connectionStrengthTitleAndDescriptions = [
   { title: "Trusted Contact", description: "I trust him/her deeply" },
 ];
 
-const Step3 = () => {
-  const [connectionStrength, setConnectionStrength] = useState(2);
+const ConnectionStrengthInput = ({
+  connectionStrength,
+  setConnectionStrength,
+  inviteeName,
+}: {
+  connectionStrength: number;
+  setConnectionStrength: (connectionStrength: number) => void;
+  inviteeName: string;
+}) => {
   return (
     <>
-      <label>How well do you know Margaret?</label>
+      <label>How well do you know {inviteeName}?</label>
       {connectionStrengthTitleAndDescriptions.map(
         ({ title, description }, index) => (
           <div
@@ -192,42 +228,179 @@ const Step3 = () => {
       </div>
       <p className="text-success text-sm">
         This information is used to proivde crystall clear transparency for
-        passing the trust down the sharing tree
+        passing the trust down the sharing tree to the community
       </p>
     </>
   );
 };
 
-const Step4 = () => {
+const EndorsementNoteInput = ({
+  endorsementNote,
+  setEndorsementNote,
+  type,
+  name,
+}: {
+  endorsementNote: string;
+  setEndorsementNote: (endorsementNote: string) => void;
+  type: "targeted" | "broadcast";
+  name: string;
+}) => {
   return (
     <>
       <label>Endorsement note</label>
-      <textarea className="textarea h-36 w-full resize-none text-lg" />
+      <div className="flex flex-col gap-1 p-1 md:flex-row md:items-center">
+        <textarea
+          className="textarea h-36 w-full resize-none p-1 text-lg"
+          value={endorsementNote}
+          onChange={(e) => setEndorsementNote(e.target.value)}
+          placeholder={
+            type === "targeted"
+              ? `${name ? name : "this person"} is a great fit to help because ...`
+              : "My reflow may help because ..."
+          }
+        />
+      </div>
       <p className="text-success text-sm">
-        Write a few words on why you believe this person (or group) would be a
-        great fit to help move this quest forward.
+        Write a few words on why you believe{" "}
+        {type === "targeted"
+          ? `${!!name ? name : "this person"} would be a great fit to help`
+          : "your reflow helps"}{" "}
+        move this quest forward. This will be visible to the community once your
+        recipient accepts your invitation link.
       </p>
     </>
   );
 };
 
-// type CreateLinkParams = {
-//   type: "targeted" | "broadcast";
-//   name?: string;
-//   relationship?: string;
-//   endorsementNote?: string;
-// };
+const LinkGeneration = ({ name }: { name: string }) => {
+  const [message, setMessage] = useState<string>("");
+  return (
+    <>
+      <label>Message to {!!name ? name : "Your friend"}</label>
+      <div className="flex flex-col gap-1 p-1 md:flex-row md:items-center">
+        <textarea
+          className="textarea h-36 w-full resize-none p-1 text-lg"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+        />
+      </div>
+      <p className="text-success text-sm">
+        This will be only visible to the recipient of your invitation link.
+      </p>
+    </>
+  );
+};
 
-export const ReflowModal = () => {
+const INITIAL_TYPE = "targeted";
+const INITIAL_NAME = "";
+const INITIAL_ENDORSEMENT_NOTE = "";
+const INITIAL_CONNECTION_STRENGTH = 2;
+
+export const ReflowModal = ({
+  questType,
+}: {
+  questType?: "restricted" | "unrestricted";
+}) => {
+  const [type, setType] = useState<"targeted" | "broadcast">(INITIAL_TYPE);
+  const [name, setName] = useState<string>(INITIAL_NAME);
+  const [endorsementNote, setEndorsementNote] = useState<string>(
+    INITIAL_ENDORSEMENT_NOTE,
+  );
+  const [connectionStrength, setConnectionStrength] = useState(
+    INITIAL_CONNECTION_STRENGTH,
+  );
+
+  const stepValidity = useMemo(() => {
+    if (type === "targeted") {
+      return [
+        true, // LinkTypeSelection
+        !!name, // InviteeNameInput
+        true, // ConnectionStrengthInput
+        !!endorsementNote, // EndorsementNoteInput
+        true, // LinkPreview
+      ];
+    } else {
+      return [
+        true, // LinkTypeSelection
+        true, // EndorsementNoteInput
+        true, // LinkPreview
+      ];
+    }
+  }, [type, name]);
+
+  const nextButtonContent: (stepIndex: number) => ReactNode = (stepIndex) => {
+    if (stepIndex === stepValidity.length - 2) {
+      return "Generate Link";
+    }
+    if (stepIndex === stepValidity.length - 1) {
+      return "Save and Share";
+    }
+    return (
+      <>
+        Next <ArrowRightIcon size={18} />
+      </>
+    );
+  };
+
+  const handleCloseAttempt = (close: () => void) => {
+    const isDirty = !!name || !!endorsementNote;
+    if (isDirty) {
+      if (
+        window.confirm(
+          "You have not generated a link yet. Are you sure you want to close?",
+        )
+      ) {
+        close();
+      }
+    } else {
+      close();
+    }
+  };
+
+  const resetState = () => {
+    setType(INITIAL_TYPE);
+    setName(INITIAL_NAME);
+    setEndorsementNote(INITIAL_ENDORSEMENT_NOTE);
+    setConnectionStrength(INITIAL_CONNECTION_STRENGTH);
+  };
+
   return (
     <ModernFormModal
       modalId={modalId}
+      stepValidity={stepValidity}
+      nextButtonContent={nextButtonContent}
+      onCloseAttempt={handleCloseAttempt}
+      onClose={resetState}
       contentClassName="flex flex-col gap-4 w-full h-full p-2 items-stretch justify-start [&>label:not(.radio-label)]:text-2xl [&>label.radio-label]:text-sm"
     >
-      <Step1 key="step1" />
-      <Step2 key="step2" />
-      <Step3 key="step3" />
-      <Step4 key="step4" />
+      <LinkTypeSelection
+        key="step1"
+        type={type}
+        setType={setType}
+        questType={questType}
+      />
+      {type === "targeted" && (
+        <InviteeNameInput key="step2" name={name} setName={setName} />
+      )}
+      {type === "targeted" && (
+        <ConnectionStrengthInput
+          key="step3"
+          connectionStrength={connectionStrength}
+          setConnectionStrength={setConnectionStrength}
+          inviteeName={name}
+        />
+      )}
+      <EndorsementNoteInput
+        key={type === "targeted" ? "step4" : "step2"}
+        endorsementNote={endorsementNote}
+        setEndorsementNote={setEndorsementNote}
+        type={type}
+        name={name}
+      />
+      <LinkGeneration
+        key={type === "targeted" ? "step5" : "step3"}
+        name={name}
+      />
     </ModernFormModal>
   );
 };

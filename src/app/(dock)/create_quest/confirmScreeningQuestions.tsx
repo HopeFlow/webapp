@@ -6,9 +6,7 @@ import { PlusIcon } from "@/components/icons/plus";
 import { TrashIcon } from "@/components/icons/trash";
 import type { ScreeningAnswer, ScreeningQuestion } from "@/db/constants";
 import { cn } from "@/helpers/client/tailwind_helpers";
-import {
-  useState,
-} from "react";
+import { useState } from "react";
 
 export const ConfirmScreeningQuestions = ({
   continueToNextStep,
@@ -32,21 +30,21 @@ export const ConfirmScreeningQuestions = ({
     },
   ]);
   return (
-    <div className="flex-1 flex flex-col items-center justify-center">
+    <div className="flex flex-1 flex-col items-center justify-center">
       <div
         className={cn(
-          "w-full h-full max-w-4xl p-4 md:p-8 flex-1 flex flex-col gap-4 justify-center",
+          "flex h-full w-full max-w-4xl flex-1 flex-col justify-center gap-4 p-4 md:p-8",
         )}
       >
-        <h1 className="font-normal text-2xl">
+        <h1 className="text-2xl font-normal">
           Add screening questions (optional)
         </h1>
-        <div className="flex-1 flex flex-col items-center justify-center overflow-x-hidden overflow-y-auto">
+        <div className="flex flex-1 flex-col items-center justify-center overflow-x-hidden overflow-y-auto">
           {screeningQuestions && screeningQuestions.length && (
-            <ul className="flex flex-col gap-4 w-full">
+            <ul className="flex w-full flex-col gap-4">
               {screeningQuestions.map((q, index) => (
-                <li key={index} className="flex flex-row gap-2 shrink-0">
-                  <div className="flex-1 flex flex-col ml-auto gap-1">
+                <li key={index} className="flex shrink-0 flex-row gap-2">
+                  <div className="ml-auto flex flex-1 flex-col gap-1">
                     <h3 className="font-normal">
                       <b>Q-{index + 1}: </b>
                       {q.question}
@@ -62,7 +60,7 @@ export const ConfirmScreeningQuestions = ({
                       &nbsp;{q.answerRequired ? "Required" : "Not required"}
                     </label>
                   </div>
-                  <div className="flex flex-col ml-auto gap-2">
+                  <div className="ml-auto flex flex-col gap-2">
                     <GhostButton>
                       <TrashIcon />
                     </GhostButton>
@@ -86,13 +84,13 @@ export const ConfirmScreeningQuestions = ({
             className="input input-bordered w-full"
             placeholder="Enter required response here"
           />
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-2">
             <input type="checkbox" className="toggle peer" />
             <span className="peer-checked:hidden">Not required</span>
             <span className="hidden peer-checked:inline">Required</span>
           </label>
         </div>
-        <div className="w-full flex flex-row gap-2">
+        <div className="flex w-full flex-row gap-2">
           <Button buttonType="secondary" onClick={() => {}} className="flex-1">
             <PlusIcon /> Add Question
           </Button>

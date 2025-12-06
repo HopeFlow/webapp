@@ -3,10 +3,7 @@
 import { z } from "zod";
 import { Buffer } from "node:buffer";
 import { defineServerFunction } from "./define_server_function";
-import {
-  GoogleGenAI,
-  PersonGeneration,
-} from "@google/genai";
+import { GoogleGenAI, PersonGeneration } from "@google/genai";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod.mjs";
 
@@ -111,8 +108,7 @@ Create a Stable Diffusion prompt from user's description of his/her quest.
 
 const promptJsonSchema = z.object({ prompt: z.string() });
 export const generateCoverPhoto = defineServerFunction({
-  id: "generateCoverPhoto",
-  scope: "genai",
+  uniqueKey: "genai::generateCoverPhoto",
   handler: async (description: string) => {
     // console.log("start", new Date().toTimeString());
     const { output_parsed } = await openai.responses.parse({
