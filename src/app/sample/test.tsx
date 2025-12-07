@@ -4,10 +4,7 @@ import { useRealtime } from "@/helpers/client/realtime";
 import doSomething from "./sa";
 
 export const Test = ({ jwt }: { jwt: string }) => {
-  const { connectionState, latestMessage } = useRealtime(
-    "wss://realtime.vedadian.workers.dev",
-    jwt,
-  );
+  const { connectionState, latestMessage } = useRealtime(jwt);
   return (
     <div>
       <button onClick={doSomething}>Do Something</button>

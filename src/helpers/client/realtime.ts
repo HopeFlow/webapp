@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import type { notificationsTable, chatMessagesTable } from "@/db/schema";
 
 export type RealtimeEnvelope = {
   type: string;
@@ -10,6 +18,39 @@ export type RealtimeEnvelope = {
 };
 
 type ConnectionState = "idle" | "connecting" | "open" | "closed" | "error";
+
+type RealtimeContextType = {
+  connectionState: ConnectionState;
+  notifications: Array<typeof notificationsTable.$inferSelect>;
+  subscribe: (
+    handler: (type: string, timestamp: string, payload: unknown) => void,
+  ) => () => void;
+};
+
+const RealtimeContext = createContext<RealtimeContextType>({
+  connectionState: "idle" as ConnectionState,
+  notifications: [] as Array<typeof notificationsTable.$inferSelect>,
+  subscribe: () => {
+    throw new Error("Context not initialized");
+  },
+});
+
+export const useNotifications = () => {
+  const { notifications } = useContext(RealtimeContext);
+  return notifications;
+};
+
+export const useChatRoom = (questId: string, recepientUserId: string) => {
+  const { subscribe } = useContext(RealtimeContext);
+  const [messages, setMessages] = useState<
+    Array<typeof chatMessagesTable.$inferSelect>
+  >([]);
+  useEffect(() => {
+    return subscribe((type, timestamp, payload) => {});
+  }, [subscribe]);
+  const sendMessage = useCallback(() => {}, []);
+  return { messages, sendMessage };
+};
 
 const isRealtimeEnvelope = (payload: unknown): payload is RealtimeEnvelope => {
   if (!payload || typeof payload !== "object") return false;
@@ -21,7 +62,9 @@ const isRealtimeEnvelope = (payload: unknown): payload is RealtimeEnvelope => {
   );
 };
 
-export const useRealtime = (url: string, token: string) => {
+const REALTIME_SERVER_URL = "wss://realtime.vedadian.workers.dev";
+export const useRealtime = (token: string) => {
+  const url = REALTIME_SERVER_URL;
   const [connectionState, setConnectionState] =
     useState<ConnectionState>("idle");
   const [latestMessage, setLatestMessage] = useState<RealtimeEnvelope | null>(
@@ -76,6 +119,10 @@ export const useRealtime = (url: string, token: string) => {
         });
         socketRef.current = socket;
         return () => {
+          if (socketRef.current === socket) {
+            setConnectionState("closed");
+            socketRef.current = null;
+          }
           socket.close();
         };
       } catch (error) {
@@ -90,8 +137,6 @@ export const useRealtime = (url: string, token: string) => {
     const callBackPromise = connect();
 
     return () => {
-      socketRef.current = null;
-      setConnectionState("closed");
       callBackPromise.then((cleanup) => cleanup && cleanup());
     };
   }, [token, url]);
