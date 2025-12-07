@@ -84,7 +84,7 @@ export const useGotoCreateAccount = () => {
       router.push(
         [
           "",
-          ...toPathParams(props, [{ "part": "create_account", "isParam": false }]),
+          ...toPathParams(props, [{ part: "create_account", isParam: false }]),
         ].join("/") + toSearchParams(props, ["url"]),
       ),
     [router],
@@ -97,10 +97,9 @@ export const useGotoLogin = () => {
   return useCallback(
     (props: { url?: string | undefined }) =>
       router.push(
-        [
-          "",
-          ...toPathParams(props, [{ "part": "login", "isParam": false }]),
-        ].join("/") + toSearchParams(props, ["url"]),
+        ["", ...toPathParams(props, [{ part: "login", isParam: false }])].join(
+          "/",
+        ) + toSearchParams(props, ["url"]),
       ),
     [router],
   );
@@ -114,7 +113,10 @@ export const useGotoQuest = () => {
       router.push(
         [
           "",
-          ...toPathParams(props, [{ "part": "quest", "isParam": false }, { "part": "questId", "isParam": true }]),
+          ...toPathParams(props, [
+            { part: "quest", isParam: false },
+            { part: "questId", isParam: true },
+          ]),
         ].join("/"),
       ),
     [router],
@@ -125,26 +127,39 @@ export const useGotoQuest = () => {
 export const useGotoLink = () => {
   const router = useRouter();
   return useCallback(
-    (props: { linkCode: string }) =>
+    (props: { linkCode: string; referer?: string | undefined }) =>
       router.push(
         [
           "",
-          ...toPathParams(props, [{ "part": "link", "isParam": false }, { "part": "linkCode", "isParam": true }]),
-        ].join("/"),
+          ...toPathParams(props, [
+            { part: "link", isParam: false },
+            { part: "linkCode", isParam: true },
+          ]),
+        ].join("/") + toSearchParams(props, ["referer"]),
       ),
     [router],
   );
+};
+
+// Corresponding to src/app/(nodock)/link/draft/page.tsx
+export const useGotoLinkDraft = () => {
+  const router = useRouter();
+  return useCallback(() => router.push("/link/draft"), [router]);
 };
 
 // Corresponding to src/app/(dock)/chat/[questId]/[nodeId]/page.tsx
 export const useGotoChat = () => {
   const router = useRouter();
   return useCallback(
-    (props: { questId: string, nodeId: string }) =>
+    (props: { questId: string; nodeId: string }) =>
       router.push(
         [
           "",
-          ...toPathParams(props, [{ "part": "chat", "isParam": false }, { "part": "questId", "isParam": true }, { "part": "nodeId", "isParam": true }]),
+          ...toPathParams(props, [
+            { part: "chat", isParam: false },
+            { part: "questId", isParam: true },
+            { part: "nodeId", isParam: true },
+          ]),
         ].join("/"),
       ),
     [router],

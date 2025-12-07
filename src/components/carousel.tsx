@@ -155,7 +155,10 @@ export const Carousel = ({
             aria-selected={index === clampedPropIndex}
             key={child.key ?? `${baseId}_item${index}`}
             data-index={index}
-            className={cn("carousel-item relative w-full h-full", childClassName)}
+            className={cn(
+              "carousel-item relative h-full w-full",
+              childClassName,
+            )}
           >
             {child}
           </div>

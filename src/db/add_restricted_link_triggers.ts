@@ -8,15 +8,38 @@ import { linkTable, questTable } from "./schema";
 const LinkType = mirrorEnum(linkTypeDef);
 const QuestType = mirrorEnum(questTypeDef);
 
+async function ensureCoreTablesExist(
+  db: DrizzleD1Database<Record<string, unknown>>,
+): Promise<boolean> {
+  const requiredTables = ["link", "quest"];
+
+  for (const tableName of requiredTables) {
+    const result = await db.get<{ name: string }>(
+      sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ${tableName} LIMIT 1`,
+    );
+
+    if (!result?.name) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 export async function up(db: DrizzleD1Database<Record<string, unknown>>) {
+  const coreTablesExist = await ensureCoreTablesExist(db);
+  if (!coreTablesExist) {
+    return;
+  }
+
   await db.run(sql`
     CREATE TRIGGER IF NOT EXISTS trg_link_ins_restricted_only_targeted
     BEFORE INSERT ON ${linkTable}
     FOR EACH ROW
     WHEN (
       (SELECT q.type FROM ${questTable} AS q WHERE q.id = NEW.questId) = ${lit(
-    QuestType.restricted,
-  )}
+        QuestType.restricted,
+      )}
       AND NEW.type <> ${lit(LinkType.targeted)}
     )
     BEGIN
@@ -30,8 +53,8 @@ export async function up(db: DrizzleD1Database<Record<string, unknown>>) {
     FOR EACH ROW
     WHEN (
       (SELECT q.type FROM ${questTable} AS q WHERE q.id = NEW.questId) = ${lit(
-    QuestType.restricted,
-  )}
+        QuestType.restricted,
+      )}
       AND NEW.type <> ${lit(LinkType.targeted)}
     )
     BEGIN

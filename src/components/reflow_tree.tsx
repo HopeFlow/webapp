@@ -1,8 +1,31 @@
-const MARGIN = 32;
+import {
+  type SocialMediaName,
+  ReFlowNodeSimple,
+} from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
+import { cn } from "@/helpers/client/tailwind_helpers";
+import {
+  FacebookLogo,
+  InstagramLogo,
+  LinkedInLogo,
+  PinterestLogo,
+  RedditLogo,
+  SnapchatLogo,
+  TelegramLogo,
+  TikTokLogo,
+  TwitterLogo,
+  WhatsAppLogo,
+} from "@/components/logos/socialMedia";
+import { AppTimeAgo } from "@/helpers/client/time";
+
+const MARGIN_X = 42;
+const MARGIN_Y_BOTTOM = 42;
+const MARGIN_Y_TOP = 42;
 const NODE_RADIUS = 56;
 const NODE_SEPARATION = 95;
 // const MAX_TEXT_WIDTH = 70;
-const EDGE_STROKE_WIDTH = 16;
+const EDGE_STROKE_WIDTH = 12;
+const TARGET_NODE_RADIUS_SCALE = 1.2;
+const TARGET_EDGE_STROKE_SCALE = 1.25;
 // const ELLIPSIS = "\u2026";
 // const ZOOM_MIN = 0.1;
 // const ZOOM_MAX = 20;
@@ -10,15 +33,20 @@ const EDGE_STROKE_WIDTH = 16;
 // const PAN_STEP = 50;
 // const BASE_FONT_SIZE = 11;
 
+const clamp = (value: number, min: number, max: number) => {
+  if (min > max) return min;
+  return Math.min(Math.max(value, min), max);
+};
+
 export type ReflowTreeNode = {
   nodeId: string;
+  imageUrl: string | null;
   children: ReflowTreeNode[];
 };
 
 type Point = readonly [number, number];
 
-type PlacedReFlowNode = {
-  nodeId: string;
+type PlacedReFlowNode = Omit<ReFlowNodeSimple, "children"> & {
   size: number;
   vertSize: number;
   coords: Point;
@@ -26,7 +54,21 @@ type PlacedReFlowNode = {
   children: PlacedReFlowNode[];
 };
 
-function computeTreeNodeWithPositions(root: PlacedReFlowNode) {
+const REFERER_ICON_MAP: Partial<Record<SocialMediaName, typeof FacebookLogo>> =
+  {
+    facebook: FacebookLogo,
+    instagram: InstagramLogo,
+    twitter: TwitterLogo,
+    linkedin: LinkedInLogo,
+    pinterest: PinterestLogo,
+    tiktok: TikTokLogo,
+    reddit: RedditLogo,
+    snapchat: SnapchatLogo,
+    telegram: TelegramLogo,
+    whatsapp: WhatsAppLogo,
+  };
+
+function computeTreeNodeWithPositions(root: ReFlowNodeSimple) {
   const treeLayers: PlacedReFlowNode[][] = [];
   let queue = [root as PlacedReFlowNode];
   while (queue.length > 0) {
@@ -70,10 +112,7 @@ function computeTreeNodeWithPositions(root: PlacedReFlowNode) {
 
   const heightOf = (size: number) => 0.75 * size * NODE_SEPARATION;
 
-  treeLayers[0][0].coords = [
-    0.5 * widthOf(maxLayerSize),
-    NODE_RADIUS,
-  ];
+  treeLayers[0][0].coords = [0.5 * widthOf(maxLayerSize), NODE_RADIUS];
 
   const populateNodePositions = (
     parent: PlacedReFlowNode,
@@ -128,109 +167,341 @@ const createEdgePath = (start: Point, end: Point): string => {
           L ${x1} ${y1}`;
 };
 
-const getSvgNodes = (treeLayers: PlacedReFlowNode[][]) => {
-  let i = 0;
+const TOOLTIP_WIDTH = 300;
+const TOOLTIP_HEIGHT = 108;
+const TOOLTIP_GAP = 16;
+
+const getRefererIcon = (referer: PlacedReFlowNode["referer"]) => {
+  if (!referer || referer === "unknown") return null;
+  return REFERER_ICON_MAP[referer] ?? null;
+};
+
+const resolveNodeRadius = (node: PlacedReFlowNode) =>
+  node.targetNode ? NODE_RADIUS * TARGET_NODE_RADIUS_SCALE : NODE_RADIUS;
+
+const getSvgNodes = (
+  treeLayers: PlacedReFlowNode[][],
+  activeNodeId: string | undefined,
+  onNodeClick: (nodeId: string) => void,
+  viewport: { minX: number; minY: number; width: number; height: number },
+  userImageUrl?: string,
+  onPotentialNodeClick?: () => void,
+) => {
+  const viewportMaxX = viewport.minX + viewport.width;
+  const viewportMaxY = viewport.minY + viewport.height;
+  const rootNode = treeLayers[0]?.[0];
+  const topCenter: Point = [
+    rootNode ? rootNode.coords[0] : viewport.minX + viewport.width / 2,
+    viewport.minY,
+  ];
+  const rootToViewportPath = rootNode
+    ? [
+        <path
+          key={`root-to-top-center-${rootNode.id}`}
+          d={createEdgePath(rootNode.coords, topCenter)}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={EDGE_STROKE_WIDTH}
+          className="stroke-primary z-0"
+        />,
+      ]
+    : [];
   return [
+    ...rootToViewportPath,
     ...treeLayers.flatMap((layer, index) =>
-      layer.flatMap(({ coords: [x, y], children, nodeId }) =>
-        children.map(({ coords: [x1, y1], nodeId: childNodeId }) => (
+      layer.flatMap(({ coords: [x, y], children, id }) =>
+        children.map(({ coords: [x1, y1], id: childNodeId }) => (
           <path
-            key={`${nodeId}-${childNodeId}`}
+            key={`${id}-${childNodeId}`}
             d={createEdgePath([x, y], [x1, y1])}
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={EDGE_STROKE_WIDTH}
-            className="stroke-primary draw z-0"
+            className="stroke-primary z-0"
             style={{ animationDelay: `${500 + index * 500}ms` }}
           />
         )),
       ),
     ),
-    treeLayers.flatMap((layer, index) =>
-      layer.map(({ coords: [x, y], nodeId }) => (
-        <g
-          key={`${nodeId}`}
-          className="fade z-10"
-          style={{ animationDelay: `${index * 500}ms` }}
-        >
-          <circle
-            cx={x}
-            cy={y}
-            r={NODE_RADIUS}
-            strokeWidth={EDGE_STROKE_WIDTH}
-            className="stroke-primary fill-primary"
-          />
-          <mask id={`mask-${nodeId}`}>
+    treeLayers.flatMap((layer, layerIndex) =>
+      layer.map((node, nodeIndex) => {
+        const {
+          coords: [x, y],
+          id: nodeId,
+          imageUrl,
+          title,
+          createdAt,
+          referer,
+          potentialNode,
+          targetNode,
+          rank,
+          optimistic,
+        } = node;
+        const isRootNode = layerIndex === 0 && nodeIndex === 0;
+        const isTargetNode = Boolean(targetNode);
+        const radius = resolveNodeRadius(node);
+        const imageHref =
+          typeof imageUrl === "string" && imageUrl.trim()
+            ? imageUrl
+            : undefined;
+        const resolvedImageHref =
+          imageHref ?? userImageUrl ?? "/img/unknown.png";
+        const showPotentialNode = Boolean(potentialNode);
+        const isOptimistic = Boolean(optimistic);
+        const RefererIcon = showPotentialNode ? null : getRefererIcon(referer);
+        const showRefererIcon = Boolean(RefererIcon);
+        const isActive = nodeId === activeNodeId;
+        const baseStrokeWidth = isTargetNode
+          ? EDGE_STROKE_WIDTH * TARGET_EDGE_STROKE_SCALE
+          : EDGE_STROKE_WIDTH;
+        const strokeWidth = isActive ? baseStrokeWidth + 4 : baseStrokeWidth;
+        const displayTitle =
+          (typeof title === "string" && title.trim()) || "Unnamed node";
+        // const displaySubtitle =
+        //   (typeof subtitle === "string" && subtitle.trim()) || "Date unknown";
+        const showRankBadge =
+          !isRootNode && typeof rank === "number" && Number.isFinite(rank);
+        const badgeRadius = radius * 0.5;
+        const badgeOffset = radius * 0.8;
+        const tooltipX = clamp(
+          x - TOOLTIP_WIDTH / 2,
+          viewport.minX + 8,
+          viewportMaxX - TOOLTIP_WIDTH - 8,
+        );
+        const tooltipY = clamp(
+          y - radius - TOOLTIP_HEIGHT - TOOLTIP_GAP,
+          viewport.minY + 8,
+          viewportMaxY - TOOLTIP_HEIGHT - 8,
+        );
+        return (
+          <g
+            key={`${nodeId}`}
+            className="group z-10"
+            style={{
+              animationDelay: `${layerIndex * 500}ms`,
+              cursor: "pointer",
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (showPotentialNode) {
+                onPotentialNodeClick?.();
+              } else {
+                onNodeClick(nodeId);
+              }
+            }}
+          >
             <circle
               cx={x}
               cy={y}
-              r={NODE_RADIUS}
-              strokeWidth={0}
-              fill="white"
+              r={radius}
+              strokeWidth={strokeWidth}
+              strokeDasharray={showPotentialNode ? "8 8" : undefined}
+              className={cn(
+                "stroke-primary fill-primary transition-all duration-200",
+                isActive && "drop-shadow-[0_0_12px_rgba(251,191,36,0.6)]",
+                (showPotentialNode || isOptimistic) &&
+                  "animate-[spin_30s_linear_infinite]",
+              )}
+              style={{
+                transformOrigin: `${x}px ${y}px`,
+                ...(isTargetNode ? { stroke: "#22c55e" } : undefined),
+              }}
             />
-          </mask>
-          <image
-            x={x - NODE_RADIUS}
-            y={y - NODE_RADIUS}
-            width={2 * NODE_RADIUS}
-            height={2 * NODE_RADIUS}
-            href={`/img/avatar${1 + (i++ % 9)}.jpeg`}
-            mask={`url(#mask-${nodeId})`}
-          />
-        </g>
-      )),
+            <mask id={`mask-${nodeId}`}>
+              <circle cx={x} cy={y} r={radius} strokeWidth={0} fill="white" />
+            </mask>
+            <image
+              x={x - radius}
+              y={y - radius}
+              width={2 * radius}
+              height={2 * radius}
+              href={resolvedImageHref}
+              mask={`url(#mask-${nodeId})`}
+              className={cn(
+                "w-auto filter transition duration-200",
+                showPotentialNode &&
+                  "brightness-75 grayscale group-hover:brightness-90 group-hover:grayscale-0",
+              )}
+            />
+            {(showPotentialNode || showRefererIcon || isOptimistic) && (
+              <g
+                transform={
+                  showPotentialNode
+                    ? `translate(${x - 75}, ${y + 0.5 * radius})`
+                    : `translate(${x + 0.25 * radius}, ${y + 0.5 * radius})`
+                }
+              >
+                {!showPotentialNode && !isOptimistic && RefererIcon && (
+                  <RefererIcon size={48} />
+                )}
+                {isOptimistic && (
+                  <foreignObject
+                    x={0}
+                    y={0}
+                    width={48}
+                    height={48}
+                    className="pointer-events-none"
+                  >
+                    <div className="flex h-full w-full items-center justify-center">
+                      <span className="loading loading-spinner loading-md text-white" />
+                    </div>
+                  </foreignObject>
+                )}
+              </g>
+            )}
+            {showPotentialNode && (
+              <foreignObject
+                x={x - 75}
+                y={y + 0.6 * radius}
+                width={150}
+                height={50}
+                className="pointer-events-none"
+              >
+                <div className="flex items-center justify-center rounded-full bg-emerald-400/60 px-4 py-1.5 text-lg font-bold whitespace-nowrap text-gray-900 shadow-lg ring-1 ring-black/5 backdrop-blur-sm transition-all duration-300 group-hover:bg-emerald-400">
+                  Join the quest
+                </div>
+              </foreignObject>
+            )}
+            {showRankBadge && (
+              <g>
+                <circle
+                  cx={x + badgeOffset}
+                  cy={y - badgeOffset}
+                  r={badgeRadius}
+                  fill="#f3f4f6"
+                  stroke={
+                    rank === 1
+                      ? "#d4af37"
+                      : rank === 2
+                        ? "#c0c0c0"
+                        : rank === 3
+                          ? "#cd7f32"
+                          : "#1f2937"
+                  }
+                  strokeWidth={2}
+                />
+                <foreignObject
+                  x={x + badgeOffset - badgeRadius}
+                  y={y - badgeOffset - badgeRadius}
+                  width={badgeRadius * 2}
+                  height={badgeRadius * 2}
+                  style={{ pointerEvents: "none" }}
+                >
+                  <div
+                    className="flex h-full w-full items-center justify-center text-xs"
+                    style={{ fontSize: badgeRadius * 0.9 }}
+                  >
+                    {rank === 1 && "🏆"}
+                    {rank === 2 && "🥈"}
+                    {rank === 3 && "🥉"}
+                    {rank !== 1 && rank !== 2 && rank !== 3 && rank}
+                  </div>
+                </foreignObject>
+              </g>
+            )}
+            {isActive ? (
+              <foreignObject
+                x={tooltipX}
+                y={tooltipY}
+                width={TOOLTIP_WIDTH}
+                height={TOOLTIP_HEIGHT}
+                style={{ pointerEvents: "none" }}
+              >
+                <div className="flex w-full max-w-[320px] min-w-[260px] flex-col gap-1 rounded-lg bg-gray-900/95 px-4 py-3 text-sm text-white shadow-xl">
+                  <span className="text-xl leading-tight font-semibold break-words whitespace-normal">
+                    {displayTitle}
+                  </span>
+                  <span className="text-xl leading-tight break-words whitespace-normal">
+                    <AppTimeAgo date={createdAt} />
+                  </span>
+                </div>
+              </foreignObject>
+            ) : null}
+          </g>
+        );
+      }),
     ),
   ];
 };
 
-export const ReflowTree = () => {
-  const treeNodes = {
-    nodeId: "root",
-    children: [
-      {
-        nodeId: "root-1",
-        children: [
-          {
-            nodeId: "root-1-1",
-            children: [],
-          },
-          {
-            nodeId: "root-1-2",
-            children: [
-              {
-                nodeId: "root-1-2-1",
-                children: [],
-              },
-              {
-                nodeId: "root-1-2-2",
-                children: [],
-              },
-              {
-                nodeId: "root-1-2-3",
-                children: [],
-              },
-            ],
-          },
-        ],
-      },
-      {
-        nodeId: "root-2",
-        children: [],
-      },
-    ],
-  };
-  const { treeLayers, ...dimensions } = computeTreeNodeWithPositions(
-    treeNodes as unknown as PlacedReFlowNode,
+export const ReflowTree = ({
+  treeNodes,
+  activeNodeId,
+  onNodeClick,
+  userImageUrl,
+  onPotentialNodeClick,
+}: {
+  treeNodes?: ReFlowNodeSimple;
+  activeNodeId?: string;
+  onNodeClick?: (nodeId: string | undefined) => void;
+  onPotentialNodeClick?: () => void;
+  userImageUrl?: string;
+}) => {
+  if (!treeNodes) return null;
+  const { treeLayers, ...dimensions } = computeTreeNodeWithPositions(treeNodes);
+  const rawBounds = treeLayers.reduce(
+    (acc, layer) => {
+      layer.forEach((node) => {
+        const [x, y] = node.coords;
+        const radius = resolveNodeRadius(node);
+        const nodeMinX = x - radius;
+        const nodeMaxX = x + radius;
+        const nodeMinY = y - radius;
+        const nodeMaxY = y + radius;
+        if (nodeMinX < acc.minX) acc.minX = nodeMinX;
+        if (nodeMaxX > acc.maxX) acc.maxX = nodeMaxX;
+        if (nodeMinY < acc.minY) acc.minY = nodeMinY;
+        if (nodeMaxY > acc.maxY) acc.maxY = nodeMaxY;
+      });
+      return acc;
+    },
+    {
+      minX: Number.POSITIVE_INFINITY,
+      maxX: Number.NEGATIVE_INFINITY,
+      minY: Number.POSITIVE_INFINITY,
+      maxY: Number.NEGATIVE_INFINITY,
+    },
   );
+  const hasFiniteBounds =
+    Number.isFinite(rawBounds.minX) && Number.isFinite(rawBounds.minY);
+  const bounds = hasFiniteBounds
+    ? rawBounds
+    : {
+        minX: -NODE_RADIUS,
+        maxX: NODE_RADIUS,
+        minY: -NODE_RADIUS,
+        maxY: NODE_RADIUS,
+      };
+  const rootNode = treeLayers[0]?.[0];
+  const rootX = rootNode ? rootNode.coords[0] : (bounds.minX + bounds.maxX) / 2;
+  const maxDist = Math.max(
+    Math.abs(bounds.minX - rootX),
+    Math.abs(bounds.maxX - rootX),
+  );
+  const viewBoxWidth = 2 * maxDist + 2 * MARGIN_X;
+  const viewBoxHeight =
+    bounds.maxY - bounds.minY + MARGIN_Y_TOP + MARGIN_Y_BOTTOM;
+  const viewBoxMinX = rootX - maxDist - MARGIN_X;
+  const viewBoxMinY = bounds.minY - MARGIN_Y_TOP;
+  const viewport = {
+    minX: viewBoxMinX,
+    minY: viewBoxMinY,
+    width: viewBoxWidth,
+    height: viewBoxHeight,
+  };
 
   return (
     <svg
-      viewBox={`${-MARGIN} ${-MARGIN} ${dimensions.width + 2 * MARGIN} ${
-        dimensions.height + 2 * MARGIN
-      }`}
+      viewBox={`${viewBoxMinX} ${viewBoxMinY} ${viewBoxWidth} ${viewBoxHeight}`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className="max-w-full max-h-full"
+      preserveAspectRatio="xMidYMin meet"
+      className="max-h-[40vh] w-full md:h-[14.35rem]"
+      onClick={() => {
+        if (onNodeClick) {
+          onNodeClick(undefined);
+        }
+      }}
       ref={(svgRef) => {
         if (!svgRef) return;
         const observer = new IntersectionObserver(([entry]) => {
@@ -243,7 +514,28 @@ export const ReflowTree = () => {
         return () => observer.disconnect();
       }}
     >
-      {getSvgNodes(treeLayers)}
+      <rect
+        x={viewBoxMinX}
+        y={viewBoxMinY}
+        width={viewBoxWidth}
+        height={viewBoxHeight}
+        fill="transparent"
+        onClick={() => {
+          if (onNodeClick) {
+            onNodeClick(undefined);
+          }
+        }}
+      />
+      {getSvgNodes(
+        treeLayers,
+        activeNodeId,
+        (nodeId) => {
+          if (onNodeClick) onNodeClick(nodeId);
+        },
+        viewport,
+        userImageUrl,
+        onPotentialNodeClick,
+      )}
     </svg>
   );
 };

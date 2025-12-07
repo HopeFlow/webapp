@@ -51,14 +51,14 @@ export const MediaCarousel = ({
   return (
     <div
       className={cn(
-        "relative rounded-box overflow-hidden",
+        "rounded-box relative overflow-hidden",
         "bg-base-content text-base-100 border-base-300",
         className,
       )}
       {...restProps}
     >
       <Carousel
-        className="w-full h-full"
+        className="h-full w-full"
         childClassName={cn("w-full", slideClassName)}
         itemIndex={index}
         onItemIndexChange={(i) => {
@@ -71,29 +71,33 @@ export const MediaCarousel = ({
         {items.map((child, i) => (
           <div
             key={`${baseId}_slide${i}`}
-            className="w-full flex flex-col justify-center items-center"
+            className="flex w-full flex-col items-center justify-center"
           >
             {child}
           </div>
         ))}
       </Carousel>
       {controls}
-      <GhostButton
-        circle
-        onClick={goPrev}
-        className="absolute left-4 top-1/2 -!translate-y-1/2 opacity-60 hover:opacity-100"
-        aria-label="Previous slide"
-      >
-        <ArrowLeftIcon />
-      </GhostButton>
-      <GhostButton
-        circle
-        onClick={goNext}
-        className="absolute right-4 top-1/2 -!translate-y-1/2 opacity-60 hover:opacity-100"
-        aria-label="Next slide"
-      >
-        <ArrowRightIcon />
-      </GhostButton>
+      {items.length > 1 && (
+        <>
+          <GhostButton
+            circle
+            onClick={goPrev}
+            className="-!translate-y-1/2 absolute top-1/2 left-4 opacity-60 hover:opacity-100"
+            aria-label="Previous slide"
+          >
+            <ArrowLeftIcon />
+          </GhostButton>
+          <GhostButton
+            circle
+            onClick={goNext}
+            className="-!translate-y-1/2 absolute top-1/2 right-4 opacity-60 hover:opacity-100"
+            aria-label="Next slide"
+          >
+            <ArrowRightIcon />
+          </GhostButton>
+        </>
+      )}
     </div>
   );
 };

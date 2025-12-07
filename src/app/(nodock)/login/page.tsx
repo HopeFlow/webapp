@@ -1,6 +1,6 @@
 import { publicPage, withParamsAndUser } from "@/helpers/server/page_component";
 import { headers } from "next/headers";
-import { isUserProfileCreated } from "@/server_actions/definitions/login/index.server";
+import { isUserProfileCreated } from "./login.server";
 import { X_CUR_URL_HEADER } from "@/helpers/server/constants";
 import { z } from "zod";
 import LoginGate from "./LoginGate";

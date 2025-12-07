@@ -14,7 +14,7 @@ export const ConfirmQuestType = ({
 }) => {
   const [value, setValue] = useState(type);
   return (
-    <div className="flex flex-1 flex-col items-center justify-center max-w-full">
+    <div className="flex max-w-full flex-1 flex-col items-center justify-center">
       <div
         className={cn(
           "flex w-full max-w-4xl flex-1 flex-col justify-center gap-4 p-4 md:p-8",
@@ -23,7 +23,7 @@ export const ConfirmQuestType = ({
         <h1 className="text-2xl font-normal">
           How do you want to conduct your quest?
         </h1>
-        <label className="radio-label label cursor-pointer w-full whitespace-normal">
+        <label className="radio-label label w-full cursor-pointer whitespace-normal">
           <input
             type="radio"
             className="radio radio-sm"
@@ -34,7 +34,7 @@ export const ConfirmQuestType = ({
           />{" "}
           ReFlow is restricted only to people who the contributor directly knows
         </label>
-        <label className="radio-label label cursor-pointer w-full whitespace-normal">
+        <label className="radio-label label w-full cursor-pointer whitespace-normal">
           <input
             type="radio"
             className="radio radio-sm"
