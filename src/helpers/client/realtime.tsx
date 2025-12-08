@@ -10,7 +10,7 @@ import {
 } from "react";
 import type { notificationsTable, chatMessagesTable } from "@/db/schema";
 import { REALTIME_SERVER_URL } from "./constants";
-import { initializeNotifications } from "../server/realtime";
+import { initializeChatRoom, initializeNotifications } from "../server/realtime";
 
 export type RealtimeEnvelope = {
   type: string;
@@ -42,13 +42,14 @@ export const useNotifications = () => {
   return notifications;
 };
 
-export const useChatRoom = (questId: string, recepientUserId: string) => {
+export const useChatRoom = (questId: string, nodeId: string) => {
   const { subscribe } = useContext(RealtimeContext);
   const [messages, setMessages] = useState<
     Array<typeof chatMessagesTable.$inferSelect>
   >([]);
   useEffect(() => {
-    return subscribe((type, timestamp, payload) => {});
+    const unsubscribe = subscribe((type, timestamp, payload) => {});
+    initializeChatRoom(questId, nodeId);
   }, [subscribe]);
   const sendMessage = useCallback(() => {}, []);
   return { messages, sendMessage };
