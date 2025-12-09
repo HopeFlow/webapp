@@ -6,11 +6,12 @@ import { currentUserNoThrow } from "./auth";
 import { defineServerFunction } from "./define_server_function";
 import { createRealtimeJwt } from "./realtime.server";
 import type { ChatMessage, Notification } from "../client/realtime";
-import type {
+import {
   chatMessagesTable,
   notificationsTable,
   questHistoryTable,
 } from "@/db/schema";
+import { updateTypeDef } from "@/db/constants";
 
 const toTimestampString = (value: Date | string | number) => {
   const date = value instanceof Date ? value : new Date(value);
@@ -100,6 +101,12 @@ const toNotification = (row: NotificationWithHistory): Notification => {
   };
 };
 
+const toDate = (value?: Date | string | number) => {
+  if (!value) return new Date();
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.valueOf()) ? new Date() : date;
+};
+
 const publishRealtimeMessage = defineServerFunction({
   uniqueKey: "realtime::publishMessage",
   handler: async (
@@ -166,6 +173,57 @@ export const initializeChatRoom = defineServerFunction({
   },
 });
 
+export const sendChatMessage = defineServerFunction({
+  uniqueKey: "realtime::sendChatMessage",
+  handler: async (questId: string, nodeId: string, content: string) => {
+    const user = await currentUserNoThrow();
+    if (!user) throw new Error("Not authenticated");
+    const db = await getHopeflowDatabase();
+    const node = await db.query.nodeTable.findFirst({
+      where: (nodeTable, { and, eq }) =>
+        and(eq(nodeTable.id, nodeId), eq(nodeTable.questId, questId)),
+      with: { quest: { columns: { seekerId: true } } },
+    });
+    if (!node || node.quest.seekerId === null) {
+      throw new Error("Node not found");
+    }
+    const [message] = await db
+      .insert(chatMessagesTable)
+      .values({
+        questId,
+        nodeId,
+        userId: user.id === node.userId ? node.quest.seekerId : user.id,
+        content,
+        timestamp: new Date(),
+      })
+      .returning();
+    const chatMessage = toChatMessage(message);
+    await publishRealtimeMessage("chat_message", chatMessage, undefined, user);
+    return chatMessage;
+  },
+});
+
+type NotificationEventType = (typeof updateTypeDef)[number];
+
+type SendNotificationParams =
+  | {
+      recipientUserId: string;
+      questHistoryId: string;
+      timestamp?: Date | string | number;
+      actorUserId?: string;
+    }
+  | {
+      recipientUserId: string;
+      questId: string;
+      type: NotificationEventType;
+      nodeId?: string;
+      commentId?: string;
+      proposedAnswerId?: string;
+      linkId?: string;
+      timestamp?: Date | string | number;
+      actorUserId?: string;
+    };
+
 export const initializeNotifications = defineServerFunction({
   uniqueKey: "realtime::initializeNotifications",
   handler: async () => {
@@ -199,6 +257,93 @@ export const initializeNotifications = defineServerFunction({
       "notifications_init",
       notifications,
       user.id,
+      user,
+    );
+  },
+});
+
+export const sendNotification = defineServerFunction({
+  uniqueKey: "realtime::sendNotification",
+  handler: async (params: SendNotificationParams) => {
+    const user = await currentUserNoThrow();
+    if (!user) throw new Error("Not authenticated");
+
+    const actingUserId =
+      "actorUserId" in params && params.actorUserId
+        ? params.actorUserId
+        : user.id;
+    const eventTimestamp = toDate(params.timestamp);
+
+    const db = await getHopeflowDatabase();
+    let questHistoryId: string;
+
+    if ("questHistoryId" in params) {
+      questHistoryId = params.questHistoryId;
+    } else {
+      const quest = await db.query.questTable.findFirst({
+        where: (questTable, { eq }) => eq(questTable.id, params.questId),
+        columns: { id: true },
+      });
+      if (!quest) throw new Error("Quest not found");
+
+      const [history] = await db
+        .insert(questHistoryTable)
+        .values({
+          questId: params.questId,
+          actorUserId: actingUserId,
+          type: params.type,
+          createdAt: eventTimestamp,
+          linkId: params.linkId,
+          nodeId: params.nodeId,
+          commentId: params.commentId,
+          proposedAnswerId: params.proposedAnswerId,
+        })
+        .returning({ id: questHistoryTable.id });
+      if (!history?.id) throw new Error("Failed to create quest history");
+      questHistoryId = history.id;
+    }
+
+    const [notificationRow] = await db
+      .insert(notificationsTable)
+      .values({
+        userId: params.recipientUserId,
+        questHistoryId,
+        timestamp: eventTimestamp,
+      })
+      .returning({ id: notificationsTable.id });
+
+    if (!notificationRow?.id) throw new Error("Failed to create notification");
+
+    const notification = await db.query.notificationsTable.findFirst({
+      where: (notificationsTable, { eq }) =>
+        eq(notificationsTable.id, notificationRow.id),
+      with: {
+        history: {
+          columns: {
+            id: true,
+            type: true,
+            questId: true,
+            nodeId: true,
+            commentId: true,
+            proposedAnswerId: true,
+          },
+          with: {
+            quest: { columns: { title: true, rootNodeId: true } },
+            comment: { columns: { nodeId: true } },
+            proposedAnswer: { columns: { nodeId: true } },
+          },
+        },
+      },
+    });
+
+    if (!notification) throw new Error("Notification not found");
+
+    const payload = toNotification(notification);
+
+    return publishRealtimeMessage(
+      "notification",
+      payload,
+      params.recipientUserId,
       user,
     );
   },
