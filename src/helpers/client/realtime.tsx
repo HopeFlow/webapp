@@ -8,9 +8,12 @@ import {
   useRef,
   useState,
 } from "react";
-import type { notificationsTable, chatMessagesTable } from "@/db/schema";
 import { REALTIME_SERVER_URL } from "./constants";
-import { initializeChatRoom, initializeNotifications } from "../server/realtime";
+import {
+  initializeChatRoom,
+  initializeNotifications,
+} from "../server/realtime";
+import { messageStatusDef } from "@/db/constants";
 
 export type RealtimeEnvelope = {
   type: string;
@@ -19,19 +22,36 @@ export type RealtimeEnvelope = {
   payload?: unknown;
 };
 
+export type ChatMessage = {
+  id: string;
+  questId: string;
+  nodeId: string;
+  userId: string;
+  content: string;
+  timestamp: string;
+};
+
+export type Notification = {
+  id: string;
+  message: string;
+  url: string;
+  status: (typeof messageStatusDef)[number];
+  timestamp: string;
+};
+
 type ConnectionState = "idle" | "connecting" | "open" | "closed" | "error";
 
 type RealtimeContextType = {
   connectionState: ConnectionState;
-  notifications: Array<typeof notificationsTable.$inferSelect>;
+  notifications: Array<Notification>;
   subscribe: (
     handler: (type: string, timestamp: string, payload: unknown) => void,
   ) => () => void;
 };
 
 const RealtimeContext = createContext<RealtimeContextType>({
-  connectionState: "idle" as ConnectionState,
-  notifications: [] as Array<typeof notificationsTable.$inferSelect>,
+  connectionState: "idle",
+  notifications: [],
   subscribe: () => {
     throw new Error("Context not initialized");
   },
@@ -44,13 +64,35 @@ export const useNotifications = () => {
 
 export const useChatRoom = (questId: string, nodeId: string) => {
   const { subscribe } = useContext(RealtimeContext);
-  const [messages, setMessages] = useState<
-    Array<typeof chatMessagesTable.$inferSelect>
-  >([]);
+  const [messages, setMessages] = useState<Array<ChatMessage>>([]);
   useEffect(() => {
-    const unsubscribe = subscribe((type, timestamp, payload) => {});
+    let chatMessagesInitialized = false;
+    const preInitQueue: Array<ChatMessage> = [];
+    const unsubscribe = subscribe((type, timestamp, payload) => {
+      if (type === "chat_messages_init") {
+        setMessages([
+          ...(payload as Array<ChatMessage>),
+          ...preInitQueue.filter(
+            (m) =>
+              !(payload as Array<ChatMessage>).some((pm) => pm.id === m.id),
+          ),
+        ]);
+        chatMessagesInitialized = true;
+      } else if (type === "chat_message") {
+        if (!chatMessagesInitialized) {
+          preInitQueue.push(payload as ChatMessage);
+        } else {
+          setMessages((prev) =>
+            prev.find((m) => m.id === (payload as ChatMessage).id)
+              ? prev
+              : [...prev, payload as ChatMessage],
+          );
+        }
+      }
+    });
     initializeChatRoom(questId, nodeId);
-  }, [subscribe]);
+    return unsubscribe;
+  }, [nodeId, questId, subscribe]);
   const sendMessage = useCallback(() => {}, []);
   return { messages, sendMessage };
 };
@@ -75,9 +117,7 @@ export const RealtimeProvider = ({
   const url = `wss://${REALTIME_SERVER_URL}`;
   const [connectionState, setConnectionState] =
     useState<ConnectionState>("idle");
-  const [notifications, setNotifications] = useState<
-    Array<typeof notificationsTable.$inferSelect>
-  >([]);
+  const [notifications, setNotifications] = useState<Array<Notification>>([]);
   const handlersRef = useRef<
     Array<(type: string, timestamp: string, payload: unknown) => void>
   >([]);
@@ -111,6 +151,7 @@ export const RealtimeProvider = ({
           setConnectionState("error");
         });
         let notificationsInitialized = false;
+        const preInitNotifications: Array<Notification> = [];
         socket.onmessage = guard((event) => {
           try {
             const parsed = JSON.parse(
@@ -119,16 +160,33 @@ export const RealtimeProvider = ({
             if (isRealtimeEnvelope(parsed)) {
               console.log("[realtime] message received", parsed);
               if (parsed.type === "notifications_init") {
-                setNotifications(parsed.payload as typeof notifications);
-                notificationsInitialized = true;
-              } else if (
-                notificationsInitialized &&
-                parsed.type === "notification"
-              ) {
-                setNotifications((prev) => [
-                  ...prev,
-                  parsed.payload as typeof notificationsTable.$inferSelect,
+                setNotifications([
+                  ...(parsed.payload as typeof notifications),
+                  ...preInitNotifications.filter(
+                    (m) =>
+                      !(parsed.payload as typeof notifications).some(
+                        (pm) => pm.id === m.id,
+                      ),
+                  ),
                 ]);
+                notificationsInitialized = true;
+              } else if (parsed.type === "notification") {
+                if (!notificationsInitialized) {
+                  preInitNotifications.push(parsed.payload as Notification);
+                } else {
+                  setNotifications((prev) =>
+                    prev.find(
+                      (m) =>
+                        m.id ===
+                        (parsed.payload as (typeof notifications)[number]).id,
+                    )
+                      ? prev
+                      : [
+                          ...prev,
+                          parsed.payload as (typeof notifications)[number],
+                        ],
+                  );
+                }
               } else
                 for (const handler of handlersRef.current ?? []) {
                   handler(parsed.type, parsed.timestamp, parsed.payload);

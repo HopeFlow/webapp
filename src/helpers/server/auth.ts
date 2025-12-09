@@ -112,7 +112,7 @@ export const deactivateLinkAndSetJwtToken = async (linkCode: string) => {
   if (!updatedLink) return false;
   if (updatedLink.active) return false;
   const c = await cookies();
-  const jwtToken = encodeJwtToken({ linkCode }, chatPrivateKey);
+  const jwtToken = await encodeJwtToken({ linkCode }, chatPrivateKey);
   c.set("linkJwtToken", jwtToken, {
     path: `/link/${linkCode}`,
     httpOnly: true,
@@ -133,7 +133,7 @@ export async function verifyLinkJwtToken<
   const jwtToken = c.get("linkJwtToken")?.value;
   if (!jwtToken) return false;
   try {
-    const decoded = decodeJwtToken(jwtToken, chatPublicKey);
+    const decoded = await decodeJwtToken(jwtToken, chatPublicKey);
     if (!decoded.linkCode) return false;
     if (linkRecord.linkCode !== decoded.linkCode) return false;
     return true;
