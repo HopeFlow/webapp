@@ -1,6 +1,6 @@
 import { cn } from "@/helpers/client/tailwind_helpers";
 import Image from "next/image";
-import type { CSSProperties } from "react";
+import { type CSSProperties, memo } from "react";
 import { Button } from "./button";
 import { ThumbDownIcon, ThumbUpIcon } from "./icons/thumb";
 import { AppTimeAgo } from "@/helpers/client/time";
@@ -121,7 +121,7 @@ const TimelineItemEnd = ({
   );
 };
 
-export const Timeline = ({ actions }: { actions: UserAction[] }) => (
+export const Timeline = memo(({ actions }: { actions: UserAction[] }) => (
   <ul className="timeline timeline-vertical timeline-snap-icon">
     {actions.map(({ imageUrl, ...action }, index, actions) => (
       <li
@@ -136,4 +136,5 @@ export const Timeline = ({ actions }: { actions: UserAction[] }) => (
       </li>
     ))}
   </ul>
-);
+));
+Timeline.displayName = "Timeline";
