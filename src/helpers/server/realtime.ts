@@ -205,6 +205,27 @@ export const sendChatMessage = defineServerFunction({
 
 type NotificationEventType = (typeof updateTypeDef)[number];
 
+type NotificationPointerKey =
+  | "linkId"
+  | "nodeId"
+  | "commentId"
+  | "proposedAnswerId";
+
+const notificationPointerByType: Record<
+  NotificationEventType,
+  NotificationPointerKey | null
+> = {
+  reflow: "linkId",
+  answerProposed: "proposedAnswerId",
+  answerAccepted: "proposedAnswerId",
+  answerRejected: "proposedAnswerId",
+  terminated: null,
+  expired: null,
+  questEdited: null,
+  nodeJoined: "nodeId",
+  commentAdded: "commentId",
+};
+
 type SendNotificationParams =
   | {
       recipientUserId: string;
@@ -286,6 +307,53 @@ export const sendNotification = defineServerFunction({
       });
       if (!quest) throw new Error("Quest not found");
 
+      const pointerValues: Record<NotificationPointerKey, string | undefined> =
+        {
+          linkId: params.linkId,
+          nodeId: params.nodeId,
+          commentId: params.commentId,
+          proposedAnswerId: params.proposedAnswerId,
+        };
+
+      const expectedPointer = notificationPointerByType[params.type];
+      const providedPointerEntries = Object.entries(pointerValues).filter(
+        ([, value]) => value,
+      ) as [NotificationPointerKey, string][];
+
+      if (expectedPointer) {
+        if (!pointerValues[expectedPointer]) {
+          throw new Error(
+            `${expectedPointer} is required for notification type "${params.type}"`,
+          );
+        }
+        const extraPointers = providedPointerEntries
+          .map(([key]) => key)
+          .filter((key) => key !== expectedPointer);
+        if (extraPointers.length > 0) {
+          throw new Error(
+            `Notification type "${params.type}" must only include ${expectedPointer}; received ${extraPointers.join(", ")}`,
+          );
+        }
+      } else if (providedPointerEntries.length > 0) {
+        throw new Error(
+          `Notification type "${params.type}" does not use linkId, nodeId, commentId, or proposedAnswerId`,
+        );
+      }
+
+      const historyPointers: Record<
+        NotificationPointerKey,
+        string | undefined
+      > = {
+        linkId: undefined,
+        nodeId: undefined,
+        commentId: undefined,
+        proposedAnswerId: undefined,
+      };
+
+      if (expectedPointer) {
+        historyPointers[expectedPointer] = pointerValues[expectedPointer];
+      }
+
       const [history] = await db
         .insert(questHistoryTable)
         .values({
@@ -293,10 +361,7 @@ export const sendNotification = defineServerFunction({
           actorUserId: actingUserId,
           type: params.type,
           createdAt: eventTimestamp,
-          linkId: params.linkId,
-          nodeId: params.nodeId,
-          commentId: params.commentId,
-          proposedAnswerId: params.proposedAnswerId,
+          ...historyPointers,
         })
         .returning({ id: questHistoryTable.id });
       if (!history?.id) throw new Error("Failed to create quest history");
