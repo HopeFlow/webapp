@@ -151,6 +151,20 @@ export const initializeChatRoom = defineServerFunction({
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Not authenticated");
     const db = await getHopeflowDatabase();
+    const quest = await db.query.questTable.findFirst({
+      where: (questTable, { eq }) => eq(questTable.id, questId),
+    });
+    const node = await db.query.nodeTable.findFirst({
+      where: (nodeTable, { and, eq }) =>
+        and(eq(nodeTable.id, nodeId), eq(nodeTable.questId, questId)),
+    });
+    if (!quest || !node) {
+      throw new Error("Quest or node not found");
+    }
+    const isParticipant = quest.seekerId === user.id || node.userId === user.id;
+    if (!isParticipant) {
+      throw new Error("Access denied to this chat room");
+    }
     const messages = (
       await db.query.chatMessagesTable.findMany({
         where: (chatMessagesTable, { and, eq }) =>
@@ -184,15 +198,15 @@ export const sendChatMessage = defineServerFunction({
         and(eq(nodeTable.id, nodeId), eq(nodeTable.questId, questId)),
       with: { quest: { columns: { seekerId: true } } },
     });
-    if (!node || node.quest.seekerId === null) {
-      throw new Error("Node not found");
+    if (!node || (node.quest.seekerId !== user.id && node.userId !== user.id)) {
+      throw new Error("Node not found or access denied to this chat room");
     }
     const [message] = await db
       .insert(chatMessagesTable)
       .values({
         questId,
         nodeId,
-        userId: user.id === node.userId ? node.quest.seekerId : user.id,
+        userId: user.id,
         content,
         timestamp: new Date(),
       })
