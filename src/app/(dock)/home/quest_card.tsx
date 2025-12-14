@@ -7,14 +7,9 @@ import { ContributorQuestCardNodes, StarterQuestCardNodes } from "./card_nodes";
 import { ShareIcon } from "@/components/icons/share";
 import { withLoading } from "@/helpers/client/HOCs";
 import { QuestCardSkeleton } from "./card_skeleton";
-import { useGotoLink, useGotoQuest } from "@/helpers/client/routes";
+import { useGotoLink } from "@/helpers/client/routes";
+import type { QuestState } from "@/helpers/server/db";
 
-export type QuestState =
-  | "Young"
-  | "Thriving"
-  | "Stable"
-  | "Fading"
-  | "Withering";
 const questStatesIcons: Record<QuestState, string> = {
   Young: "🌱",
   Thriving: "🌳",
