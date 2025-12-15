@@ -16,6 +16,7 @@ export type LinkStatusStat = {
 
 export interface LinkStatsCardReadParams {
   questId: string;
+  linkCode: string;
 }
 
 export interface LinkStatsCardReadResult {

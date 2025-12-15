@@ -24,13 +24,13 @@ export default function OGTestPage() {
   const [rewardPoints, setRewardPoints] = useState(500);
   const [chainCount, setChainCount] = useState(2);
 
-  const avatarsToShow = [
-    SAMPLE_AVATARS[0], // Inviter
-    ...Array(Math.min(chainCount, 3))
-      .fill(null)
-      .map((_, i) => SAMPLE_AVATARS[i + 1]),
-    null, // Invitee placeholder
-  ];
+  // const avatarsToShow = [
+  //   SAMPLE_AVATARS[0], // Inviter
+  //   ...Array(Math.min(chainCount, 3))
+  //     .fill(null)
+  //     .map((_, i) => SAMPLE_AVATARS[i + 1]),
+  //   null, // Invitee placeholder
+  // ];
 
   return (
     <div className="flex min-h-screen bg-gray-100 p-8 font-sans text-gray-900">
@@ -169,6 +169,7 @@ export default function OGTestPage() {
               {/* Inviter */}
               <div className="relative z-10 flex flex-col items-center gap-3">
                 <div className="h-36 w-36 overflow-hidden rounded-full border-4 border-white shadow-xl">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={SAMPLE_AVATARS[0]}
                     alt="Inviter"
@@ -187,6 +188,7 @@ export default function OGTestPage() {
                   className="relative z-10 flex flex-col items-center gap-3"
                 >
                   <div className="h-36 w-36 overflow-hidden rounded-full border-4 border-white shadow-xl">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={SAMPLE_AVATARS[i + 1]}
                       alt={`Person ${i + 1}`}

@@ -218,7 +218,7 @@ export function LinkMain({
     }),
   );
   const mediaItems = coverMediaItems.length ? coverMediaItems : [];
-  const statsQuery = useLinkStatsCard({ questId });
+  const statsQuery = useLinkStatsCard({ questId, linkCode });
   const stats = statsQuery.data?.stats ?? FALLBACK_STATS;
   const redirectUrl = `link/${linkCode}`;
 

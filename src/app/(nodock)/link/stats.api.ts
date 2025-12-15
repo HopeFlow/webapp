@@ -3,12 +3,14 @@
 import { getHopeflowDatabase } from "@/db";
 import {
   commentTable,
+  linkTable,
   nodeTable,
   proposedAnswerTable,
   questViewTable,
 } from "@/db/schema";
 import { and, eq, isNull, isNotNull, sql } from "drizzle-orm";
 import { alias, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
+import { verifyLinkJwtToken } from "@/helpers/server/auth";
 import type {
   LinkStatsCardReadParams,
   LinkStatsCardReadResult,
@@ -116,17 +118,36 @@ const buildStatsResponse = (
 export const linkStatsCard = createApiEndpoint({
   uniqueKey: "link::linkStatsCard",
   type: "query",
-  handler: async ({ questId }: LinkStatsCardReadParams) => {
-    if (!questId?.trim()) {
+  handler: async ({ questId, linkCode }: LinkStatsCardReadParams) => {
+    const trimmedQuestId = questId?.trim();
+    if (!trimmedQuestId) {
       throw new Error("Quest identifier is required");
+    }
+    const trimmedLinkCode = linkCode?.trim();
+    if (!trimmedLinkCode) {
+      throw new Error("Link code is required");
     }
 
     const db = await getHopeflowDatabase();
+    const link = await db.query.linkTable.findFirst({
+      where: eq(linkTable.linkCode, trimmedLinkCode),
+    });
+    if (!link) {
+      throw new Error("Link not found");
+    }
+    if (link.questId !== trimmedQuestId) {
+      throw new Error("Link does not belong to this quest");
+    }
+    if (link.type === "targeted") {
+      const hasAccess = await verifyLinkJwtToken(link);
+      if (!hasAccess) throw new Error("Access to this link is restricted");
+    }
+
     const [views, contributors, leads, comments] = await Promise.all([
-      countQuestUniqueViews(db, questId),
-      countQuestContributors(db, questId),
-      countQuestLeads(db, questId),
-      countQuestComments(db, questId),
+      countQuestUniqueViews(db, trimmedQuestId),
+      countQuestContributors(db, trimmedQuestId),
+      countQuestLeads(db, trimmedQuestId),
+      countQuestComments(db, trimmedQuestId),
     ]);
 
     const stats = buildStatsResponse({ views, contributors, leads, comments });

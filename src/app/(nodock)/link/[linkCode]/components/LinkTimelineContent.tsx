@@ -15,7 +15,6 @@ import { LinkTimelineInput } from "./LinkTimelineInput";
 import type { SocialMediaName } from "./ReflowTree";
 import type { LinkTimelineReadResult, LinkTimelineReaction } from "../../types";
 import { useQueryClient } from "@tanstack/react-query";
-import { getLinkStatsCardQueryKey } from "@/apiHooks/link/linkStatsCard";
 
 export type TimelineAction = React.ComponentProps<
   typeof Timeline
