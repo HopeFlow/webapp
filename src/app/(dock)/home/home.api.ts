@@ -120,8 +120,10 @@ export const quests = createApiEndpoint({
     offset: number;
     limit: number;
   }): Promise<QuestsPage> => {
+    // No role check here; any authenticated user can view their quests
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Unauthenticated");
+
     const db = await getHopeflowDatabase();
     // 1) Gather quests the user is related to (seeker, contributor, or bookmark)
     //    and keep the oldest interaction timestamp per quest for pagination.

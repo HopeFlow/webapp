@@ -120,6 +120,7 @@ export const insertQuest = createApiEndpoint({
   uniqueKey: "createQuest::insertQuest",
   type: "mutation",
   handler: async (payload: InsertQuestData) => {
+    // No role check here; any authenticated user can create a quest
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Unauthenticated");
 

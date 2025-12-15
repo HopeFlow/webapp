@@ -2,7 +2,11 @@
 
 import { getHopeflowDatabase } from "@/db";
 import { nodeTable, questHistoryTable } from "@/db/schema";
-import { currentUserNoThrow, withUserData } from "@/helpers/server/auth";
+import {
+  currentUserNoThrow,
+  verifyLinkJwtToken,
+  withUserData,
+} from "@/helpers/server/auth";
 import { linkTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { prepareUserNode } from "./timeline.api";
@@ -18,6 +22,7 @@ export const readNodes = createApiEndpoint({
   uniqueKey: "link::readNodes",
   type: "query",
   handler: async ({ linkCode }: { linkCode: string }) => {
+    // No need to check user role here; getQuestAndNodesForLinkByLinkCode handles access
     const context = await getQuestAndNodesForLinkByLinkCode(linkCode);
 
     if (
@@ -117,6 +122,9 @@ export const addNode = createApiEndpoint({
   uniqueKey: "link::addNode",
   type: "mutation",
   handler: async (linkCode: string, referer: SocialMediaName) => {
+    // No role check here; public broadcast links allow any authenticated user to join and
+    // private targeted links handle access via JWT token
+
     const viewer = await currentUserNoThrow();
     if (!viewer) throw new Error("Please sign in to join the quest");
 
@@ -125,6 +133,10 @@ export const addNode = createApiEndpoint({
       where: eq(linkTable.linkCode, linkCode),
     });
     if (!link) throw new Error("Link not found");
+    if (link.type === "targeted" && !link.active) {
+      if (!verifyLinkJwtToken(link))
+        throw new Error("This link is no longer active");
+    }
 
     const { nodeId, pendingInsert } = await prepareUserNode({
       db,
