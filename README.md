@@ -97,13 +97,13 @@ See [LICENSE](LICENSE) for details.
 ## Server Actions and Hooks
 
 We wrap every Next.js Server Action with one of two helpers:
-`defineServerAction` or `createApiEndpoint`.
+`defineServerFunction` or `createApiEndpoint`.
 
-- `defineServerAction`: use this for server actions that you call manually. It
+- `defineServerFunction`: use this for server actions that you call manually. It
   simply wraps your handler so we can later layer in logging and error checks,
   while keeping the handler signature unchanged.
 - `createApiEndpoint`: use this when you also want an auto-generated TanStack
-  Query hook. It forwards to `defineServerAction`, but requires a `uniqueKey`
+  Query hook. It forwards to `defineServerFunction`, but requires a `uniqueKey`
   (namespaced with `::`) plus a `type: "query" | "mutation"` so the hook
   generator knows how to scaffold the client API.
 
@@ -111,7 +111,7 @@ We wrap every Next.js Server Action with one of two helpers:
 
 ```typescript
 // Define a server-only action (no auto hook)
-export const isUserProfileCreated = defineServerAction({
+export const isUserProfileCreated = defineServerFunction({
   uniqueKey: "login::isUserProfileCreated",
   handler: async (userId: string) => {
     // ...return a value that can be awaited or yielded to the client
