@@ -283,16 +283,6 @@ const buildTimelineRecords = ({
         };
         break;
       }
-      case "answerRejected": {
-        record = {
-          ...base,
-          type: "presented a lead",
-          description: entry.proposedAnswer?.content
-            ? `Rejected: ${entry.proposedAnswer.content}`
-            : "Lead rejected",
-        };
-        break;
-      }
       case "questEdited": {
         record = {
           ...base,

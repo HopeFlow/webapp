@@ -336,7 +336,6 @@ export const questHistoryTable = sqliteTable(
     const proposalTypes = [
       UpdateType.answerProposed,
       UpdateType.answerAccepted,
-      UpdateType.answerRejected,
     ] as const;
     return [
       // Require the right FK depending on the type

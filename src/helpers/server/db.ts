@@ -200,7 +200,6 @@ export function computeQuestState(
     "commentAdded",
     "answerProposed",
     "answerAccepted",
-    "answerRejected",
   ];
 
   // Participation actors: people taking actions that indicate ownership / propagation.

@@ -12,7 +12,6 @@ export const updateTypeDef = [
   "reflow",
   "answerProposed",
   "answerAccepted",
-  "answerRejected",
   "terminated",
   "expired",
   "questEdited",

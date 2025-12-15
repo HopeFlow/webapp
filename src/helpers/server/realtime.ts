@@ -53,8 +53,6 @@ const getNotificationMessage = (history: NotificationHistory): string => {
       return `${questLabel}: new lead proposed`;
     case "answerAccepted":
       return `${questLabel}: lead accepted`;
-    case "answerRejected":
-      return `${questLabel}: lead rejected`;
     case "questEdited":
       return `${questLabel}: quest updated`;
     case "reflow":
@@ -232,7 +230,6 @@ const notificationPointerByType: Record<
   reflow: "linkId",
   answerProposed: "proposedAnswerId",
   answerAccepted: "proposedAnswerId",
-  answerRejected: "proposedAnswerId",
   terminated: null,
   expired: null,
   questEdited: null,
