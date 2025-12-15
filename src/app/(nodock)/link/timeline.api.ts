@@ -8,7 +8,11 @@ import {
   questHistoryTable,
   questTable,
 } from "@/db/schema";
-import { currentUserNoThrow, withUserData } from "@/helpers/server/auth";
+import {
+  currentUserNoThrow,
+  verifyLinkJwtToken,
+  withUserData,
+} from "@/helpers/server/auth";
 import {
   LinkTimelineCreateInput,
   LinkTimelineReactionInput,
@@ -385,6 +389,10 @@ export const addLinkTimelineComment = createApiEndpoint({
       where: eq(linkTable.linkCode, linkCode),
     });
     if (!link) throw new Error("Link not found");
+    if (link.type === "targeted") {
+      const hasAccess = await verifyLinkJwtToken(link);
+      if (!hasAccess) throw new Error("Access to this link is restricted");
+    }
 
     const { nodeId, pendingInsert } = await prepareUserNode({
       db,
@@ -448,9 +456,13 @@ export const reactToLinkTimelineComment = createApiEndpoint({
       }),
       db.query.linkTable.findFirst({ where: eq(linkTable.linkCode, linkCode) }),
     ]);
+    if (!link) throw new Error("Link not found");
+    if (link.type === "targeted") {
+      const hasAccess = await verifyLinkJwtToken(link);
+      if (!hasAccess) throw new Error("Access to this link is restricted");
+    }
 
     if (!comment) throw new Error("Comment not found");
-    if (!link) throw new Error("Link not found");
     if (comment.questId !== link.questId)
       throw new Error("Mismatch between comment and quest");
 
