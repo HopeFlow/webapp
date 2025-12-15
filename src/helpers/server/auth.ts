@@ -53,11 +53,6 @@ export const clerkClientNoThrow = async () => {
   }
 };
 
-const jwtPublicKey = Buffer.from(
-  process.env.JWT_PUBLIC_KEY || "",
-  "base64",
-).toString("ascii");
-
 const chatPrivateKey = Buffer.from(
   process.env.CHAT_PRIVATE_KEY || "",
   "base64",
@@ -65,11 +60,6 @@ const chatPrivateKey = Buffer.from(
 
 const chatPublicKey = Buffer.from(
   process.env.CHAT_PUBLIC_KEY || "",
-  "base64",
-).toString("ascii");
-
-const testPublicKey = Buffer.from(
-  process.env.TEST_PUBLIC_KEY || "",
   "base64",
 ).toString("ascii");
 
@@ -84,6 +74,65 @@ export const getJwtToken = async () => {
   }
 };
 
+export const userRoleDef = [
+  "anonymous",
+  "viewer",
+  "contributor",
+  "seeker",
+] as const;
+export type UserRole = (typeof userRoleDef)[number];
+
+export const getUserRole = async (
+  seekerId: string,
+  nodeUserIds: string[],
+  userId?: string,
+  userIdIsValid?: boolean,
+): Promise<UserRole> => {
+  const currentUserId =
+    userId ?? (userIdIsValid ? userId : (await currentUserNoThrow())?.id);
+  if (!currentUserId) return "anonymous";
+  if (currentUserId === seekerId) return "seeker";
+  if (nodeUserIds.includes(currentUserId)) return "contributor";
+  return "viewer";
+};
+
+export const ensureUserHasRole = async (
+  seekerId: string,
+  nodeUserIds: string[],
+  authorizedRoles: UserRole[],
+  userId?: string,
+  userIdIsValid?: boolean,
+) => {
+  if (authorizedRoles.length === 0 || authorizedRoles.includes("anonymous")) {
+    // TODO: Log using a proper logging framework
+    console.warn(
+      "ensureUserHasRole called with no authorized roles or 'anonymous' role",
+    );
+    return;
+  }
+  const currentUserRole = await getUserRole(
+    seekerId,
+    nodeUserIds,
+    userId,
+    userIdIsValid,
+  );
+  if (!authorizedRoles.includes(currentUserRole)) {
+    throw new Error(
+      `User does not have required role. Required: [${authorizedRoles.join(
+        ", ",
+      )}], actual: ${currentUserRole}`,
+    );
+  }
+};
+
+/**
+ * Deactivates a link for other people visiting the view link
+ * and sets a JWT token in a cookie for subsequent requests to
+ * enable current viewer to access the link in his subsequent
+ * visits.
+ * @param linkCode linkCode representing current view link
+ * @returns true if deactivation is performed successfully and false otherwise
+ */
 export const deactivateLinkAndSetJwtToken = async (linkCode: string) => {
   const db = await getHopeflowDatabase();
   const linkEntry = await db.query.linkTable.findFirst({
