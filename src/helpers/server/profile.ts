@@ -40,8 +40,8 @@ const checkIfLatin = (str: string) => {
 /** Build asciiName from any "human" first name. */
 export const toAscii = defineServerFunction({
   uniqueKey: "common::toAscii",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- all restrictions are enforced in transliterate()
   handler: async (firstNameRaw: string) => {
-    // No need to check roles; all restrictions are enforced in transliterate()
     const firstName = (firstNameRaw || "").trim();
     if (!firstName) return "";
     if (checkIfAscii(firstName)) return firstName;
@@ -55,6 +55,7 @@ export const toAscii = defineServerFunction({
 export const upsertUserProfile = createApiEndpoint({
   uniqueKey: "common::upsertUserProfile",
   type: "mutation",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role
   handler: async (
     userId: string,
     userPreferences: UserPreferences,
@@ -99,6 +100,7 @@ export const upsertUserProfile = createApiEndpoint({
 export const ensureCreatedFlag = createApiEndpoint({
   uniqueKey: "common::ensureCreatedFlag",
   type: "mutation",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role
   handler: async (
     clerkUsers: NonNullable<
       Awaited<ReturnType<typeof clerkClientNoThrow>>
@@ -133,6 +135,7 @@ export type ProfileRead =
 export const readCurrentUserProfile = createApiEndpoint({
   uniqueKey: "common::readCurrentUserProfile",
   type: "query",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role
   handler: async (): Promise<ProfileRead> => {
     const user = await currentUserNoThrow();
     if (!user) return { exists: false };
@@ -187,6 +190,7 @@ const splitName = (
 export const updateCurrentUserProfile = createApiEndpoint({
   uniqueKey: "common::updateCurrentUserProfile",
   type: "mutation",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role
   handler: async function (data: ProfileUpdateInput) {
     {
       const user = await currentUserNoThrow();

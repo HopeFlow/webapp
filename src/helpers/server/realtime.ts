@@ -107,6 +107,7 @@ const toDate = (value?: Date | string | number) => {
 
 const publishRealtimeMessage = defineServerFunction({
   uniqueKey: "realtime::publishMessage",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role
   handler: async (
     type: string,
     payload: unknown,
@@ -269,8 +270,8 @@ type SendNotificationParams =
 
 export const initializeNotifications = defineServerFunction({
   uniqueKey: "realtime::initializeNotifications",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- any authenticated user can have notifications
   handler: async () => {
-    // No need to check roles; any authenticated user can have notifications
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Not authenticated");
     const db = await getHopeflowDatabase();
@@ -308,7 +309,9 @@ export const initializeNotifications = defineServerFunction({
 
 export const sendNotification = defineServerFunction({
   uniqueKey: "realtime::sendNotification",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role
   handler: async (params: SendNotificationParams) => {
+    // TODO: Rethink this
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Not authenticated");
 

@@ -116,11 +116,11 @@ export type QuestsPage = {
 export const quests = createApiEndpoint({
   uniqueKey: "home::quests",
   type: "query",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- any authenticated user can view their quests
   handler: async (params: {
     offset: number;
     limit: number;
   }): Promise<QuestsPage> => {
-    // No role check here; any authenticated user can view their quests
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Unauthenticated");
 

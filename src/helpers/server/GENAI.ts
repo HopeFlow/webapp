@@ -110,9 +110,8 @@ Create a Stable Diffusion prompt from user's description of his/her quest.
 const promptJsonSchema = z.object({ prompt: z.string() });
 export const generateCoverPhoto = defineServerFunction({
   uniqueKey: "genai::generateCoverPhoto",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- any authenticated user can create a new quest
   handler: async (description: string) => {
-    // No need to check roles; any authenticated user can create a new quest
-    // and so they can generate a cover photo
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Not authenticated");
     const { output_parsed } = await openai.responses.parse({

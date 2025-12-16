@@ -1,6 +1,4 @@
-import { getHopeflowDatabase } from "@/db";
 import Onboarding from "./onboarding";
-import { questTable } from "@/db/schema";
 import { publicPage, withUser } from "@/helpers/server/page_component";
 import { redirectToHome } from "@/helpers/server/routes";
 

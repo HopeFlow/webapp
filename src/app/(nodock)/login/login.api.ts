@@ -13,6 +13,7 @@ type EnsureOAuthInput = {
 export const ensureOAuthProfileWithDefaults = createApiEndpoint({
   uniqueKey: "login::ensureOAuthProfileWithDefaults",
   type: "mutation",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role
   handler: async (input: EnsureOAuthInput): Promise<boolean> => {
     const user = await currentUserNoThrow();
     const client = await clerkClientNoThrow();

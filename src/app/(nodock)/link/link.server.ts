@@ -173,8 +173,8 @@ const isLikelyBot = (reqHeaders: HeaderSource | null): boolean => {
 
 export const trackLinkPageView = defineServerFunction({
   uniqueKey: "link::trackLinkPageView",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- we just want to log the view.
   handler: async function (questId: string, linkId: string): Promise<boolean> {
-    // No need for checking roles or authentication here; we just want to log the view.
     if (!questId || !linkId) return false;
     try {
       const headerList = await headers();
@@ -357,6 +357,7 @@ FROM (${getUserBranchSql(sql`${queryId}`, sql`${userId}`)}) n
  */
 export const getQuestAndNodesForLinkByLinkCode = defineServerFunction({
   uniqueKey: "link::getQuestAndNodesForLinkByLinkCode",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- Function handles all access cases internally
   handler: async function (
     linkCode: string,
     preview?: boolean,
@@ -395,8 +396,6 @@ export const getQuestAndNodesForLinkByLinkCode = defineServerFunction({
         accessRestricted?: boolean; // true
       }
   > {
-    // No need for checking roles or authentication here; the function handles all cases internally.
-
     const db = await getHopeflowDatabase();
     const linkEntry = await db.query.linkTable.findFirst({
       where: eq(linkTable.linkCode, linkCode),

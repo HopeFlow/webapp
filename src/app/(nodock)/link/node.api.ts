@@ -21,8 +21,8 @@ import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 export const readNodes = createApiEndpoint({
   uniqueKey: "link::readNodes",
   type: "query",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- getQuestAndNodesForLinkByLinkCode handles access
   handler: async ({ linkCode }: { linkCode: string }) => {
-    // No need to check user role here; getQuestAndNodesForLinkByLinkCode handles access
     const context = await getQuestAndNodesForLinkByLinkCode(linkCode);
 
     if (
@@ -121,10 +121,8 @@ export const readNodes = createApiEndpoint({
 export const addNode = createApiEndpoint({
   uniqueKey: "link::addNode",
   type: "mutation",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- public broadcast links allow any authenticated user to join and private targeted links handle access via JWT token
   handler: async (linkCode: string, referer: SocialMediaName) => {
-    // No role check here; public broadcast links allow any authenticated user to join and
-    // private targeted links handle access via JWT token
-
     const viewer = await currentUserNoThrow();
     if (!viewer) throw new Error("Please sign in to join the quest");
 

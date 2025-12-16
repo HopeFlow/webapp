@@ -331,6 +331,7 @@ const buildTimelineRecords = ({
 export const readLinkTimeline = createApiEndpoint({
   uniqueKey: "link::readLinkTimeline",
   type: "query",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- getQuestAndNodesForLinkByLinkCode handles access
   handler: async ({ linkCode }: LinkTimelineReadParams) => {
     const viewer = await currentUserNoThrow();
     const context = await getQuestAndNodesForLinkByLinkCode(linkCode);
@@ -378,6 +379,7 @@ export const readLinkTimeline = createApiEndpoint({
 export const addLinkTimelineComment = createApiEndpoint({
   uniqueKey: "link::addLinkTimelineComment",
   type: "mutation",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- handled internally
   handler: async ({ content, referer, linkCode }: LinkTimelineCreateInput) => {
     const viewer = await currentUserNoThrow();
     if (!viewer) throw new Error("Please sign in to leave a comment");
@@ -439,6 +441,7 @@ export const addLinkTimelineComment = createApiEndpoint({
 export const reactToLinkTimelineComment = createApiEndpoint({
   uniqueKey: "link::reactToLinkTimelineComment",
   type: "mutation",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- handled internally
   handler: async ({
     commentId,
     reaction,

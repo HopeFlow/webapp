@@ -30,9 +30,8 @@ Name: ${JSON.stringify(inputName)}
 
 export const transliterate = defineServerFunction({
   uniqueKey: "llm::transliterate",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- name transliteration is for completing user profiles
   handler: async (inputName: string) => {
-    // No need to check roles; name transliteration is for completing user profiles
-    // and so any authenticated user can use it
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Not authenticated");
     const response = await openai.responses.create({
@@ -227,6 +226,7 @@ export type QuestIntentState = z.infer<typeof questIntentStateSchema>;
 
 export const createQuestChat = defineServerFunction({
   uniqueKey: "llm::createQuestChat",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- any authenticated user can create a new quest
   handler: async function* (
     previousState: QuestIntentState | null,
     newUserMessage: string,
@@ -239,8 +239,6 @@ export const createQuestChat = defineServerFunction({
     void,
     unknown
   > {
-    // No need to check roles; any authenticated user can create a new quest and
-    // so they can use the quest chat
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Not authenticated");
 
@@ -448,6 +446,7 @@ export type GeneratedTitleAndDescriptionEvent = {
 
 export const getQuestTitleAndDescription = defineServerFunction({
   uniqueKey: "llm::getQuestTitleAndDescription",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- any authenticated user can create a new quest
   handler: async function* (
     nameOfUser: string,
     questIntentState: QuestIntentState,
@@ -456,8 +455,6 @@ export const getQuestTitleAndDescription = defineServerFunction({
     void,
     unknown
   > {
-    // No need to check roles; any authenticated user can create a new quest and
-    // so they can get the generated title and description
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Not authenticated");
     yield {

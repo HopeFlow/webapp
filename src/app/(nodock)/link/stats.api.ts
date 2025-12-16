@@ -118,6 +118,7 @@ const buildStatsResponse = (
 export const linkStatsCard = createApiEndpoint({
   uniqueKey: "link::linkStatsCard",
   type: "query",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- handled internally
   handler: async ({ questId, linkCode }: LinkStatsCardReadParams) => {
     const trimmedQuestId = questId?.trim();
     if (!trimmedQuestId) {

@@ -11,9 +11,12 @@ const compat = new FlatCompat({ baseDirectory: __dirname });
 const eslintConfig = [
   {
     ignores: [
+      "eslint-plugin-hopeflow/**",
       ".wrangler/**",
       "node_modules/**",
       ".next/**",
+      ".open-next/**",
+      ".tmpgen/**",
       "out/**",
       "build/**",
       "cloudflare-env.d.ts",
