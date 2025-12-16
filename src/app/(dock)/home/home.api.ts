@@ -8,7 +8,7 @@ import {
   questTable,
 } from "@/db/schema";
 import { clerkClientNoThrow, currentUserNoThrow } from "@/helpers/server/auth";
-import { createApiEndpoint } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 import { executeWithDateParsing } from "@/helpers/server/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 
@@ -116,12 +116,14 @@ export type QuestsPage = {
 export const quests = createApiEndpoint({
   uniqueKey: "home::quests",
   type: "query",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- any authenticated user can view their quests
   handler: async (params: {
     offset: number;
     limit: number;
   }): Promise<QuestsPage> => {
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Unauthenticated");
+
     const db = await getHopeflowDatabase();
     // 1) Gather quests the user is related to (seeker, contributor, or bookmark)
     //    and keep the oldest interaction timestamp per quest for pagination.

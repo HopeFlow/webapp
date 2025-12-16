@@ -173,6 +173,7 @@ const isLikelyBot = (reqHeaders: HeaderSource | null): boolean => {
 
 export const trackLinkPageView = defineServerFunction({
   uniqueKey: "link::trackLinkPageView",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- we just want to log the view.
   handler: async function (questId: string, linkId: string): Promise<boolean> {
     if (!questId || !linkId) return false;
     try {
@@ -356,6 +357,7 @@ FROM (${getUserBranchSql(sql`${queryId}`, sql`${userId}`)}) n
  */
 export const getQuestAndNodesForLinkByLinkCode = defineServerFunction({
   uniqueKey: "link::getQuestAndNodesForLinkByLinkCode",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- Function handles all access cases internally
   handler: async function (
     linkCode: string,
     preview?: boolean,

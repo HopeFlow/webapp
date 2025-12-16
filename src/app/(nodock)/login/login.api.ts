@@ -1,6 +1,6 @@
 "use server";
 
-import { createApiEndpoint } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 import { currentUserNoThrow, clerkClientNoThrow } from "@/helpers/server/auth";
 import { upsertUserProfile, ensureCreatedFlag } from "@/helpers/server/profile";
 
@@ -13,6 +13,7 @@ type EnsureOAuthInput = {
 export const ensureOAuthProfileWithDefaults = createApiEndpoint({
   uniqueKey: "login::ensureOAuthProfileWithDefaults",
   type: "mutation",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role
   handler: async (input: EnsureOAuthInput): Promise<boolean> => {
     const user = await currentUserNoThrow();
     const client = await clerkClientNoThrow();

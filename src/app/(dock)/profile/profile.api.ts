@@ -1,5 +1,5 @@
 "use server";
-import { createApiEndpoint } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 import {
   readCurrentUserProfile as readCurrentUserProfile__,
   updateCurrentUserProfile as updateCurrentUserProfile__,

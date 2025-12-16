@@ -6,6 +6,7 @@ import { defineServerFunction } from "./define_server_function";
 import { GoogleGenAI, PersonGeneration } from "@google/genai";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod.mjs";
+import { currentUserNoThrow } from "./auth";
 
 if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not set");
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -109,8 +110,10 @@ Create a Stable Diffusion prompt from user's description of his/her quest.
 const promptJsonSchema = z.object({ prompt: z.string() });
 export const generateCoverPhoto = defineServerFunction({
   uniqueKey: "genai::generateCoverPhoto",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- any authenticated user can create a new quest
   handler: async (description: string) => {
-    // console.log("start", new Date().toTimeString());
+    const user = await currentUserNoThrow();
+    if (!user) throw new Error("Not authenticated");
     const { output_parsed } = await openai.responses.parse({
       model: "gpt-4.1-mini",
       input: [
@@ -126,10 +129,7 @@ export const generateCoverPhoto = defineServerFunction({
       process.env.NODE_ENV === "development"
         ? await generateByGptImage1(output_parsed.prompt)
         : await generateByGeminiPro(output_parsed.prompt);
-    // console.log("generate", new Date().toTimeString());
-    // const base64Image = await generateByWorkersAi(output_parsed.prompt);
-    // console.log("done", new Date().toTimeString());
-    // console.log({ base64Image });
+
     return base64Image;
   },
 });

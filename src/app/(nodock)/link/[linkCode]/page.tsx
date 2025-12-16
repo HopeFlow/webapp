@@ -41,7 +41,7 @@ async function ContentsForUser({
   const sanitizedReferer: SocialMediaName = isSocialMediaName(referer)
     ? referer
     : "unknown";
-  const { seekerView, link, quest, userNode, nodes, accessRestricted } =
+  const { seekerView, link, quest, nodes, accessRestricted } =
     await getQuestAndNodesForLinkByLinkCode(linkCode);
   if (!quest) {
     if (accessRestricted) return <AccessRestricted />;
@@ -163,7 +163,7 @@ async function ContentsForUser({
     <Prefetch
       actions={[
         prefetchReadLinkTimeline({ linkCode }),
-        prefetchLinkStatsCard({ questId: quest.id }),
+        prefetchLinkStatsCard({ questId: quest.id, linkCode }),
         prefetchReadNodes({ linkCode }),
       ]}
     >

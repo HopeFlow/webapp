@@ -326,7 +326,7 @@ export const ReflowModal = ({
         true, // LinkPreview
       ];
     }
-  }, [type, name]);
+  }, [type, name, endorsementNote]);
 
   const nextButtonContent: (stepIndex: number) => ReactNode = (stepIndex) => {
     if (stepIndex === stepValidity.length - 2) {

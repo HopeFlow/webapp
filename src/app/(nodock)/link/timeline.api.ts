@@ -8,7 +8,11 @@ import {
   questHistoryTable,
   questTable,
 } from "@/db/schema";
-import { currentUserNoThrow, withUserData } from "@/helpers/server/auth";
+import {
+  currentUserNoThrow,
+  verifyLinkJwtToken,
+  withUserData,
+} from "@/helpers/server/auth";
 import {
   LinkTimelineCreateInput,
   LinkTimelineReactionInput,
@@ -20,7 +24,7 @@ import { getQuestAndNodesForLinkByLinkCode } from "./link.server";
 import type { QuestHistoryWithRelations } from "../common/quest_history";
 import { and, eq } from "drizzle-orm";
 import { SocialMediaName } from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
-import { createApiEndpoint } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 
 type HistoryEntryWithActor = QuestHistoryWithRelations & {
   actorName?: string | null;
@@ -327,6 +331,7 @@ const buildTimelineRecords = ({
 export const readLinkTimeline = createApiEndpoint({
   uniqueKey: "link::readLinkTimeline",
   type: "query",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- getQuestAndNodesForLinkByLinkCode handles access
   handler: async ({ linkCode }: LinkTimelineReadParams) => {
     const viewer = await currentUserNoThrow();
     const context = await getQuestAndNodesForLinkByLinkCode(linkCode);
@@ -374,6 +379,7 @@ export const readLinkTimeline = createApiEndpoint({
 export const addLinkTimelineComment = createApiEndpoint({
   uniqueKey: "link::addLinkTimelineComment",
   type: "mutation",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- handled internally
   handler: async ({ content, referer, linkCode }: LinkTimelineCreateInput) => {
     const viewer = await currentUserNoThrow();
     if (!viewer) throw new Error("Please sign in to leave a comment");
@@ -385,6 +391,10 @@ export const addLinkTimelineComment = createApiEndpoint({
       where: eq(linkTable.linkCode, linkCode),
     });
     if (!link) throw new Error("Link not found");
+    if (link.type === "targeted") {
+      const hasAccess = await verifyLinkJwtToken(link);
+      if (!hasAccess) throw new Error("Access to this link is restricted");
+    }
 
     const { nodeId, pendingInsert } = await prepareUserNode({
       db,
@@ -431,6 +441,7 @@ export const addLinkTimelineComment = createApiEndpoint({
 export const reactToLinkTimelineComment = createApiEndpoint({
   uniqueKey: "link::reactToLinkTimelineComment",
   type: "mutation",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- handled internally
   handler: async ({
     commentId,
     reaction,
@@ -448,9 +459,13 @@ export const reactToLinkTimelineComment = createApiEndpoint({
       }),
       db.query.linkTable.findFirst({ where: eq(linkTable.linkCode, linkCode) }),
     ]);
+    if (!link) throw new Error("Link not found");
+    if (link.type === "targeted") {
+      const hasAccess = await verifyLinkJwtToken(link);
+      if (!hasAccess) throw new Error("Access to this link is restricted");
+    }
 
     if (!comment) throw new Error("Comment not found");
-    if (!link) throw new Error("Link not found");
     if (comment.questId !== link.questId)
       throw new Error("Mismatch between comment and quest");
 

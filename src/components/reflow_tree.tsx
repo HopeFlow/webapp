@@ -438,7 +438,8 @@ export const ReflowTree = ({
   userImageUrl?: string;
 }) => {
   if (!treeNodes) return null;
-  const { treeLayers, ...dimensions } = computeTreeNodeWithPositions(treeNodes);
+  const { treeLayers /*, ...dimensions*/ } =
+    computeTreeNodeWithPositions(treeNodes);
   const rawBounds = treeLayers.reduce(
     (acc, layer) => {
       layer.forEach((node) => {

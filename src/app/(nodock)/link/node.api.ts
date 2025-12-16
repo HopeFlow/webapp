@@ -2,7 +2,11 @@
 
 import { getHopeflowDatabase } from "@/db";
 import { nodeTable, questHistoryTable } from "@/db/schema";
-import { currentUserNoThrow, withUserData } from "@/helpers/server/auth";
+import {
+  currentUserNoThrow,
+  verifyLinkJwtToken,
+  withUserData,
+} from "@/helpers/server/auth";
 import { linkTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { prepareUserNode } from "./timeline.api";
@@ -12,11 +16,12 @@ import {
   getWinnerPathsForQuests,
 } from "./link.server";
 import { ReFlowNodeSimple } from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
-import { createApiEndpoint } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 
 export const readNodes = createApiEndpoint({
   uniqueKey: "link::readNodes",
   type: "query",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- getQuestAndNodesForLinkByLinkCode handles access
   handler: async ({ linkCode }: { linkCode: string }) => {
     const context = await getQuestAndNodesForLinkByLinkCode(linkCode);
 
@@ -116,6 +121,7 @@ export const readNodes = createApiEndpoint({
 export const addNode = createApiEndpoint({
   uniqueKey: "link::addNode",
   type: "mutation",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- public broadcast links allow any authenticated user to join and private targeted links handle access via JWT token
   handler: async (linkCode: string, referer: SocialMediaName) => {
     const viewer = await currentUserNoThrow();
     if (!viewer) throw new Error("Please sign in to join the quest");
@@ -125,6 +131,10 @@ export const addNode = createApiEndpoint({
       where: eq(linkTable.linkCode, linkCode),
     });
     if (!link) throw new Error("Link not found");
+    if (link.type === "targeted" && !link.active) {
+      if (!verifyLinkJwtToken(link))
+        throw new Error("This link is no longer active");
+    }
 
     const { nodeId, pendingInsert } = await prepareUserNode({
       db,

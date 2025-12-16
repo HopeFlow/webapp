@@ -16,7 +16,7 @@ import {
 } from "three";
 import type { ReFlowNodeSimple } from "./ReflowTree";
 
-const MAX_CHILDREN_PER_LEVEL = 10;
+// const MAX_CHILDREN_PER_LEVEL = 10;
 
 type LayerStats = {
   depth: number;
@@ -26,8 +26,8 @@ type LayerStats = {
   maxChildren: number;
 };
 
-const clampValue = (value: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, value));
+// const clampValue = (value: number, min: number, max: number) =>
+//   Math.max(min, Math.min(max, value));
 
 const hashStringToSeed = (value: string) => {
   if (!value) return 1;
@@ -70,18 +70,26 @@ const collectLayerStats = (root: ReFlowNodeSimple): LayerStats[] => {
 const BARK_TINTS = [0x654321, 0x5b3a29, 0x734f2b, 0x59381d] as const;
 const LEAF_TINTS = [0x8ee59a, 0xa1f0a4, 0x77d8b2, 0xb0f5b9] as const;
 const SPECIES = ["Ash", "Aspen", "Oak", "Pine"] as const;
-const BASE_TREE_SIZES = ["Small", "Medium", "Large"] as const;
-const TREE_SIZES = [
-  "Sprout",
-  "Small",
-  "SmallMedium",
-  "Medium",
-  "MediumLarge",
-  "Large",
-] as const;
+// const BASE_TREE_SIZES = ["Small", "Medium", "Large"] as const;
+// const TREE_SIZES = [
+//   "Sprout",
+//   "Small",
+//   "SmallMedium",
+//   "Medium",
+//   "MediumLarge",
+//   "Large",
+// ] as const;
 type SpeciesName = (typeof SPECIES)[number];
-type BaseTreeSize = (typeof BASE_TREE_SIZES)[number];
-type TreeSize = (typeof TREE_SIZES)[number];
+// type BaseTreeSize = (typeof BASE_TREE_SIZES)[number];
+type BaseTreeSize = "Small" | "Medium" | "Large";
+// type TreeSize = (typeof TREE_SIZES)[number];
+type TreeSize =
+  | "Sprout"
+  | "Small"
+  | "SmallMedium"
+  | "Medium"
+  | "MediumLarge"
+  | "Large";
 type PresetName = `${SpeciesName} ${BaseTreeSize}`;
 
 type TreeOptionsLike = Tree["options"];

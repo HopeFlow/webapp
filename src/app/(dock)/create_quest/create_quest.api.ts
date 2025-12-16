@@ -7,7 +7,7 @@ import type {
 } from "@/app/(dock)/create_quest/types";
 import { getHopeflowDatabase } from "@/db";
 import { linkTable, nodeTable, questTable } from "@/db/schema";
-import { createApiEndpoint } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 import { currentUserNoThrow } from "@/helpers/server/auth";
 import type { CoverPhoto as QuestCoverPhoto, QuestMedia } from "@/db/constants";
 import { eq } from "drizzle-orm";
@@ -119,6 +119,7 @@ const generateLinkCode = () =>
 export const insertQuest = createApiEndpoint({
   uniqueKey: "createQuest::insertQuest",
   type: "mutation",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- any authenticated user can create a quest
   handler: async (payload: InsertQuestData) => {
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Unauthenticated");

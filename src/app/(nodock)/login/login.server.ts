@@ -6,6 +6,7 @@ import { defineServerFunction } from "@/helpers/server/define_server_function";
 
 export const isUserProfileCreated = defineServerFunction({
   uniqueKey: "login::isUserProfileCreated",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role
   handler: async (userId: string) => {
     const db = await getHopeflowDatabase();
     const row = await db.query.userProfileTable.findFirst({

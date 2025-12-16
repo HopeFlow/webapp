@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 import { defineServerFunction } from "./define_server_function";
+import { currentUserNoThrow } from "./auth";
 
 // #region preamble
 
@@ -29,7 +30,10 @@ Name: ${JSON.stringify(inputName)}
 
 export const transliterate = defineServerFunction({
   uniqueKey: "llm::transliterate",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- name transliteration is for completing user profiles
   handler: async (inputName: string) => {
+    const user = await currentUserNoThrow();
+    if (!user) throw new Error("Not authenticated");
     const response = await openai.responses.create({
       model: "gpt-5-nano",
       input: getTransliteratePrompt(inputName),
@@ -222,6 +226,7 @@ export type QuestIntentState = z.infer<typeof questIntentStateSchema>;
 
 export const createQuestChat = defineServerFunction({
   uniqueKey: "llm::createQuestChat",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- any authenticated user can create a new quest
   handler: async function* (
     previousState: QuestIntentState | null,
     newUserMessage: string,
@@ -234,6 +239,9 @@ export const createQuestChat = defineServerFunction({
     void,
     unknown
   > {
+    const user = await currentUserNoThrow();
+    if (!user) throw new Error("Not authenticated");
+
     // 1) Update quest intent state
     yield { type: "reasoning-part", title: "Updating quest intent state..." };
 
@@ -438,6 +446,7 @@ export type GeneratedTitleAndDescriptionEvent = {
 
 export const getQuestTitleAndDescription = defineServerFunction({
   uniqueKey: "llm::getQuestTitleAndDescription",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- any authenticated user can create a new quest
   handler: async function* (
     nameOfUser: string,
     questIntentState: QuestIntentState,
@@ -446,6 +455,8 @@ export const getQuestTitleAndDescription = defineServerFunction({
     void,
     unknown
   > {
+    const user = await currentUserNoThrow();
+    if (!user) throw new Error("Not authenticated");
     yield {
       type: "reasoning-part",
       title: "Generating title and description...",

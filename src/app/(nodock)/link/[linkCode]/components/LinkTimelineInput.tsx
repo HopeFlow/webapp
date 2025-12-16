@@ -84,7 +84,7 @@ export function LinkTimelineInput({
         queryKey: getReadLinkTimelineQueryKey({ linkCode }),
       });
       queryClient.invalidateQueries({
-        queryKey: getLinkStatsCardQueryKey({ questId }),
+        queryKey: getLinkStatsCardQueryKey({ questId, linkCode }),
       });
     },
   });
