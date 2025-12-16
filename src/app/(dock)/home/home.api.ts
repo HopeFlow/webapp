@@ -8,7 +8,7 @@ import {
   questTable,
 } from "@/db/schema";
 import { clerkClientNoThrow, currentUserNoThrow } from "@/helpers/server/auth";
-import { createApiEndpoint } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 import { executeWithDateParsing } from "@/helpers/server/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 

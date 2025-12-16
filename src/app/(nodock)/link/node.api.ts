@@ -16,7 +16,7 @@ import {
   getWinnerPathsForQuests,
 } from "./link.server";
 import { ReFlowNodeSimple } from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
-import { createApiEndpoint } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 
 export const readNodes = createApiEndpoint({
   uniqueKey: "link::readNodes",

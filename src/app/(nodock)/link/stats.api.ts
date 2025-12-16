@@ -17,7 +17,7 @@ import type {
   LinkStatusStat,
   LinkStatusStatIcon,
 } from "./types";
-import { createApiEndpoint } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 
 type HopeflowDb = Awaited<ReturnType<typeof getHopeflowDatabase>>;
 

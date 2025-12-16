@@ -6,6 +6,7 @@ import { defineServerFunction } from "./define_server_function";
 import { GoogleGenAI, PersonGeneration } from "@google/genai";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod.mjs";
+import { currentUserNoThrow } from "./auth";
 
 if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY is not set");
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -110,7 +111,10 @@ const promptJsonSchema = z.object({ prompt: z.string() });
 export const generateCoverPhoto = defineServerFunction({
   uniqueKey: "genai::generateCoverPhoto",
   handler: async (description: string) => {
-    // console.log("start", new Date().toTimeString());
+    // No need to check roles; any authenticated user can create a new quest
+    // and so they can generate a cover photo
+    const user = await currentUserNoThrow();
+    if (!user) throw new Error("Not authenticated");
     const { output_parsed } = await openai.responses.parse({
       model: "gpt-4.1-mini",
       input: [
@@ -126,10 +130,7 @@ export const generateCoverPhoto = defineServerFunction({
       process.env.NODE_ENV === "development"
         ? await generateByGptImage1(output_parsed.prompt)
         : await generateByGeminiPro(output_parsed.prompt);
-    // console.log("generate", new Date().toTimeString());
-    // const base64Image = await generateByWorkersAi(output_parsed.prompt);
-    // console.log("done", new Date().toTimeString());
-    // console.log({ base64Image });
+
     return base64Image;
   },
 });

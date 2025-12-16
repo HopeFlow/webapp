@@ -7,7 +7,7 @@ import type {
 } from "@/app/(dock)/create_quest/types";
 import { getHopeflowDatabase } from "@/db";
 import { linkTable, nodeTable, questTable } from "@/db/schema";
-import { createApiEndpoint } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 import { currentUserNoThrow } from "@/helpers/server/auth";
 import type { CoverPhoto as QuestCoverPhoto, QuestMedia } from "@/db/constants";
 import { eq } from "drizzle-orm";

@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 import { defineServerFunction } from "./define_server_function";
+import { currentUserNoThrow } from "./auth";
 
 // #region preamble
 
@@ -30,6 +31,10 @@ Name: ${JSON.stringify(inputName)}
 export const transliterate = defineServerFunction({
   uniqueKey: "llm::transliterate",
   handler: async (inputName: string) => {
+    // No need to check roles; name transliteration is for completing user profiles
+    // and so any authenticated user can use it
+    const user = await currentUserNoThrow();
+    if (!user) throw new Error("Not authenticated");
     const response = await openai.responses.create({
       model: "gpt-5-nano",
       input: getTransliteratePrompt(inputName),
@@ -234,6 +239,11 @@ export const createQuestChat = defineServerFunction({
     void,
     unknown
   > {
+    // No need to check roles; any authenticated user can create a new quest and
+    // so they can use the quest chat
+    const user = await currentUserNoThrow();
+    if (!user) throw new Error("Not authenticated");
+
     // 1) Update quest intent state
     yield { type: "reasoning-part", title: "Updating quest intent state..." };
 
@@ -446,6 +456,10 @@ export const getQuestTitleAndDescription = defineServerFunction({
     void,
     unknown
   > {
+    // No need to check roles; any authenticated user can create a new quest and
+    // so they can get the generated title and description
+    const user = await currentUserNoThrow();
+    if (!user) throw new Error("Not authenticated");
     yield {
       type: "reasoning-part",
       title: "Generating title and description...",

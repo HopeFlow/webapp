@@ -1,6 +1,6 @@
 "use server";
 
-import { createApiEndpoint } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 import { currentUserNoThrow, clerkClientNoThrow } from "@/helpers/server/auth";
 import { upsertUserProfile, ensureCreatedFlag } from "@/helpers/server/profile";
 

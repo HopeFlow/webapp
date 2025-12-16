@@ -2,7 +2,7 @@
 
 import { getHopeflowDatabase } from "@/db";
 import { REALTIME_SERVER_URL } from "../client/constants";
-import { currentUserNoThrow } from "./auth";
+import { currentUserNoThrow, ensureUserHasRole } from "./auth";
 import { defineServerFunction } from "./define_server_function";
 import { createRealtimeJwt } from "./realtime.server";
 import type { ChatMessage, Notification } from "../client/realtime";
@@ -156,13 +156,17 @@ export const initializeChatRoom = defineServerFunction({
       where: (nodeTable, { and, eq }) =>
         and(eq(nodeTable.id, nodeId), eq(nodeTable.questId, questId)),
     });
-    if (!quest || !node) {
+    if (!quest || !quest.seekerId || !node) {
       throw new Error("Quest or node not found");
     }
-    const isParticipant = quest.seekerId === user.id || node.userId === user.id;
-    if (!isParticipant) {
-      throw new Error("Access denied to this chat room");
-    }
+    ensureUserHasRole(
+      quest.seekerId,
+      [node.userId],
+      ["seeker", "contributor"],
+      user.id,
+      true,
+    );
+
     const messages = (
       await db.query.chatMessagesTable.findMany({
         where: (chatMessagesTable, { and, eq }) =>
@@ -196,9 +200,16 @@ export const sendChatMessage = defineServerFunction({
         and(eq(nodeTable.id, nodeId), eq(nodeTable.questId, questId)),
       with: { quest: { columns: { seekerId: true } } },
     });
-    if (!node || (node.quest.seekerId !== user.id && node.userId !== user.id)) {
-      throw new Error("Node not found or access denied to this chat room");
+    if (!node || !node.quest || !node.quest.seekerId) {
+      throw new Error("Chat not found");
     }
+    ensureUserHasRole(
+      node.quest.seekerId,
+      [node.userId],
+      ["seeker", "contributor"],
+      user.id,
+      true,
+    );
     const [message] = await db
       .insert(chatMessagesTable)
       .values({
@@ -259,6 +270,7 @@ type SendNotificationParams =
 export const initializeNotifications = defineServerFunction({
   uniqueKey: "realtime::initializeNotifications",
   handler: async () => {
+    // No need to check roles; any authenticated user can have notifications
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Not authenticated");
     const db = await getHopeflowDatabase();

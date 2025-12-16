@@ -24,7 +24,7 @@ import { getQuestAndNodesForLinkByLinkCode } from "./link.server";
 import type { QuestHistoryWithRelations } from "../common/quest_history";
 import { and, eq } from "drizzle-orm";
 import { SocialMediaName } from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
-import { createApiEndpoint } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 
 type HistoryEntryWithActor = QuestHistoryWithRelations & {
   actorName?: string | null;

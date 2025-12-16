@@ -8,7 +8,7 @@ import { clerkClientNoThrow, currentUserNoThrow } from "@/helpers/server/auth";
 import { emailFrequencyDef } from "@/db/constants";
 import { EmailFrequency } from "@/components/profile/emailSettings";
 import { defineServerFunction } from "@/helpers/server/define_server_function";
-import { createApiEndpoint } from "@/helpers/server/create_server_action";
+import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 
 export type UserPreferences = {
   emailEnabled?: boolean;
@@ -41,6 +41,7 @@ const checkIfLatin = (str: string) => {
 export const toAscii = defineServerFunction({
   uniqueKey: "common::toAscii",
   handler: async (firstNameRaw: string) => {
+    // No need to check roles; all restrictions are enforced in transliterate()
     const firstName = (firstNameRaw || "").trim();
     if (!firstName) return "";
     if (checkIfAscii(firstName)) return firstName;
