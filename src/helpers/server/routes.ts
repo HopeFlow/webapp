@@ -87,6 +87,9 @@ export const redirectToQuest = (props: { questId: string }): never =>
     ].join("/"),
   );
 
+// Corresponding to src/app/(nodock)/draft/og-test/page.tsx
+export const redirectToDraftOgTest = (): never => redirect("/draft/og-test");
+
 // Corresponding to src/app/(nodock)/link/[linkCode]/page.tsx
 export const redirectToLink = (props: {
   linkCode: string;
@@ -132,6 +135,7 @@ const routeSpecs: Map<
   | "CreateAccount"
   | "Login"
   | "Quest"
+  | "DraftOgTest"
   | "Link"
   | "LinkDraft"
   | "Chat",
@@ -233,6 +237,15 @@ const routeSpecs: Map<
     },
   ],
   [
+    "DraftOgTest",
+    {
+      pathRegExp: /^\/draft\/og-test$/,
+      paramsTypeDef: undefined,
+      searchParamsTypeDef: undefined,
+      isPublic: false,
+    },
+  ],
+  [
     "Link",
     {
       pathRegExp: /^\/link\/(?<linkCode>[^/]+)$/,
@@ -321,6 +334,8 @@ export const redirectTo = (urlString: string): never => {
       return redirectToLogin(props as any);
     case "Quest":
       return redirectToQuest(props as any);
+    case "DraftOgTest":
+      return redirectToDraftOgTest();
     case "Link":
       return redirectToLink(props as any);
     case "LinkDraft":

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import NextTopLoader from "nextjs-toploader";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import Providers from "./providers";
@@ -29,6 +30,7 @@ export default function RootLayout({
       <body
         className={`flex min-h-full w-full flex-col ${geistSans.variable} ${geistMono.variable} bg-base-200 text-base-content text-lg font-light antialiased`}
       >
+        <NextTopLoader />
         <Providers>
           <Suspense fallback={<SplashScreen />}>{children}</Suspense>
         </Providers>

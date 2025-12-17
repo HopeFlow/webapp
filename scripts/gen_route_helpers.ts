@@ -6,13 +6,11 @@ import {
   toPascalCase,
 } from "./ts_morph_utilities";
 import {
-  ArrowFunction,
   CallExpression,
   Node,
   ObjectLiteralExpression,
   Symbol,
   SyntaxKind,
-  Type,
 } from "ts-morph";
 
 const main = () => {
@@ -34,24 +32,35 @@ const main = () => {
     project.createSourceFile("src/helpers/server/routes.ts");
   serverSourceFile.replaceWithText("");
 
+  const cloneVariableStatementStructure = <T extends { declarations?: any[] }>(
+    structure: T,
+  ): T => ({
+    ...structure,
+    declarations: structure.declarations?.map((d) => ({ ...d })),
+  });
+
   const addServerRedirectFunction = (
     routeName: string,
     propsType: Symbol[] | undefined,
     templateName: string,
   ) => {
-    const redirectToRouteFunctionStatement =
-      serverSourceFile.addVariableStatement(
-        serverTemplate.getVariableStatementOrThrow(templateName).getStructure(),
-      );
-    const functionDeclarations =
-      redirectToRouteFunctionStatement.getDeclarations();
-    if (functionDeclarations.length !== 1)
+    const templateStructure = cloneVariableStatementStructure(
+      serverTemplate.getVariableStatementOrThrow(templateName).getStructure(),
+    );
+    if (
+      !templateStructure.declarations ||
+      templateStructure.declarations.length !== 1
+    )
       throw new Error("Expected 1 declaration");
-    functionDeclarations[0].rename(`redirectTo${routeName}`);
-    const redirectFunction =
-      functionDeclarations[0].getInitializerIfKindOrThrow(
-        SyntaxKind.ArrowFunction,
-      );
+    templateStructure.declarations[0].name = `redirectTo${routeName}`;
+
+    const redirectToRouteFunctionStatement =
+      serverSourceFile.addVariableStatement(templateStructure);
+    const redirectFunction = redirectToRouteFunctionStatement
+      .getDeclarations()
+      .at(0)
+      ?.getInitializerIfKindOrThrow(SyntaxKind.ArrowFunction);
+    if (!redirectFunction) throw new Error("Could not find redirect function");
     if (propsType)
       redirectFunction
         .getParameterOrThrow("props")
@@ -73,18 +82,23 @@ const main = () => {
     propsType: Symbol[] | undefined,
     templateName: string,
   ) => {
-    const redirectToRouteFunctionStatement =
-      clientSourceFile.addVariableStatement(
-        clientTemplate.getVariableStatementOrThrow(templateName).getStructure(),
-      );
-    const functionDeclarations =
-      redirectToRouteFunctionStatement.getDeclarations();
-    if (functionDeclarations.length !== 1)
-      throw new Error("Expected 1 declaration");
     const hookName = `useGoto${routeName}`;
-    functionDeclarations[0].rename(hookName);
-    const redirectFunction = functionDeclarations[0]
-      .getInitializerIfKindOrThrow(SyntaxKind.ArrowFunction)
+    const templateStructure = cloneVariableStatementStructure(
+      clientTemplate.getVariableStatementOrThrow(templateName).getStructure(),
+    );
+    if (
+      !templateStructure.declarations ||
+      templateStructure.declarations.length !== 1
+    )
+      throw new Error("Expected 1 declaration");
+    templateStructure.declarations[0].name = hookName;
+
+    const redirectToRouteFunctionStatement =
+      clientSourceFile.addVariableStatement(templateStructure);
+    const redirectFunction = redirectToRouteFunctionStatement
+      .getDeclarations()
+      .at(0)
+      ?.getInitializerIfKindOrThrow(SyntaxKind.ArrowFunction)
       .getBody()
       .asKindOrThrow(SyntaxKind.Block)
       .getFirstDescendantByKindOrThrow(SyntaxKind.ReturnStatement)
@@ -157,7 +171,7 @@ const main = () => {
 
     const routeName =
       filePath
-        .split("/")
+        .split(/\/|\-/g)
         .slice(2, -1)
         .reduce((s, p) => {
           if (!/^[a-zA-Z0-9]/.test(p)) return s;
@@ -179,8 +193,8 @@ const main = () => {
         part: isArrayParam
           ? part.slice(4, -1)
           : isParam
-          ? part.slice(1, -1)
-          : part,
+            ? part.slice(1, -1)
+            : part,
         isArrayParam,
         isParam,
       }));
@@ -363,10 +377,12 @@ const main = () => {
       );
     }
 
-    const redirectSignatures: Map<string, ArrowFunction> = new Map();
-    const hookSignatures: Map<string, ArrowFunction> = new Map();
+    const routeNames: Array<string> = [];
+    const routeRequiresProps: Map<string, boolean> = new Map();
     for (const [routeName, routeInfo] of routes) {
       const { path, pathParts, propsType } = routeInfo;
+      routeNames.push(routeName);
+      routeRequiresProps.set(routeName, !!propsType);
 
       serverSourceFile.addStatements(`\n// Corresponding to ${path}`);
       if (!propsType) {
@@ -380,7 +396,6 @@ const main = () => {
           .replaceWithText(
             `redirect("/${pathParts.map(({ part }) => part).join("/")}")`,
           );
-        redirectSignatures.set(routeName, redirectFunction);
       } else if (pathParts) {
         const searchParamProperties = propsType.filter(
           (p) => !pathParts.some(({ part }) => p.getName() === part),
@@ -400,7 +415,6 @@ const main = () => {
               .at(1),
             pathParts,
           );
-          redirectSignatures.set(routeName, redirectFunction);
         } else {
           const redirectFunction = addServerRedirectFunction(
             routeName,
@@ -426,7 +440,6 @@ const main = () => {
               .at(1),
             searchParamProperties,
           );
-          redirectSignatures.set(routeName, redirectFunction);
         }
       } else {
         const redirectFunction = addServerRedirectFunction(
@@ -443,7 +456,6 @@ const main = () => {
             .at(1),
           propsType,
         );
-        redirectSignatures.set(routeName, redirectFunction);
       }
 
       clientSourceFile.addStatements(`\n// Corresponding to ${path}`);
@@ -457,7 +469,6 @@ const main = () => {
           .getBody()
           .getFirstDescendantByKindOrThrow(SyntaxKind.StringLiteral)
           .replaceWithText(`"/${pathParts.map(({ part }) => part).join("/")}"`);
-        hookSignatures.set(routeName, redirectFunction);
       } else if (pathParts) {
         const searchParamProperties = propsType.filter(
           (p) => !pathParts.some(({ part }) => p.getName() === part),
@@ -477,7 +488,6 @@ const main = () => {
               .at(1),
             pathParts,
           );
-          hookSignatures.set(routeName, redirectFunction);
         } else {
           const redirectFunction = addClientRedirectHook(
             routeName,
@@ -503,7 +513,6 @@ const main = () => {
               .at(1),
             searchParamProperties,
           );
-          hookSignatures.set(routeName, redirectFunction);
         }
       } else {
         const redirectFunction = addClientRedirectHook(
@@ -520,7 +529,6 @@ const main = () => {
             .at(1),
           propsType,
         );
-        hookSignatures.set(routeName, redirectFunction);
       }
     }
 
@@ -536,11 +544,7 @@ const main = () => {
       .asKindOrThrow(SyntaxKind.TypeReference)
       .getTypeArguments()
       .at(0)
-      ?.replaceWithText(
-        Array.from(hookSignatures.keys())
-          .map((k) => JSON.stringify(k))
-          .join(" | "),
-      );
+      ?.replaceWithText(routeNames.map((k) => JSON.stringify(k)).join(" | "));
     const escapeRegExp = (v: string) =>
       v.replace(/[.*+?^${}()|[\]\\\/]/g, "\\$&");
     const getRouteSpecStr = (v: RouteInfo) =>
@@ -549,8 +553,8 @@ const main = () => {
           !isParam
             ? escapeRegExp(part)
             : !isArrayParam
-            ? `(?<${part}>[^/]+)`
-            : `(?<${part}>.+)`,
+              ? `(?<${part}>[^/]+)`
+              : `(?<${part}>.+)`,
         )
         .join(
           "\\/",
@@ -588,17 +592,15 @@ const main = () => {
 
     redirectToReturn.replaceWithText(
       "switch(routeName) {\n" +
-        Array.from(hookSignatures.entries())
-          .map(
-            ([routeName, redirectFunction]) =>
-              `case ${JSON.stringify(
-                routeName,
-              )}: return redirectTo${routeName}(${
-                redirectFunction.getParameters().length === 0
-                  ? ""
-                  : "props as any"
-              });`,
-          )
+        routeNames
+          .map((routeName) => {
+            const needsProps = routeRequiresProps.get(routeName) ?? false;
+            return `case ${JSON.stringify(
+              routeName,
+            )}: return redirectTo${routeName}(${
+              needsProps ? "props as any" : ""
+            });`;
+          })
           .join("\n") +
         "}",
     );
