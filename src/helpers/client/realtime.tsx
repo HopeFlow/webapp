@@ -12,6 +12,7 @@ import { REALTIME_SERVER_URL } from "./constants";
 import {
   initializeChatRoom,
   initializeNotifications,
+  sendChatMessage,
 } from "../server/realtime";
 import { messageStatusDef } from "@/db/constants";
 
@@ -65,20 +66,22 @@ export const useNotifications = () => {
 export const useChatRoom = (questId: string, nodeId: string) => {
   const { subscribe } = useContext(RealtimeContext);
   const [messages, setMessages] = useState<Array<ChatMessage>>([]);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [currentUserImageUrl, setCurrentUserImageUrl] = useState<
+    string | undefined
+  >(undefined);
+  const [targetUserImageUrl, setTargetUserImageUrl] = useState<
+    string | undefined
+  >(undefined);
+  const [targetUserName, setTargetUserName] = useState<string | undefined>(
+    undefined,
+  );
   useEffect(() => {
+    let cancelled = false;
     let chatMessagesInitialized = false;
     const preInitQueue: Array<ChatMessage> = [];
     const unsubscribe = subscribe((type, timestamp, payload) => {
-      if (type === "chat_messages_init") {
-        setMessages([
-          ...(payload as Array<ChatMessage>),
-          ...preInitQueue.filter(
-            (m) =>
-              !(payload as Array<ChatMessage>).some((pm) => pm.id === m.id),
-          ),
-        ]);
-        chatMessagesInitialized = true;
-      } else if (type === "chat_message") {
+      if (type === "chat_message") {
         if (!chatMessagesInitialized) {
           preInitQueue.push(payload as ChatMessage);
         } else {
@@ -90,11 +93,52 @@ export const useChatRoom = (questId: string, nodeId: string) => {
         }
       }
     });
-    initializeChatRoom(questId, nodeId);
-    return unsubscribe;
+    (async () => {
+      if (cancelled) return;
+      const {
+        currentUserId,
+        currentUserImageUrl,
+        targetUserImageUrl,
+        targetUserName,
+        messages,
+      } = await initializeChatRoom(questId, nodeId);
+      setCurrentUserId(currentUserId);
+      setCurrentUserImageUrl(currentUserImageUrl);
+      setTargetUserImageUrl(targetUserImageUrl);
+      setTargetUserName(targetUserName);
+      setMessages([
+        ...messages,
+        ...preInitQueue.filter((m) => !messages.find((pm) => pm.id === m.id)),
+      ]);
+      chatMessagesInitialized = true;
+    })();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [nodeId, questId, subscribe]);
-  const sendMessage = useCallback(() => {}, []);
-  return { messages, sendMessage };
+  const sendMessage = useCallback(
+    async (content: string) => {
+      const trimmed = content.trim();
+      if (!trimmed) return null;
+      const sentMessage = await sendChatMessage(questId, nodeId, trimmed);
+      setMessages((prev) =>
+        prev.find((m) => m.id === sentMessage.id)
+          ? prev
+          : [...prev, sentMessage],
+      );
+      return sentMessage;
+    },
+    [nodeId, questId],
+  );
+  return {
+    messages,
+    sendMessage,
+    currentUserId,
+    currentUserImageUrl,
+    targetUserImageUrl,
+    targetUserName,
+  };
 };
 
 const isRealtimeEnvelope = (payload: unknown): payload is RealtimeEnvelope => {

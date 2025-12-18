@@ -2,7 +2,7 @@
 
 import { getHopeflowDatabase } from "@/db";
 import { REALTIME_SERVER_URL } from "../client/constants";
-import { currentUserNoThrow, ensureUserHasRole } from "./auth";
+import { currentUserNoThrow, ensureUserHasRole, withUserData } from "./auth";
 import { defineServerFunction } from "./define_server_function";
 import { createRealtimeJwt } from "./realtime.server";
 import type { ChatMessage, Notification } from "../client/realtime";
@@ -160,6 +160,13 @@ export const initializeChatRoom = defineServerFunction({
     if (!quest || !quest.seekerId || !node) {
       throw new Error("Quest or node not found");
     }
+    const targetUser = await withUserData(
+      { userId: user.id === quest.seekerId ? node.userId : quest.seekerId },
+      { firstName: true, fullName: true, imageUrl: true },
+    );
+    if (!targetUser) {
+      throw new Error("Target user not found");
+    }
     ensureUserHasRole(
       quest.seekerId,
       [node.userId],
@@ -181,12 +188,13 @@ export const initializeChatRoom = defineServerFunction({
         limit: 100,
       })
     ).map(toChatMessage);
-    return publishRealtimeMessage(
-      "chat_messages_init",
+    return {
+      currentUserId: user.id,
+      currentUserImageUrl: user.imageUrl,
+      targetUserImageUrl: targetUser.imageUrl,
+      targetUserName: targetUser.firstName ?? targetUser.fullName ?? undefined,
       messages,
-      user.id,
-      user,
-    );
+    };
   },
 });
 
