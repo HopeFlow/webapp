@@ -242,6 +242,44 @@ export const sendChatMessage = defineServerFunction({
   },
 });
 
+export const sendChatTyping = defineServerFunction({
+  uniqueKey: "realtime::sendChatTyping",
+  handler: async (questId: string, nodeId: string) => {
+    const user = await currentUserNoThrow();
+    if (!user) throw new Error("Not authenticated");
+    const db = await getHopeflowDatabase();
+    const node = await db.query.nodeTable.findFirst({
+      where: (nodeTable, { and, eq }) =>
+        and(eq(nodeTable.id, nodeId), eq(nodeTable.questId, questId)),
+      with: { quest: { columns: { seekerId: true } } },
+    });
+    if (!node || !node.quest || !node.quest.seekerId) {
+      throw new Error("Chat not found");
+    }
+    ensureUserHasRole(
+      node.quest.seekerId,
+      [node.userId],
+      ["seeker", "contributor"],
+      user.id,
+      true,
+    );
+    const targetUserId =
+      user.id === node.quest.seekerId ? node.userId : node.quest.seekerId;
+    await publishRealtimeMessage(
+      "chat_typing",
+      {
+        questId,
+        nodeId,
+        userId: user.id,
+        timestamp: toTimestampString(new Date()),
+      },
+      targetUserId ?? undefined,
+      user,
+    );
+    return true;
+  },
+});
+
 type NotificationEventType = (typeof updateTypeDef)[number];
 
 type NotificationPointerKey =

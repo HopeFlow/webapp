@@ -13,6 +13,7 @@ import {
   initializeChatRoom,
   initializeNotifications,
   sendChatMessage,
+  sendChatTyping,
 } from "../server/realtime";
 import { messageStatusDef } from "@/db/constants";
 
@@ -37,6 +38,13 @@ export type Notification = {
   message: string;
   url: string;
   status: (typeof messageStatusDef)[number];
+  timestamp: string;
+};
+
+type ChatTypingEvent = {
+  questId: string;
+  nodeId: string;
+  userId: string;
   timestamp: string;
 };
 
@@ -67,6 +75,7 @@ export const useChatRoom = (questId: string, nodeId: string) => {
   const { subscribe } = useContext(RealtimeContext);
   const [messages, setMessages] = useState<Array<ChatMessage>>([]);
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  const currentUserIdRef = useRef<string>("");
   const [currentUserImageUrl, setCurrentUserImageUrl] = useState<
     string | undefined
   >(undefined);
@@ -76,6 +85,8 @@ export const useChatRoom = (questId: string, nodeId: string) => {
   const [targetUserName, setTargetUserName] = useState<string | undefined>(
     undefined,
   );
+  const [isTargetTyping, setIsTargetTyping] = useState(false);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     let cancelled = false;
     let chatMessagesInitialized = false;
@@ -91,6 +102,22 @@ export const useChatRoom = (questId: string, nodeId: string) => {
               : [...prev, payload as ChatMessage],
           );
         }
+      } else if (type === "chat_typing") {
+        const typingPayload = payload as ChatTypingEvent;
+        if (
+          typingPayload.questId === questId &&
+          typingPayload.nodeId === nodeId &&
+          typingPayload.userId !== currentUserIdRef.current
+        ) {
+          setIsTargetTyping(true);
+          if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+          }
+          typingTimeoutRef.current = setTimeout(
+            () => setIsTargetTyping(false),
+            2000,
+          );
+        }
       }
     });
     (async () => {
@@ -103,6 +130,7 @@ export const useChatRoom = (questId: string, nodeId: string) => {
         messages,
       } = await initializeChatRoom(questId, nodeId);
       setCurrentUserId(currentUserId);
+      currentUserIdRef.current = currentUserId;
       setCurrentUserImageUrl(currentUserImageUrl);
       setTargetUserImageUrl(targetUserImageUrl);
       setTargetUserName(targetUserName);
@@ -114,6 +142,9 @@ export const useChatRoom = (questId: string, nodeId: string) => {
     })();
     return () => {
       cancelled = true;
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
       unsubscribe();
     };
   }, [nodeId, questId, subscribe]);
@@ -131,13 +162,18 @@ export const useChatRoom = (questId: string, nodeId: string) => {
     },
     [nodeId, questId],
   );
+  const sendTyping = useCallback(async () => {
+    await sendChatTyping(questId, nodeId);
+  }, [nodeId, questId]);
   return {
     messages,
     sendMessage,
+    sendTyping,
     currentUserId,
     currentUserImageUrl,
     targetUserImageUrl,
     targetUserName,
+    isTargetTyping,
   };
 };
 

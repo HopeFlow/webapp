@@ -13,7 +13,8 @@ type MessageAreaProps = {
   className?: string;
   disabled?: boolean;
   placeholder?: string;
-  commit: (directValue?: string) => void;
+  onTyping?: (draft?: string) => void;
+  commit?: (draft?: string) => void;
 };
 
 export function MessageArea({
@@ -21,6 +22,7 @@ export function MessageArea({
   className,
   disabled,
   placeholder,
+  onTyping,
   commit,
 }: MessageAreaProps) {
   const localRef = useRef<HTMLTextAreaElement | null>(null);
@@ -59,6 +61,7 @@ export function MessageArea({
         placeholder={placeholder}
         onInput={(e) => {
           const textArea = e.target as HTMLTextAreaElement;
+          if (onTyping) onTyping(textArea.value);
           reset(textArea.value);
           textArea.style.height = "0px";
           textArea.style.height = `calc(${textArea.scrollHeight}px + .2rem)`;
@@ -66,7 +69,8 @@ export function MessageArea({
         onKeyDown={(e) => {
           if (!disabled && e.key === "Enter" && e.shiftKey === false) {
             e.preventDefault();
-            commit();
+            const textArea = e.target as HTMLTextAreaElement;
+            if (commit) commit(textArea.value);
           }
         }}
       />
@@ -90,7 +94,11 @@ export function MessageArea({
         disabled={disabled}
         buttonType="neutral"
         className="p-2"
-        onClick={() => commit()}
+        onClick={() => {
+          const textArea = localRef.current;
+          if (!textArea) return;
+          if (commit) commit(textArea.value);
+        }}
       >
         <ArrowUpIcon className="w-3 md:w-auto" />
       </Button>

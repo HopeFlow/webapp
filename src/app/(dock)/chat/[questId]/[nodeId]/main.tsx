@@ -1,25 +1,14 @@
 "use client";
 
-import { Button, GhostButton } from "@/components/button";
-import { BulbIcon } from "@/components/icons/bulb";
+import { Button } from "@/components/button";
 import { ArrowRightIcon } from "@/components/icons/arrow_right";
-import { ArrowUpTrayIcon } from "@/components/icons/arrow_up_tray";
-import { MicIcon } from "@/components/icons/microphone";
-import { ReflowIcon } from "@/components/icons/reflow";
 import { Avatar } from "@/components/user_avatar";
 import { useChatRoom } from "@/helpers/client/realtime";
 import { useGotoQuest } from "@/helpers/client/routes";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { useToast } from "@/components/toast";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MessageArea } from "@/components/message_area";
 
 const formatTimestamp = (timestamp: string) => {
@@ -38,16 +27,19 @@ export function ChatMain({
   const {
     messages,
     sendMessage,
+    sendTyping,
     currentUserId,
     currentUserImageUrl,
     targetUserImageUrl,
     targetUserName,
+    isTargetTyping,
   } = useChatRoom(questId, nodeId);
   const gotoQuest = useGotoQuest();
   const addToast = useToast();
   const [sending, setSending] = useState(false);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const lastTypingSentRef = useRef<number>(0);
 
   const sortedMessages = useMemo(
     () =>
@@ -86,6 +78,17 @@ export function ChatMain({
       }
     },
     [addToast, sendMessage, sending],
+  );
+
+  const handleTyping = useCallback(
+    (draft?: string) => {
+      if (!draft || draft.trim().length === 0) return;
+      const now = Date.now();
+      if (now - lastTypingSentRef.current < 1200) return;
+      lastTypingSentRef.current = now;
+      void sendTyping();
+    },
+    [sendTyping],
   );
 
   return (
@@ -155,51 +158,11 @@ export function ChatMain({
             })
           )}
         </div>
-        {/* <div className="card border-base-content/20 bg-base-100 border p-3">
-          <textarea
-            className="textarea textarea-bordered mb-2 w-full"
-            rows={3}
-            placeholder="Type a message. Press Enter to send, Shift+Enter for a new line."
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={sending}
-          />
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-wrap gap-2">
-              <GhostButton
-                className="btn-sm px-3"
-                onClick={() => handleActionNotAvailable("Attach a file")}
-              >
-                <ArrowUpTrayIcon size={18} /> Attach
-              </GhostButton>
-              <GhostButton
-                className="btn-sm px-3"
-                onClick={() => handleActionNotAvailable("Voice notes")}
-              >
-                <MicIcon size={18} /> Voice note
-              </GhostButton>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                buttonType="secondary"
-                buttonStyle="outline"
-                onClick={() => gotoQuest({ questId })}
-              >
-                View quest
-              </Button>
-              <Button
-                buttonType="primary"
-                buttonSize="md"
-                withSpinner={sending}
-                disabled={sending || draft.trim().length === 0}
-                onClick={() => void handleSend()}
-              >
-                Send
-              </Button>
-            </div>
-          </div>
-        </div> */}
+        <div className="text-base-content/60 min-h-[1.25rem] px-1 text-xs font-bold">
+          {isTargetTyping
+            ? `${targetUserName ?? "Contributor"} is typing…`
+            : null}
+        </div>
         <div className="p-1">
           <MessageArea
             ref={textAreaRef}
@@ -207,6 +170,7 @@ export function ChatMain({
             commit={(value) => {
               if (value) handleSend(value);
             }}
+            onTyping={handleTyping}
           />
         </div>
       </div>
