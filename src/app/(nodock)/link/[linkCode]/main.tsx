@@ -308,6 +308,7 @@ export function LinkMain({
             ...oldData,
             hasJoined: true,
             userImageUrl: optimisticNode.imageUrl ?? oldData.userImageUrl,
+            nodeId: undefined,
             treeRoot,
           };
         },
@@ -400,6 +401,8 @@ export function LinkMain({
           name={seekerInfo.name}
           avatarSrc={seekerInfo.avatarSrc}
           date={publishDate}
+          questId={questId}
+          nodeId={linkNodeData?.nodeId}
         />
       </div>
     </div>

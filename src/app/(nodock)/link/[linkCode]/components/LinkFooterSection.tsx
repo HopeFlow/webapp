@@ -3,16 +3,22 @@
 import Image from "next/image";
 import { Button } from "@/components/button";
 import { formatDateWithSuffix } from "@/helpers/client/time";
+import { useGotoChat } from "@/helpers/client/routes";
 
 export function LinkFooterSection({
   name,
   avatarSrc,
   date,
+  questId,
+  nodeId,
 }: {
   name: string;
   avatarSrc: string;
   date: Date;
+  questId: string;
+  nodeId?: string;
 }) {
+  const gotoChat = useGotoChat();
   return (
     <div className="card bg-base-300 text-base-content flex flex-1 flex-col items-start justify-start gap-4 p-4 md:flex-row md:items-center">
       <div className="flex flex-row gap-2">
@@ -35,7 +41,14 @@ export function LinkFooterSection({
       <div className="flex-1" />
       <div className="flex flex-col gap-2 md:flex-row md:items-center">
         {`Do you have questions?`}
-        <Button buttonType="base" buttonStyle="outline">
+        <Button
+          disabled={!nodeId}
+          onClick={() => {
+            if (nodeId) gotoChat({ questId, nodeId });
+          }}
+          buttonType="base"
+          buttonStyle="outline"
+        >
           {"Send a message directly"}
         </Button>
       </div>

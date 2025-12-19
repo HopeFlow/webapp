@@ -392,10 +392,13 @@ export const withUserData = async <
   a: Ts,
   userRequestedFields: U,
 ): Promise<WithUserDataMaybeArray<T, Ts, U>> => {
+  const items = Array.isArray(a) ? a : [a];
   const users = new Map(
     (
       await getUserList(
-        new Set((a as T[]).map((e) => e.userId).filter((e) => e !== null)),
+        new Set(
+          items.map((e) => e.userId).filter((e): e is string => e !== null),
+        ),
       )
     ).map((u) => [u.id, u]),
   );

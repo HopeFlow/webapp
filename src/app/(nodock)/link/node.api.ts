@@ -113,6 +113,7 @@ export const readNodes = createApiEndpoint({
       treeRoot,
       userImageUrl,
       hasJoined: !!userNode,
+      nodeId: userNode?.id,
       questType: quest.type,
     };
   },

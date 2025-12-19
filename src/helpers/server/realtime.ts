@@ -230,7 +230,14 @@ export const sendChatMessage = defineServerFunction({
       })
       .returning();
     const chatMessage = toChatMessage(message);
-    await publishRealtimeMessage("chat_message", chatMessage, undefined, user);
+    const targetUserId =
+      user.id === node.quest.seekerId ? node.userId : node.quest.seekerId;
+    await publishRealtimeMessage(
+      "chat_message",
+      chatMessage,
+      targetUserId ?? undefined,
+      user,
+    );
     return chatMessage;
   },
 });
