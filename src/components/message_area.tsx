@@ -83,7 +83,7 @@ export function MessageArea({
           start(localRef.current?.value ?? "");
         }}
       >
-        <MicIcon />
+        <MicIcon className="w-3 md:w-auto" />
       </Button>
       <div className="w-1"></div>
       <Button
@@ -92,7 +92,7 @@ export function MessageArea({
         className="p-2"
         onClick={() => commit()}
       >
-        <ArrowUpIcon />
+        <ArrowUpIcon className="w-3 md:w-auto" />
       </Button>
     </label>
   );

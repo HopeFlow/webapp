@@ -20,6 +20,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { MessageArea } from "@/components/message_area";
 
 const formatTimestamp = (timestamp: string) => {
   const date = new Date(timestamp);
@@ -44,8 +45,8 @@ export function ChatMain({
   } = useChatRoom(questId, nodeId);
   const gotoQuest = useGotoQuest();
   const addToast = useToast();
-  const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const sortedMessages = useMemo(
@@ -64,52 +65,41 @@ export function ChatMain({
     }
   }, [sortedMessages]);
 
-  const handleSend = useCallback(async () => {
-    const content = draft.trim();
-    if (!content || sending) return;
-    setSending(true);
-    try {
-      const result = await sendMessage(content);
-      if (result) setDraft("");
-    } catch (error) {
-      console.error("Failed to send chat message", error);
-      addToast({
-        type: "error",
-        title: "Message not sent",
-        description:
-          error instanceof Error ? error.message : "Unknown error occurred",
-      });
-    } finally {
-      setSending(false);
-    }
-  }, [addToast, draft, sendMessage, sending]);
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      void handleSend();
-    }
-  };
-
-  const handleActionNotAvailable = (label: string) =>
-    addToast({
-      type: "info",
-      title: "Coming soon",
-      description: `${label} will be available shortly.`,
-    });
+  const handleSend = useCallback(
+    async (draft: string) => {
+      const content = draft.trim();
+      if (!content || sending) return;
+      setSending(true);
+      try {
+        const result = await sendMessage(content);
+        if (result && textAreaRef.current) textAreaRef.current.value = "";
+      } catch (error) {
+        console.error("Failed to send chat message", error);
+        addToast({
+          type: "error",
+          title: "Message not sent",
+          description:
+            error instanceof Error ? error.message : "Unknown error occurred",
+        });
+      } finally {
+        setSending(false);
+      }
+    },
+    [addToast, sendMessage, sending],
+  );
 
   return (
     <div className="flex flex-1 flex-col gap-4 overflow-hidden p-4 md:p-8">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
-          <p className="text-base-content/60 text-xs tracking-[0.18em] uppercase">
+          <p className="text-base-content/60 hidden text-xs tracking-[0.18em] uppercase md:block">
             Quest chat
           </p>
-          <h1 className="text-2xl font-normal">
+          <h1 className="text-lg font-normal md:text-2xl">
             Jacob&apos;s stolen sentimental bicycle
           </h1>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="hidden flex-wrap items-center gap-2 md:flex">
           <Button
             buttonType="neutral"
             buttonStyle="outline"
@@ -165,7 +155,7 @@ export function ChatMain({
             })
           )}
         </div>
-        <div className="card border-base-content/20 bg-base-100 border p-3">
+        {/* <div className="card border-base-content/20 bg-base-100 border p-3">
           <textarea
             className="textarea textarea-bordered mb-2 w-full"
             rows={3}
@@ -209,6 +199,15 @@ export function ChatMain({
               </Button>
             </div>
           </div>
+        </div> */}
+        <div className="p-1">
+          <MessageArea
+            ref={textAreaRef}
+            placeholder="Type a message. Press Enter to send, Shift+Enter for a new line."
+            commit={(value) => {
+              if (value) handleSend(value);
+            }}
+          />
         </div>
       </div>
     </div>
