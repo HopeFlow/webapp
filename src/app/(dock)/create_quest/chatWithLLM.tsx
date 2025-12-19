@@ -6,7 +6,7 @@ import MarkdownViewer from "@/components/markdown/view";
 import { isOptionsMessage, useCreateQuestChat } from "@/helpers/client/LLM";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import type { QuestIntentState } from "@/helpers/server/LLM";
-import { MessageArea } from "./MessageArea";
+import { MessageArea } from "../../../components/message_area";
 import {
   type Dispatch,
   type SetStateAction,
