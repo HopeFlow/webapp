@@ -108,9 +108,6 @@ export function ChatMain({
           <h1 className="text-2xl font-normal">
             Jacob&apos;s stolen sentimental bicycle
           </h1>
-          <p className="text-base-content/60 text-sm">
-            Node: <span className="font-mono">{nodeId}</span>
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -119,18 +116,6 @@ export function ChatMain({
             onClick={() => gotoQuest({ questId })}
           >
             View quest <ArrowRightIcon />
-          </Button>
-          <Button
-            buttonType="secondary"
-            onClick={() => handleActionNotAvailable("ReFlow")}
-          >
-            <ReflowIcon size={18} /> ReFlow to more people
-          </Button>
-          <Button
-            buttonType="primary"
-            onClick={() => handleActionNotAvailable("Propose a lead")}
-          >
-            <BulbIcon size={18} /> Propose a lead
           </Button>
         </div>
       </div>

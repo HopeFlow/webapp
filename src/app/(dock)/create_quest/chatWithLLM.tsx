@@ -2,13 +2,11 @@
 
 import { Button, GhostButton } from "@/components/button";
 import { ArrowPathIcon } from "@/components/icons/arrow_path";
-import { ArrowUpIcon } from "@/components/icons/arrow_up";
-import { MicIcon } from "@/components/icons/microphone";
 import MarkdownViewer from "@/components/markdown/view";
-import { useSpeechRecognitionEngine } from "@/helpers/client/asr";
 import { isOptionsMessage, useCreateQuestChat } from "@/helpers/client/LLM";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import type { QuestIntentState } from "@/helpers/server/LLM";
+import { MessageArea } from "./MessageArea";
 import {
   type Dispatch,
   type SetStateAction,
@@ -28,13 +26,6 @@ export const ChatWithLLM = ({
 }) => {
   const discussionRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
-  const [asrAvailable, isListening, start, stop, reset] =
-    useSpeechRecognitionEngine(
-      useCallback((value) => {
-        if (!textAreaRef.current) return;
-        textAreaRef.current.value = value;
-      }, []),
-    );
   const {
     thinking,
     thinkingMessage,
@@ -187,51 +178,12 @@ export const ChatWithLLM = ({
             Describe what you are looking for ...
           </h1>
         )}
-        <label className="textarea flex w-full flex-shrink-0 resize-none flex-row items-end">
-          <textarea
-            ref={textAreaRef}
-            className={cn(
-              "min-h-full flex-1 resize-none",
-              messages.length < 1 ? "max-h-56 min-h-32" : "max-h-32",
-            )}
-            onInput={(e) => {
-              const textArea = e.target as HTMLTextAreaElement;
-              reset(textArea.value);
-              textArea.style.height = "0px";
-              textArea.style.height = `calc(${textArea.scrollHeight}px + .2rem)`;
-            }}
-            onKeyDown={(e) => {
-              if (!thinking && e.key === "Enter" && e.shiftKey === false) {
-                e.preventDefault();
-                commit();
-              }
-            }}
-          />
-          <Button
-            disabled={!asrAvailable}
-            buttonType="neutral"
-            className="p-2"
-            onClick={() => {
-              if (!asrAvailable) return;
-              if (isListening) {
-                stop();
-                return;
-              }
-              start(textAreaRef.current?.value ?? "");
-            }}
-          >
-            <MicIcon />
-          </Button>
-          <div className="w-1"></div>
-          <Button
-            disabled={thinking}
-            buttonType="neutral"
-            className="p-2"
-            onClick={() => commit()}
-          >
-            <ArrowUpIcon />
-          </Button>
-        </label>
+        <MessageArea
+          ref={textAreaRef}
+          className={messages.length < 1 ? "max-h-56 min-h-32" : undefined}
+          disabled={thinking}
+          commit={commit}
+        />
         {messages.length >= 1 && (
           <Button
             disabled={
