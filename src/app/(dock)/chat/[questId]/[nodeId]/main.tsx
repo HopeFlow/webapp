@@ -33,6 +33,7 @@ export function ChatMain({
     targetUserImageUrl,
     targetUserName,
     isTargetTyping,
+    isMessagesLoading,
   } = useChatRoom(questId, nodeId);
   const gotoQuest = useGotoQuest();
   const addToast = useToast();
@@ -117,7 +118,11 @@ export function ChatMain({
           ref={chatScrollRef}
           className="card border-base-content/20 bg-base-100 flex-1 space-y-4 overflow-y-auto border p-4"
         >
-          {sortedMessages.length === 0 ? (
+          {isMessagesLoading ? (
+            <div className="text-base-content/60 animate-pulse py-10 text-center text-sm">
+              Loading messages…
+            </div>
+          ) : sortedMessages.length === 0 ? (
             <div className="text-base-content/60 py-10 text-center text-sm">
               No messages yet. Say hi to get the conversation started.
             </div>

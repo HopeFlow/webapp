@@ -87,6 +87,7 @@ export const useChatRoom = (questId: string, nodeId: string) => {
   );
   const [isTargetTyping, setIsTargetTyping] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isMessagesLoading, setIsMessagesLoading] = useState(true);
   useEffect(() => {
     let cancelled = false;
     let chatMessagesInitialized = false;
@@ -122,23 +123,31 @@ export const useChatRoom = (questId: string, nodeId: string) => {
     });
     (async () => {
       if (cancelled) return;
-      const {
-        currentUserId,
-        currentUserImageUrl,
-        targetUserImageUrl,
-        targetUserName,
-        messages,
-      } = await initializeChatRoom(questId, nodeId);
-      setCurrentUserId(currentUserId);
-      currentUserIdRef.current = currentUserId;
-      setCurrentUserImageUrl(currentUserImageUrl);
-      setTargetUserImageUrl(targetUserImageUrl);
-      setTargetUserName(targetUserName);
-      setMessages([
-        ...messages,
-        ...preInitQueue.filter((m) => !messages.find((pm) => pm.id === m.id)),
-      ]);
-      chatMessagesInitialized = true;
+      setIsMessagesLoading(true);
+      try {
+        const {
+          currentUserId,
+          currentUserImageUrl,
+          targetUserImageUrl,
+          targetUserName,
+          messages,
+        } = await initializeChatRoom(questId, nodeId);
+        if (cancelled) return;
+        setCurrentUserId(currentUserId);
+        currentUserIdRef.current = currentUserId;
+        setCurrentUserImageUrl(currentUserImageUrl);
+        setTargetUserImageUrl(targetUserImageUrl);
+        setTargetUserName(targetUserName);
+        setMessages([
+          ...messages,
+          ...preInitQueue.filter((m) => !messages.find((pm) => pm.id === m.id)),
+        ]);
+        chatMessagesInitialized = true;
+      } catch (error) {
+        console.error("[realtime] failed to initialize chat room", error);
+      } finally {
+        if (!cancelled) setIsMessagesLoading(false);
+      }
     })();
     return () => {
       cancelled = true;
@@ -174,6 +183,7 @@ export const useChatRoom = (questId: string, nodeId: string) => {
     targetUserImageUrl,
     targetUserName,
     isTargetTyping,
+    isMessagesLoading,
   };
 };
 
