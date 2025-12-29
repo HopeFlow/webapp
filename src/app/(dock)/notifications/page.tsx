@@ -46,7 +46,7 @@ export default function Notifications() {
     if (isMarking) return;
     setIsMarking(true);
     try {
-      await markNotificationsRead();
+      // await markNotificationsRead();
       markNotificationsAsRead();
     } catch (error) {
       console.error("Failed to mark notifications as read", error);

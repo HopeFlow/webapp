@@ -1,7 +1,7 @@
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
-import hopeflowPlugin from "./eslint-plugin-hopeflow/index.js";
+import hopeflowPlugin from "./eslint-plugin-hopeflow/index.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
