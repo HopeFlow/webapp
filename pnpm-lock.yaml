@@ -110,9 +110,6 @@ importers:
       unidecode:
         specifier: ^1.1.0
         version: 1.1.0
-      yargs:
-        specifier: ^18.0.0
-        version: 18.0.0
       zod:
         specifier: ^3.25.76
         version: 3.25.76

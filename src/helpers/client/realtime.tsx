@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -31,6 +32,7 @@ export type ChatMessage = {
   userId: string;
   content: string;
   timestamp: string;
+  status: (typeof messageStatusDef)[number];
 };
 
 export type Notification = {
@@ -39,6 +41,8 @@ export type Notification = {
   url: string;
   status: (typeof messageStatusDef)[number];
   timestamp: string;
+  questId?: string | null;
+  nodeId?: string | null;
 };
 
 type ChatTypingEvent = {
@@ -50,9 +54,64 @@ type ChatTypingEvent = {
 
 type ConnectionState = "idle" | "connecting" | "open" | "closed" | "error";
 
+const AGGREGATION_WINDOW_MS = 60 * 1000;
+
+const parseCount = (message: string): number | null => {
+  const match = message.match(/\((\d+)\)$/);
+  if (!match) return null;
+  const parsed = Number.parseInt(match[1] ?? "", 10);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const baseMessage = (message: string) => message.replace(/\s+\(\d+\)$/, "");
+
+const aggregateNotifications = (items: Array<Notification>) => {
+  const sorted = [...items].sort(
+    (a, b) => new Date(a.timestamp).valueOf() - new Date(b.timestamp).valueOf(),
+  );
+  const aggregated: Array<Notification> = [];
+  for (const notification of sorted) {
+    const last = aggregated[aggregated.length - 1];
+    const lastTs = last ? new Date(last.timestamp).valueOf() : null;
+    const currentTs = new Date(notification.timestamp).valueOf();
+    if (
+      last &&
+      last.url === notification.url &&
+      last.status === notification.status &&
+      lastTs !== null &&
+      Math.abs(currentTs - lastTs) <= AGGREGATION_WINDOW_MS
+    ) {
+      const base = baseMessage(last.message);
+      const currentCount = parseCount(last.message) ?? 1;
+      aggregated[aggregated.length - 1] = {
+        ...last,
+        message: `${base} (${currentCount + 1})`,
+        timestamp: notification.timestamp,
+      };
+    } else {
+      aggregated.push(notification);
+    }
+  }
+  return aggregated.sort(
+    (a, b) => new Date(b.timestamp).valueOf() - new Date(a.timestamp).valueOf(),
+  );
+};
+
+const mergeNotifications = (
+  existing: Array<Notification>,
+  incoming: Array<Notification>,
+) => {
+  const map = new Map<string, Notification>();
+  for (const n of existing) map.set(n.id, n);
+  for (const n of incoming) map.set(n.id, n);
+  return Array.from(map.values());
+};
+
 type RealtimeContextType = {
   connectionState: ConnectionState;
   notifications: Array<Notification>;
+  allNotifications: Array<Notification>;
+  markNotificationsAsRead: (questId?: string, nodeId?: string) => void;
   subscribe: (
     handler: (type: string, timestamp: string, payload: unknown) => void,
   ) => () => void;
@@ -61,6 +120,10 @@ type RealtimeContextType = {
 const RealtimeContext = createContext<RealtimeContextType>({
   connectionState: "idle",
   notifications: [],
+  allNotifications: [],
+  markNotificationsAsRead: () => {
+    throw new Error("Context not initialized");
+  },
   subscribe: () => {
     throw new Error("Context not initialized");
   },
@@ -71,8 +134,14 @@ export const useNotifications = () => {
   return notifications;
 };
 
+export const useNotificationControls = () => {
+  const { notifications, allNotifications, markNotificationsAsRead } =
+    useContext(RealtimeContext);
+  return { notifications, allNotifications, markNotificationsAsRead };
+};
+
 export const useChatRoom = (questId: string, nodeId: string) => {
-  const { subscribe } = useContext(RealtimeContext);
+  const { subscribe, markNotificationsAsRead } = useContext(RealtimeContext);
   const [messages, setMessages] = useState<Array<ChatMessage>>([]);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const currentUserIdRef = useRef<string>("");
@@ -143,6 +212,7 @@ export const useChatRoom = (questId: string, nodeId: string) => {
           ...preInitQueue.filter((m) => !messages.find((pm) => pm.id === m.id)),
         ]);
         chatMessagesInitialized = true;
+        markNotificationsAsRead(questId, nodeId);
       } catch (error) {
         console.error("[realtime] failed to initialize chat room", error);
       } finally {
@@ -156,7 +226,7 @@ export const useChatRoom = (questId: string, nodeId: string) => {
       }
       unsubscribe();
     };
-  }, [nodeId, questId, subscribe]);
+  }, [markNotificationsAsRead, nodeId, questId, subscribe]);
   const sendMessage = useCallback(
     async (content: string) => {
       const trimmed = content.trim();
@@ -207,11 +277,57 @@ export const RealtimeProvider = ({
   const url = `wss://${REALTIME_SERVER_URL}`;
   const [connectionState, setConnectionState] =
     useState<ConnectionState>("idle");
-  const [notifications, setNotifications] = useState<Array<Notification>>([]);
+  const [notificationsRaw, setNotificationsRaw] = useState<Array<Notification>>(
+    [],
+  );
   const handlersRef = useRef<
     Array<(type: string, timestamp: string, payload: unknown) => void>
   >([]);
   const socketRef = useRef<WebSocket | null>(null);
+  const notifications = useMemo(
+    () => aggregateNotifications(notificationsRaw),
+    [notificationsRaw],
+  );
+
+  const markNotificationsAsRead = useCallback(
+    (questId?: string, nodeId?: string) => {
+      setNotificationsRaw((prev) =>
+        prev.map((notification) => {
+          const questMatch = questId ? notification.questId === questId : true;
+          const nodeMatch = nodeId
+            ? notification.nodeId === nodeId ||
+              notification.url.endsWith(`/${nodeId}`)
+            : true;
+          if (questMatch && nodeMatch && notification.status !== "read") {
+            return { ...notification, status: "read" };
+          }
+          return notification;
+        }),
+      );
+    },
+    [],
+  );
+
+  const maybeShowBrowserNotification = useCallback(
+    (notification: Notification) => {
+      if (typeof Notification === "undefined") return;
+      if (Notification.permission !== "granted") return;
+      try {
+        const n = new Notification(notification.message, {
+          tag: notification.id,
+        });
+        n.onclick = () => {
+          window?.open(notification.url, "_self");
+        };
+      } catch (error) {
+        console.error(
+          "[realtime] failed to display browser notification",
+          error,
+        );
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!url) return undefined;
@@ -250,32 +366,21 @@ export const RealtimeProvider = ({
             if (isRealtimeEnvelope(parsed)) {
               console.log("[realtime] message received", parsed);
               if (parsed.type === "notifications_init") {
-                setNotifications([
-                  ...(parsed.payload as typeof notifications),
-                  ...preInitNotifications.filter(
-                    (m) =>
-                      !(parsed.payload as typeof notifications).some(
-                        (pm) => pm.id === m.id,
-                      ),
-                  ),
-                ]);
+                const merged = mergeNotifications(
+                  parsed.payload as typeof notifications,
+                  preInitNotifications,
+                );
+                setNotificationsRaw((prev) => mergeNotifications(prev, merged));
                 notificationsInitialized = true;
               } else if (parsed.type === "notification") {
+                const notification = parsed.payload as Notification;
                 if (!notificationsInitialized) {
-                  preInitNotifications.push(parsed.payload as Notification);
+                  preInitNotifications.push(notification);
                 } else {
-                  setNotifications((prev) =>
-                    prev.find(
-                      (m) =>
-                        m.id ===
-                        (parsed.payload as (typeof notifications)[number]).id,
-                    )
-                      ? prev
-                      : [
-                          ...prev,
-                          parsed.payload as (typeof notifications)[number],
-                        ],
+                  setNotificationsRaw((prev) =>
+                    mergeNotifications(prev, [notification]),
                   );
+                  maybeShowBrowserNotification(notification);
                 }
               } else
                 for (const handler of handlersRef.current ?? []) {
@@ -314,7 +419,7 @@ export const RealtimeProvider = ({
     return () => {
       callBackPromise.then((cleanup) => cleanup && cleanup());
     };
-  }, [token, url]);
+  }, [maybeShowBrowserNotification, token, url]);
 
   const subscribe = useCallback(
     (handler: (type: string, timestamp: string, payload: unknown) => void) => {
@@ -336,7 +441,13 @@ export const RealtimeProvider = ({
 
   return (
     <RealtimeContext.Provider
-      value={{ notifications, connectionState, subscribe }}
+      value={{
+        notifications,
+        allNotifications: notificationsRaw,
+        connectionState,
+        markNotificationsAsRead,
+        subscribe,
+      }}
     >
       {children}
     </RealtimeContext.Provider>

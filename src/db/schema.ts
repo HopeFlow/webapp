@@ -435,17 +435,37 @@ export const chatMessagesTable = sqliteTable("chatMessages", {
   status: text({ enum: messageStatusDef }).notNull().default("sent"),
 });
 
-export const notificationsTable = sqliteTable("notifications", {
-  id: primaryKey(),
-  timestamp: timestamp().notNull(),
-  questHistoryId: text().references(
-    (): AnySQLiteColumn => questHistoryTable.id,
-    { onDelete: "set null" },
-  ),
-  emailedAt: timestamp(),
-  status: text({ enum: messageStatusDef }).notNull().default("sent"),
-  userId: text().notNull(),
-});
+export const notificationsTable = sqliteTable(
+  "notifications",
+  {
+    id: primaryKey(),
+    timestamp: timestamp().notNull(),
+    chatMessageId: text().references(
+      (): AnySQLiteColumn => chatMessagesTable.id,
+      { onDelete: "set null" },
+    ),
+    questHistoryId: text().references(
+      (): AnySQLiteColumn => questHistoryTable.id,
+      { onDelete: "set null" },
+    ),
+    emailedAt: timestamp(),
+    status: text({ enum: messageStatusDef }).notNull().default("sent"),
+    userId: text().notNull(),
+  },
+  (table) => [
+    // Exactly one pointer must be set
+    check(
+      "notifications_pointer_xor_chk",
+      sql`
+        (
+          (${table.chatMessageId} IS NOT NULL AND ${table.questHistoryId} IS NULL)
+          OR
+          (${table.chatMessageId} IS NULL AND ${table.questHistoryId} IS NOT NULL)
+        )
+      `,
+    ),
+  ],
+);
 
 export const userProfileTable = sqliteTable("userProfile", {
   userId: text().primaryKey().notNull(),
@@ -585,6 +605,10 @@ export const notificationRelations = relations(
     history: one(questHistoryTable, {
       fields: [notificationsTable.questHistoryId],
       references: [questHistoryTable.id],
+    }),
+    chatMessage: one(chatMessagesTable, {
+      fields: [notificationsTable.chatMessageId],
+      references: [chatMessagesTable.id],
     }),
   }),
 );

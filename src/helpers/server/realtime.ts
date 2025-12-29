@@ -12,6 +12,7 @@ import {
   questHistoryTable,
 } from "@/db/schema";
 import { updateTypeDef } from "@/db/constants";
+import { and, eq, inArray, ne, or } from "drizzle-orm";
 
 const toTimestampString = (value: Date | string | number) => {
   const date = value instanceof Date ? value : new Date(value);
@@ -29,6 +30,7 @@ const toChatMessage = (
   userId: row.userId,
   content: row.content,
   timestamp: toTimestampString(row.timestamp),
+  status: row.status,
 });
 
 type NotificationHistory = Pick<
@@ -73,29 +75,59 @@ const getHistoryNodeId = (history: NotificationHistory) =>
   history.quest?.rootNodeId ??
   null;
 
-type NotificationWithHistory = Omit<
-  typeof notificationsTable.$inferSelect,
-  "questHistoryId" | "timestamp"
-> & { timestamp: Date | string | number; history: NotificationHistory | null };
+type NotificationWithPointers = typeof notificationsTable.$inferSelect & {
+  history?: NotificationHistory | null;
+  chatMessage?: {
+    id: string;
+    questId: string;
+    nodeId: string;
+    quest?: { title: string | null; rootNodeId: string | null } | null;
+  } | null;
+  message?: string | null;
+  url?: string | null;
+  questId?: string | null;
+  nodeId?: string | null;
+};
 
-const toNotification = (row: NotificationWithHistory): Notification => {
+const toNotification = (row: NotificationWithPointers): Notification => {
+  const historyNodeId = row.history ? getHistoryNodeId(row.history) : null;
+  const questId =
+    row.history?.questId ?? row.chatMessage?.questId ?? row.questId ?? null;
+  const nodeId = historyNodeId ?? row.chatMessage?.nodeId ?? row.nodeId ?? null;
+
   const base = {
     id: row.id,
     status: row.status,
     timestamp: toTimestampString(row.timestamp),
+    questId: questId ?? undefined,
+    nodeId: nodeId ?? undefined,
   };
 
-  if (!row.history) {
-    return { ...base, message: "New notification", url: "/notifications" };
+  if (row.history) {
+    return {
+      ...base,
+      message: getNotificationMessage(row.history),
+      url: historyNodeId
+        ? `/chat/${row.history.questId}/${historyNodeId}`
+        : `/quest/${row.history.questId}`,
+      nodeId: historyNodeId ?? base.nodeId,
+    };
   }
 
-  const nodeId = getHistoryNodeId(row.history);
+  if (row.chatMessage) {
+    const questTitle = row.chatMessage.quest?.title?.trim();
+    const questLabel = questTitle ? `"${questTitle}"` : "Quest";
+    return {
+      ...base,
+      message: `${questLabel}: new chat message`,
+      url: `/chat/${row.chatMessage.questId}/${row.chatMessage.nodeId}`,
+    };
+  }
+
   return {
     ...base,
-    message: getNotificationMessage(row.history),
-    url: nodeId
-      ? `/chat/${row.history.questId}/${nodeId}`
-      : `/quest/${row.history.questId}`,
+    message: row.message ?? "New notification",
+    url: row.url ?? "/notifications",
   };
 };
 
@@ -160,8 +192,11 @@ export const initializeChatRoom = defineServerFunction({
     if (!quest || !quest.seekerId || !node) {
       throw new Error("Quest or node not found");
     }
+    const counterpartUserId =
+      user.id === quest.seekerId ? node.userId : quest.seekerId;
+
     const targetUser = await withUserData(
-      { userId: user.id === quest.seekerId ? node.userId : quest.seekerId },
+      { userId: counterpartUserId },
       { firstName: true, fullName: true, imageUrl: true },
     );
     if (!targetUser) {
@@ -175,19 +210,72 @@ export const initializeChatRoom = defineServerFunction({
       true,
     );
 
-    const messages = (
-      await db.query.chatMessagesTable.findMany({
-        where: (chatMessagesTable, { and, eq }) =>
+    const rows = await db.query.chatMessagesTable.findMany({
+      where: (chatMessagesTable, { and, eq }) =>
+        and(
+          eq(chatMessagesTable.questId, questId),
+          eq(chatMessagesTable.nodeId, nodeId),
+        ),
+      orderBy: (chatMessagesTable, { desc }) => [
+        desc(chatMessagesTable.timestamp),
+      ],
+      limit: 100,
+    });
+
+    await db
+      .update(chatMessagesTable)
+      .set({ status: "read" })
+      .where(
+        and(
+          eq(chatMessagesTable.questId, questId),
+          eq(chatMessagesTable.nodeId, nodeId),
+          eq(chatMessagesTable.userId, counterpartUserId),
+          ne(chatMessagesTable.status, "read"),
+        ),
+      );
+
+    const notificationIds = (
+      await db
+        .select({ id: notificationsTable.id })
+        .from(notificationsTable)
+        .leftJoin(
+          questHistoryTable,
+          eq(questHistoryTable.id, notificationsTable.questHistoryId),
+        )
+        .leftJoin(
+          chatMessagesTable,
+          eq(chatMessagesTable.id, notificationsTable.chatMessageId),
+        )
+        .where(
           and(
-            eq(chatMessagesTable.questId, questId),
-            eq(chatMessagesTable.nodeId, nodeId),
+            eq(notificationsTable.userId, user.id),
+            or(
+              and(
+                eq(questHistoryTable.questId, questId),
+                eq(questHistoryTable.nodeId, nodeId),
+              ),
+              and(
+                eq(chatMessagesTable.questId, questId),
+                eq(chatMessagesTable.nodeId, nodeId),
+              ),
+            ),
+            ne(notificationsTable.status, "read"),
           ),
-        orderBy: (chatMessagesTable, { desc }) => [
-          desc(chatMessagesTable.timestamp),
-        ],
-        limit: 100,
-      })
-    ).map(toChatMessage);
+        )
+    ).map(({ id }) => id);
+
+    if (notificationIds.length > 0) {
+      await db
+        .update(notificationsTable)
+        .set({ status: "read" })
+        .where(inArray(notificationsTable.id, notificationIds));
+    }
+
+    const messages = rows.map((row) =>
+      row.userId === counterpartUserId
+        ? toChatMessage({ ...row, status: "read" })
+        : toChatMessage(row),
+    );
     return {
       currentUserId: user.id,
       currentUserImageUrl: user.imageUrl,
@@ -207,7 +295,7 @@ export const sendChatMessage = defineServerFunction({
     const node = await db.query.nodeTable.findFirst({
       where: (nodeTable, { and, eq }) =>
         and(eq(nodeTable.id, nodeId), eq(nodeTable.questId, questId)),
-      with: { quest: { columns: { seekerId: true } } },
+      with: { quest: { columns: { seekerId: true, title: true } } },
     });
     if (!node || !node.quest || !node.quest.seekerId) {
       throw new Error("Chat not found");
@@ -229,15 +317,65 @@ export const sendChatMessage = defineServerFunction({
         timestamp: new Date(),
       })
       .returning();
-    const chatMessage = toChatMessage(message);
+
+    let chatMessage = toChatMessage(message);
     const targetUserId =
       user.id === node.quest.seekerId ? node.userId : node.quest.seekerId;
-    await publishRealtimeMessage(
+
+    let notificationPayload: Notification | null = null;
+    const publishResult = await publishRealtimeMessage(
       "chat_message",
       chatMessage,
       targetUserId ?? undefined,
       user,
     );
+    if (publishResult.delivered >= 1) {
+      await db
+        .update(chatMessagesTable)
+        .set({ status: "read" })
+        .where(eq(chatMessagesTable.id, chatMessage.id));
+      chatMessage = { ...chatMessage, status: "read" };
+    } else if (targetUserId) {
+      const eventTimestamp = new Date();
+      const [notificationRow] = await db
+        .insert(notificationsTable)
+        .values({
+          userId: targetUserId,
+          chatMessageId: chatMessage.id,
+          timestamp: eventTimestamp,
+          status: "sent",
+        })
+        .returning({ id: notificationsTable.id });
+      if (notificationRow) {
+        const notification = await db.query.notificationsTable.findFirst({
+          where: (notificationsTable, { eq }) =>
+            eq(notificationsTable.id, notificationRow.id),
+          with: {
+            chatMessage: {
+              columns: { id: true, questId: true, nodeId: true },
+              with: { quest: { columns: { title: true, rootNodeId: true } } },
+            },
+          },
+        });
+        if (notification) {
+          notificationPayload = toNotification({
+            ...notification,
+            message: null,
+            url: null,
+            questId: null,
+            nodeId: null,
+          });
+        }
+      }
+    }
+    if (notificationPayload) {
+      await publishRealtimeMessage(
+        "notification",
+        notificationPayload,
+        targetUserId ?? undefined,
+        user,
+      );
+    }
     return chatMessage;
   },
 });
@@ -348,7 +486,14 @@ export const initializeNotifications = defineServerFunction({
               proposedAnswer: { columns: { nodeId: true } },
             },
           },
+          chatMessage: {
+            columns: { id: true, questId: true, nodeId: true },
+            with: { quest: { columns: { title: true, rootNodeId: true } } },
+          },
         },
+        orderBy: (notificationsTable, { desc }) => [
+          desc(notificationsTable.timestamp),
+        ],
       })
     ).map(toNotification);
     return publishRealtimeMessage(
@@ -357,6 +502,56 @@ export const initializeNotifications = defineServerFunction({
       user.id,
       user,
     );
+  },
+});
+
+export type MarkNotificationsReadParams =
+  | { ids: string[]; questId?: undefined; nodeId?: undefined }
+  | { ids?: undefined; questId: string; nodeId: string };
+
+export const markNotificationsRead = defineServerFunction({
+  uniqueKey: "realtime::markNotificationsRead",
+  // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- any authenticated user can mark their notifications
+  handler: async (params: MarkNotificationsReadParams) => {
+    const user = await currentUserNoThrow();
+    if (!user) throw new Error("Not authenticated");
+    const db = await getHopeflowDatabase();
+
+    const notificationIds =
+      params.ids ??
+      (
+        await db
+          .select({ id: notificationsTable.id })
+          .from(notificationsTable)
+          .leftJoin(
+            questHistoryTable,
+            eq(questHistoryTable.id, notificationsTable.questHistoryId),
+          )
+          .leftJoin(
+            chatMessagesTable,
+            eq(chatMessagesTable.id, notificationsTable.chatMessageId),
+          )
+          .where(
+            or(
+              and(
+                eq(questHistoryTable.questId, params.questId),
+                eq(questHistoryTable.nodeId, params.nodeId),
+              ),
+              and(
+                eq(chatMessagesTable.questId, params.questId),
+                eq(chatMessagesTable.nodeId, params.nodeId),
+                ne(chatMessagesTable.userId, user.id),
+              ),
+            ),
+          )
+      ).map(({ id }) => id);
+    if (notificationIds.length > 0) {
+      await db
+        .update(notificationsTable)
+        .set({ status: "read" })
+        .where(inArray(notificationsTable.id, notificationIds));
+    }
+    return true;
   },
 });
 

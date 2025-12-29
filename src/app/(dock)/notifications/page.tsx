@@ -1,49 +1,108 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/button";
 import { ArrowRightIcon } from "@/components/icons/arrow_right";
-import { Avatar } from "@/components/user_avatar";
-import Image from "next/image";
+import { useNotificationControls } from "@/helpers/client/realtime";
+import { markNotificationsRead } from "@/helpers/server/realtime";
+import { cn } from "@/helpers/client/tailwind_helpers";
+
+const formatTime = (timestamp: string) => {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.valueOf())) return "";
+  return date.toLocaleString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    day: "numeric",
+  });
+};
 
 export default function Notifications() {
+  const { notifications, allNotifications, markNotificationsAsRead } =
+    useNotificationControls();
+  const [isMarking, setIsMarking] = useState(false);
+
+  const unreadIds = useMemo(
+    () => allNotifications.filter((n) => n.status !== "read").map((n) => n.id),
+    [allNotifications],
+  );
+
+  useEffect(() => {
+    if (unreadIds.length === 0) return;
+    const run = async () => {
+      try {
+        await markNotificationsRead({ ids: unreadIds });
+        markNotificationsAsRead();
+      } catch (error) {
+        console.error("Failed to mark notifications as read", error);
+      }
+    };
+    void run();
+  }, [markNotificationsAsRead, unreadIds]);
+
+  const handleMarkAll = async () => {
+    if (isMarking) return;
+    setIsMarking(true);
+    try {
+      await markNotificationsRead();
+      markNotificationsAsRead();
+    } catch (error) {
+      console.error("Failed to mark notifications as read", error);
+    } finally {
+      setIsMarking(false);
+    }
+  };
+
   return (
-    <div className="flex-1 w-full overflow-y-auto">
-    <div className="p-4 md:p-8 flex flex-col gap-4 items-center justify-center">
-      {new Array(7).fill(null).map((_, i) => (
-        <div
-          key={`n-${i}`}
-          className="card p-8 bg-base-100 border border-base-content/30 w-full md:h-48 flex-shrink-0 flex flex-col md:flex-row gap-4"
+    <div className="w-full flex-1 overflow-y-auto p-4 md:p-8">
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h1 className="text-xl font-semibold">Notifications</h1>
+        <Button
+          buttonType="neutral"
+          buttonStyle="outline"
+          disabled={isMarking || notifications.length === 0}
+          onClick={handleMarkAll}
         >
-          <div className="flex-shrink-0 h-32 md:w-auto md:h-full overflow-hidden flex flex-col items-center justify-center">
-            <Image
-              src="https://pub-7027dcead7294deeacde6da1a50ed32f.r2.dev/trek-520-grando-51cm-v0.jpeg"
-              alt="Row Boat"
-              width={201.6}
-              height={151.2}
-              className="max-w-full h-auto md:w-auto md:max-h-full object-contain rounded-box"
-            />
-          </div>
-          <div className="flex-shrink-0 md:flex-1 flex flex-col">
-            <h1 className="font-bold">Chat message from Jacob</h1>
-            <h2 className="text-sm mb-4">
-              from <i>&ldquo;Help Jacob find his stolen bicycle&rdquo;</i>
-            </h2>
-            <div className="flex-1"></div>
-            <p>I think what you found is actually my bicycle</p>
-          </div>
-          <div>
-            <Button buttonType="neutral" buttonStyle="soft" className="pl-1">
-              <Avatar
-                name="Jacob"
-                imageUrl="/img/avatar8.jpeg"
-                imageWidth={64}
-                imageHeight={64}
-                className="w-8 h-8 rounded-full"
-              />
-              See the chat <ArrowRightIcon />
-            </Button>
-          </div>
+          Mark all read
+        </Button>
+      </div>
+      {notifications.length === 0 ? (
+        <div className="text-base-content/60 rounded-box border-base-content/30 border border-dashed p-8 text-center text-sm">
+          No notifications yet.
         </div>
-      ))}
-    </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {notifications.map((notification) => (
+            <div
+              key={notification.id}
+              className={cn(
+                "card bg-base-100 border p-4",
+                notification.status !== "read"
+                  ? "border-primary"
+                  : "border-base-content/20",
+              )}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-base-content/60 text-sm tracking-[0.14em] uppercase">
+                    {formatTime(notification.timestamp)}
+                  </p>
+                  <p className="text-lg font-semibold">
+                    {notification.message}
+                  </p>
+                </div>
+                <Link href={notification.url}>
+                  <Button buttonType="neutral" buttonStyle="outline">
+                    Open <ArrowRightIcon />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
