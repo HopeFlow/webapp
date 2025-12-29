@@ -1,0 +1,1520 @@
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "prevId": "",
+  "version": "6",
+  "dialect": "sqlite",
+  "tables": {
+    "userProfile": {
+      "name": "userProfile",
+      "columns": {
+        "userId": {
+          "autoincrement": false,
+          "name": "userId",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "emailEnabled": {
+          "default": true,
+          "autoincrement": false,
+          "name": "emailEnabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "credence": {
+          "default": "'0'",
+          "autoincrement": false,
+          "name": "credence",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "emailFrequency": {
+          "default": "'daily'",
+          "autoincrement": false,
+          "name": "emailFrequency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "lastSentAt": {
+          "autoincrement": false,
+          "name": "lastSentAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "timezone": {
+          "default": "'Europe/Berlin'",
+          "autoincrement": false,
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "asciiName": {
+          "default": "''",
+          "autoincrement": false,
+          "name": "asciiName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {},
+      "foreignKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "comment_likedBy_json_valid": {
+          "name": "comment_likedBy_json_valid",
+          "value": "json_valid(\"comment\".\"likedBy\""
+        },
+        "comment_dislikedBy_json_valid": {
+          "name": "comment_dislikedBy_json_valid",
+          "value": "json_valid(\"comment\".\"dislikedBy\""
+        },
+        "hist_ptr_reflow_chk": {
+          "name": "hist_ptr_reflow_chk",
+          "value": "\"questHistory\".\"type\" <> 'reflow' OR \"questHistory\".\"linkId\" IS NOT NULL"
+        },
+        "hist_ptr_node_chk": {
+          "name": "hist_ptr_node_chk",
+          "value": "\"questHistory\".\"type\" <> 'nodeJoined' OR \"questHistory\".\"nodeId\" IS NOT NULL"
+        },
+        "hist_ptr_comment_chk": {
+          "name": "hist_ptr_comment_chk",
+          "value": "\"questHistory\".\"type\" <> 'commentAdded' OR \"questHistory\".\"commentId\" IS NOT NULL"
+        },
+        "quest_reward_nonneg_chk": {
+          "name": "quest_reward_nonneg_chk",
+          "value": "\"quest\".\"rewardAmount\" >= 0"
+        }
+      }
+    },
+    "bookmark": {
+      "name": "bookmark",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "questId": {
+          "autoincrement": false,
+          "name": "questId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "userId": {
+          "autoincrement": false,
+          "name": "userId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "linkId": {
+          "autoincrement": false,
+          "name": "linkId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "autoincrement": false,
+          "name": "createdAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "uniq_bookmark_per_user_per_quest": {
+          "name": "uniq_bookmark_per_user_per_quest",
+          "columns": [
+            "questId",
+            "userId"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "bookmark_linkId_questId_link_id_questId_fk": {
+          "name": "bookmark_linkId_questId_link_id_questId_fk",
+          "tableFrom": "bookmark",
+          "tableTo": "link",
+          "columnsFrom": [
+            "linkId",
+            "questId"
+          ],
+          "columnsTo": [
+            "id",
+            "questId"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "bookmark_linkId_link_id_fk": {
+          "name": "bookmark_linkId_link_id_fk",
+          "tableFrom": "bookmark",
+          "tableTo": "link",
+          "columnsFrom": [
+            "linkId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "bookmark_questId_quest_id_fk": {
+          "name": "bookmark_questId_quest_id_fk",
+          "tableFrom": "bookmark",
+          "tableTo": "quest",
+          "columnsFrom": [
+            "questId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "comment_likedBy_json_valid": {
+          "name": "comment_likedBy_json_valid",
+          "value": "json_valid(\"comment\".\"likedBy\""
+        },
+        "comment_dislikedBy_json_valid": {
+          "name": "comment_dislikedBy_json_valid",
+          "value": "json_valid(\"comment\".\"dislikedBy\""
+        },
+        "hist_ptr_reflow_chk": {
+          "name": "hist_ptr_reflow_chk",
+          "value": "\"questHistory\".\"type\" <> 'reflow' OR \"questHistory\".\"linkId\" IS NOT NULL"
+        },
+        "hist_ptr_node_chk": {
+          "name": "hist_ptr_node_chk",
+          "value": "\"questHistory\".\"type\" <> 'nodeJoined' OR \"questHistory\".\"nodeId\" IS NOT NULL"
+        },
+        "hist_ptr_comment_chk": {
+          "name": "hist_ptr_comment_chk",
+          "value": "\"questHistory\".\"type\" <> 'commentAdded' OR \"questHistory\".\"commentId\" IS NOT NULL"
+        },
+        "quest_reward_nonneg_chk": {
+          "name": "quest_reward_nonneg_chk",
+          "value": "\"quest\".\"rewardAmount\" >= 0"
+        }
+      }
+    },
+    "chatMessages": {
+      "name": "chatMessages",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "questId": {
+          "autoincrement": false,
+          "name": "questId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nodeId": {
+          "autoincrement": false,
+          "name": "nodeId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "userId": {
+          "autoincrement": false,
+          "name": "userId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content": {
+          "autoincrement": false,
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timestamp": {
+          "autoincrement": false,
+          "name": "timestamp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "default": "'sent'",
+          "autoincrement": false,
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {},
+      "foreignKeys": {
+        "chatMessages_nodeId_node_id_fk": {
+          "name": "chatMessages_nodeId_node_id_fk",
+          "tableFrom": "chatMessages",
+          "tableTo": "node",
+          "columnsFrom": [
+            "nodeId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "chatMessages_questId_quest_id_fk": {
+          "name": "chatMessages_questId_quest_id_fk",
+          "tableFrom": "chatMessages",
+          "tableTo": "quest",
+          "columnsFrom": [
+            "questId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "comment_likedBy_json_valid": {
+          "name": "comment_likedBy_json_valid",
+          "value": "json_valid(\"comment\".\"likedBy\""
+        },
+        "comment_dislikedBy_json_valid": {
+          "name": "comment_dislikedBy_json_valid",
+          "value": "json_valid(\"comment\".\"dislikedBy\""
+        },
+        "hist_ptr_reflow_chk": {
+          "name": "hist_ptr_reflow_chk",
+          "value": "\"questHistory\".\"type\" <> 'reflow' OR \"questHistory\".\"linkId\" IS NOT NULL"
+        },
+        "hist_ptr_node_chk": {
+          "name": "hist_ptr_node_chk",
+          "value": "\"questHistory\".\"type\" <> 'nodeJoined' OR \"questHistory\".\"nodeId\" IS NOT NULL"
+        },
+        "hist_ptr_comment_chk": {
+          "name": "hist_ptr_comment_chk",
+          "value": "\"questHistory\".\"type\" <> 'commentAdded' OR \"questHistory\".\"commentId\" IS NOT NULL"
+        },
+        "quest_reward_nonneg_chk": {
+          "name": "quest_reward_nonneg_chk",
+          "value": "\"quest\".\"rewardAmount\" >= 0"
+        }
+      }
+    },
+    "comment": {
+      "name": "comment",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "questId": {
+          "autoincrement": false,
+          "name": "questId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nodeId": {
+          "autoincrement": false,
+          "name": "nodeId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "userId": {
+          "autoincrement": false,
+          "name": "userId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "likedBy": {
+          "autoincrement": false,
+          "name": "likedBy",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dislikedBy": {
+          "autoincrement": false,
+          "name": "dislikedBy",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "content": {
+          "autoincrement": false,
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "autoincrement": false,
+          "name": "createdAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {},
+      "foreignKeys": {
+        "comment_nodeId_node_id_fk": {
+          "name": "comment_nodeId_node_id_fk",
+          "tableFrom": "comment",
+          "tableTo": "node",
+          "columnsFrom": [
+            "nodeId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "comment_questId_quest_id_fk": {
+          "name": "comment_questId_quest_id_fk",
+          "tableFrom": "comment",
+          "tableTo": "quest",
+          "columnsFrom": [
+            "questId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "comment_likedBy_json_valid": {
+          "name": "comment_likedBy_json_valid",
+          "value": "json_valid(\"comment\".\"likedBy\""
+        },
+        "comment_dislikedBy_json_valid": {
+          "name": "comment_dislikedBy_json_valid",
+          "value": "json_valid(\"comment\".\"dislikedBy\""
+        },
+        "hist_ptr_reflow_chk": {
+          "name": "hist_ptr_reflow_chk",
+          "value": "\"questHistory\".\"type\" <> 'reflow' OR \"questHistory\".\"linkId\" IS NOT NULL"
+        },
+        "hist_ptr_node_chk": {
+          "name": "hist_ptr_node_chk",
+          "value": "\"questHistory\".\"type\" <> 'nodeJoined' OR \"questHistory\".\"nodeId\" IS NOT NULL"
+        },
+        "hist_ptr_comment_chk": {
+          "name": "hist_ptr_comment_chk",
+          "value": "\"questHistory\".\"type\" <> 'commentAdded' OR \"questHistory\".\"commentId\" IS NOT NULL"
+        },
+        "quest_reward_nonneg_chk": {
+          "name": "quest_reward_nonneg_chk",
+          "value": "\"quest\".\"rewardAmount\" >= 0"
+        }
+      }
+    },
+    "link": {
+      "name": "link",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "questId": {
+          "autoincrement": false,
+          "name": "questId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ownerNodeId": {
+          "autoincrement": false,
+          "name": "ownerNodeId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "default": "'targeted'",
+          "autoincrement": false,
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "autoincrement": false,
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "endorsement": {
+          "autoincrement": false,
+          "name": "endorsement",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reason": {
+          "autoincrement": false,
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "relationshipStrength": {
+          "autoincrement": false,
+          "name": "relationshipStrength",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "linkCode": {
+          "autoincrement": false,
+          "name": "linkCode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "active": {
+          "default": true,
+          "autoincrement": false,
+          "name": "active",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "autoincrement": false,
+          "name": "createdAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "uniq_link_id_quest": {
+          "name": "uniq_link_id_quest",
+          "columns": [
+            "id",
+            "questId"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "link_ownerNodeId_questId_node_id_questId_fk": {
+          "name": "link_ownerNodeId_questId_node_id_questId_fk",
+          "tableFrom": "link",
+          "tableTo": "node",
+          "columnsFrom": [
+            "ownerNodeId",
+            "questId"
+          ],
+          "columnsTo": [
+            "id",
+            "questId"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "cascade"
+        },
+        "link_ownerNodeId_node_id_fk": {
+          "name": "link_ownerNodeId_node_id_fk",
+          "tableFrom": "link",
+          "tableTo": "node",
+          "columnsFrom": [
+            "ownerNodeId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "link_questId_quest_id_fk": {
+          "name": "link_questId_quest_id_fk",
+          "tableFrom": "link",
+          "tableTo": "quest",
+          "columnsFrom": [
+            "questId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "comment_likedBy_json_valid": {
+          "name": "comment_likedBy_json_valid",
+          "value": "json_valid(\"comment\".\"likedBy\""
+        },
+        "comment_dislikedBy_json_valid": {
+          "name": "comment_dislikedBy_json_valid",
+          "value": "json_valid(\"comment\".\"dislikedBy\""
+        },
+        "hist_ptr_reflow_chk": {
+          "name": "hist_ptr_reflow_chk",
+          "value": "\"questHistory\".\"type\" <> 'reflow' OR \"questHistory\".\"linkId\" IS NOT NULL"
+        },
+        "hist_ptr_node_chk": {
+          "name": "hist_ptr_node_chk",
+          "value": "\"questHistory\".\"type\" <> 'nodeJoined' OR \"questHistory\".\"nodeId\" IS NOT NULL"
+        },
+        "hist_ptr_comment_chk": {
+          "name": "hist_ptr_comment_chk",
+          "value": "\"questHistory\".\"type\" <> 'commentAdded' OR \"questHistory\".\"commentId\" IS NOT NULL"
+        },
+        "quest_reward_nonneg_chk": {
+          "name": "quest_reward_nonneg_chk",
+          "value": "\"quest\".\"rewardAmount\" >= 0"
+        }
+      }
+    },
+    "node": {
+      "name": "node",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "questId": {
+          "autoincrement": false,
+          "name": "questId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "seekerId": {
+          "autoincrement": false,
+          "name": "seekerId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "userId": {
+          "autoincrement": false,
+          "name": "userId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "referer": {
+          "default": "'unknown'",
+          "autoincrement": false,
+          "name": "referer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parentId": {
+          "autoincrement": false,
+          "name": "parentId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "viewLinkId": {
+          "autoincrement": false,
+          "name": "viewLinkId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "autoincrement": false,
+          "name": "createdAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "uniq_node_id_quest": {
+          "name": "uniq_node_id_quest",
+          "columns": [
+            "id",
+            "questId"
+          ],
+          "isUnique": true
+        },
+        "quest_id_user_id_unique": {
+          "name": "quest_id_user_id_unique",
+          "columns": [
+            "questId",
+            "userId"
+          ],
+          "isUnique": true
+        },
+        "uniq_one_root_node_per_quest": {
+          "name": "uniq_one_root_node_per_quest",
+          "columns": [
+            "questId"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "node_viewLinkId_questId_link_id_questId_fk": {
+          "name": "node_viewLinkId_questId_link_id_questId_fk",
+          "tableFrom": "node",
+          "tableTo": "link",
+          "columnsFrom": [
+            "viewLinkId",
+            "questId"
+          ],
+          "columnsTo": [
+            "id",
+            "questId"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "cascade"
+        },
+        "node_viewLinkId_link_id_fk": {
+          "name": "node_viewLinkId_link_id_fk",
+          "tableFrom": "node",
+          "tableTo": "link",
+          "columnsFrom": [
+            "viewLinkId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "node_parentId_node_id_fk": {
+          "name": "node_parentId_node_id_fk",
+          "tableFrom": "node",
+          "tableTo": "node",
+          "columnsFrom": [
+            "parentId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "node_questId_quest_id_fk": {
+          "name": "node_questId_quest_id_fk",
+          "tableFrom": "node",
+          "tableTo": "quest",
+          "columnsFrom": [
+            "questId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "comment_likedBy_json_valid": {
+          "name": "comment_likedBy_json_valid",
+          "value": "json_valid(\"comment\".\"likedBy\""
+        },
+        "comment_dislikedBy_json_valid": {
+          "name": "comment_dislikedBy_json_valid",
+          "value": "json_valid(\"comment\".\"dislikedBy\""
+        },
+        "hist_ptr_reflow_chk": {
+          "name": "hist_ptr_reflow_chk",
+          "value": "\"questHistory\".\"type\" <> 'reflow' OR \"questHistory\".\"linkId\" IS NOT NULL"
+        },
+        "hist_ptr_node_chk": {
+          "name": "hist_ptr_node_chk",
+          "value": "\"questHistory\".\"type\" <> 'nodeJoined' OR \"questHistory\".\"nodeId\" IS NOT NULL"
+        },
+        "hist_ptr_comment_chk": {
+          "name": "hist_ptr_comment_chk",
+          "value": "\"questHistory\".\"type\" <> 'commentAdded' OR \"questHistory\".\"commentId\" IS NOT NULL"
+        },
+        "quest_reward_nonneg_chk": {
+          "name": "quest_reward_nonneg_chk",
+          "value": "\"quest\".\"rewardAmount\" >= 0"
+        }
+      }
+    },
+    "questView": {
+      "name": "questView",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "questId": {
+          "autoincrement": false,
+          "name": "questId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "linkId": {
+          "autoincrement": false,
+          "name": "linkId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "userId": {
+          "autoincrement": false,
+          "name": "userId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ipPrefix": {
+          "autoincrement": false,
+          "name": "ipPrefix",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "userAgent": {
+          "autoincrement": false,
+          "name": "userAgent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "autoincrement": false,
+          "name": "createdAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {},
+      "foreignKeys": {
+        "questView_linkId_link_id_fk": {
+          "name": "questView_linkId_link_id_fk",
+          "tableFrom": "questView",
+          "tableTo": "link",
+          "columnsFrom": [
+            "linkId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "questView_questId_quest_id_fk": {
+          "name": "questView_questId_quest_id_fk",
+          "tableFrom": "questView",
+          "tableTo": "quest",
+          "columnsFrom": [
+            "questId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "comment_likedBy_json_valid": {
+          "name": "comment_likedBy_json_valid",
+          "value": "json_valid(\"comment\".\"likedBy\""
+        },
+        "comment_dislikedBy_json_valid": {
+          "name": "comment_dislikedBy_json_valid",
+          "value": "json_valid(\"comment\".\"dislikedBy\""
+        },
+        "hist_ptr_reflow_chk": {
+          "name": "hist_ptr_reflow_chk",
+          "value": "\"questHistory\".\"type\" <> 'reflow' OR \"questHistory\".\"linkId\" IS NOT NULL"
+        },
+        "hist_ptr_node_chk": {
+          "name": "hist_ptr_node_chk",
+          "value": "\"questHistory\".\"type\" <> 'nodeJoined' OR \"questHistory\".\"nodeId\" IS NOT NULL"
+        },
+        "hist_ptr_comment_chk": {
+          "name": "hist_ptr_comment_chk",
+          "value": "\"questHistory\".\"type\" <> 'commentAdded' OR \"questHistory\".\"commentId\" IS NOT NULL"
+        },
+        "quest_reward_nonneg_chk": {
+          "name": "quest_reward_nonneg_chk",
+          "value": "\"quest\".\"rewardAmount\" >= 0"
+        }
+      }
+    },
+    "notifications": {
+      "name": "notifications",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "timestamp": {
+          "autoincrement": false,
+          "name": "timestamp",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "questHistoryId": {
+          "autoincrement": false,
+          "name": "questHistoryId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "emailedAt": {
+          "autoincrement": false,
+          "name": "emailedAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "default": "'sent'",
+          "autoincrement": false,
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "userId": {
+          "autoincrement": false,
+          "name": "userId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {},
+      "foreignKeys": {
+        "notifications_questHistoryId_questHistory_id_fk": {
+          "name": "notifications_questHistoryId_questHistory_id_fk",
+          "tableFrom": "notifications",
+          "tableTo": "questHistory",
+          "columnsFrom": [
+            "questHistoryId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "comment_likedBy_json_valid": {
+          "name": "comment_likedBy_json_valid",
+          "value": "json_valid(\"comment\".\"likedBy\""
+        },
+        "comment_dislikedBy_json_valid": {
+          "name": "comment_dislikedBy_json_valid",
+          "value": "json_valid(\"comment\".\"dislikedBy\""
+        },
+        "hist_ptr_reflow_chk": {
+          "name": "hist_ptr_reflow_chk",
+          "value": "\"questHistory\".\"type\" <> 'reflow' OR \"questHistory\".\"linkId\" IS NOT NULL"
+        },
+        "hist_ptr_node_chk": {
+          "name": "hist_ptr_node_chk",
+          "value": "\"questHistory\".\"type\" <> 'nodeJoined' OR \"questHistory\".\"nodeId\" IS NOT NULL"
+        },
+        "hist_ptr_comment_chk": {
+          "name": "hist_ptr_comment_chk",
+          "value": "\"questHistory\".\"type\" <> 'commentAdded' OR \"questHistory\".\"commentId\" IS NOT NULL"
+        },
+        "quest_reward_nonneg_chk": {
+          "name": "quest_reward_nonneg_chk",
+          "value": "\"quest\".\"rewardAmount\" >= 0"
+        }
+      }
+    },
+    "proposedAnswer": {
+      "name": "proposedAnswer",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "questId": {
+          "autoincrement": false,
+          "name": "questId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nodeId": {
+          "autoincrement": false,
+          "name": "nodeId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "userId": {
+          "autoincrement": false,
+          "name": "userId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content": {
+          "autoincrement": false,
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "screeningAnswers": {
+          "autoincrement": false,
+          "name": "screeningAnswers",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "default": "'pending'",
+          "autoincrement": false,
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "autoincrement": false,
+          "name": "createdAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decidedAt": {
+          "autoincrement": false,
+          "name": "decidedAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {
+        "unique_proposal_per_node": {
+          "name": "unique_proposal_per_node",
+          "columns": [
+            "nodeId"
+          ],
+          "isUnique": true
+        },
+        "uniq_one_accepted_proposal_per_quest": {
+          "name": "uniq_one_accepted_proposal_per_quest",
+          "columns": [
+            "questId"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "proposedAnswer_nodeId_node_id_fk": {
+          "name": "proposedAnswer_nodeId_node_id_fk",
+          "tableFrom": "proposedAnswer",
+          "tableTo": "node",
+          "columnsFrom": [
+            "nodeId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "proposedAnswer_questId_quest_id_fk": {
+          "name": "proposedAnswer_questId_quest_id_fk",
+          "tableFrom": "proposedAnswer",
+          "tableTo": "quest",
+          "columnsFrom": [
+            "questId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "comment_likedBy_json_valid": {
+          "name": "comment_likedBy_json_valid",
+          "value": "json_valid(\"comment\".\"likedBy\""
+        },
+        "comment_dislikedBy_json_valid": {
+          "name": "comment_dislikedBy_json_valid",
+          "value": "json_valid(\"comment\".\"dislikedBy\""
+        },
+        "hist_ptr_reflow_chk": {
+          "name": "hist_ptr_reflow_chk",
+          "value": "\"questHistory\".\"type\" <> 'reflow' OR \"questHistory\".\"linkId\" IS NOT NULL"
+        },
+        "hist_ptr_node_chk": {
+          "name": "hist_ptr_node_chk",
+          "value": "\"questHistory\".\"type\" <> 'nodeJoined' OR \"questHistory\".\"nodeId\" IS NOT NULL"
+        },
+        "hist_ptr_comment_chk": {
+          "name": "hist_ptr_comment_chk",
+          "value": "\"questHistory\".\"type\" <> 'commentAdded' OR \"questHistory\".\"commentId\" IS NOT NULL"
+        },
+        "quest_reward_nonneg_chk": {
+          "name": "quest_reward_nonneg_chk",
+          "value": "\"quest\".\"rewardAmount\" >= 0"
+        }
+      }
+    },
+    "questHistory": {
+      "name": "questHistory",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "questId": {
+          "autoincrement": false,
+          "name": "questId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actorUserId": {
+          "autoincrement": false,
+          "name": "actorUserId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "autoincrement": false,
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "autoincrement": false,
+          "name": "createdAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "linkId": {
+          "autoincrement": false,
+          "name": "linkId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nodeId": {
+          "autoincrement": false,
+          "name": "nodeId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "commentId": {
+          "autoincrement": false,
+          "name": "commentId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proposedAnswerId": {
+          "autoincrement": false,
+          "name": "proposedAnswerId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {},
+      "foreignKeys": {
+        "questHistory_proposedAnswerId_proposedAnswer_id_fk": {
+          "name": "questHistory_proposedAnswerId_proposedAnswer_id_fk",
+          "tableFrom": "questHistory",
+          "tableTo": "proposedAnswer",
+          "columnsFrom": [
+            "proposedAnswerId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "questHistory_commentId_comment_id_fk": {
+          "name": "questHistory_commentId_comment_id_fk",
+          "tableFrom": "questHistory",
+          "tableTo": "comment",
+          "columnsFrom": [
+            "commentId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "questHistory_nodeId_node_id_fk": {
+          "name": "questHistory_nodeId_node_id_fk",
+          "tableFrom": "questHistory",
+          "tableTo": "node",
+          "columnsFrom": [
+            "nodeId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "questHistory_linkId_link_id_fk": {
+          "name": "questHistory_linkId_link_id_fk",
+          "tableFrom": "questHistory",
+          "tableTo": "link",
+          "columnsFrom": [
+            "linkId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "questHistory_questId_quest_id_fk": {
+          "name": "questHistory_questId_quest_id_fk",
+          "tableFrom": "questHistory",
+          "tableTo": "quest",
+          "columnsFrom": [
+            "questId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "comment_likedBy_json_valid": {
+          "name": "comment_likedBy_json_valid",
+          "value": "json_valid(\"comment\".\"likedBy\""
+        },
+        "comment_dislikedBy_json_valid": {
+          "name": "comment_dislikedBy_json_valid",
+          "value": "json_valid(\"comment\".\"dislikedBy\""
+        },
+        "hist_ptr_reflow_chk": {
+          "name": "hist_ptr_reflow_chk",
+          "value": "\"questHistory\".\"type\" <> 'reflow' OR \"questHistory\".\"linkId\" IS NOT NULL"
+        },
+        "hist_ptr_node_chk": {
+          "name": "hist_ptr_node_chk",
+          "value": "\"questHistory\".\"type\" <> 'nodeJoined' OR \"questHistory\".\"nodeId\" IS NOT NULL"
+        },
+        "hist_ptr_comment_chk": {
+          "name": "hist_ptr_comment_chk",
+          "value": "\"questHistory\".\"type\" <> 'commentAdded' OR \"questHistory\".\"commentId\" IS NOT NULL"
+        },
+        "quest_reward_nonneg_chk": {
+          "name": "quest_reward_nonneg_chk",
+          "value": "\"quest\".\"rewardAmount\" >= 0"
+        }
+      }
+    },
+    "quest": {
+      "name": "quest",
+      "columns": {
+        "id": {
+          "autoincrement": false,
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "type": {
+          "default": "'unrestricted'",
+          "autoincrement": false,
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "autoincrement": false,
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shareTitle": {
+          "autoincrement": false,
+          "name": "shareTitle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "autoincrement": false,
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rewardAmount": {
+          "default": "'0'",
+          "autoincrement": false,
+          "name": "rewardAmount",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "baseBlobPath": {
+          "autoincrement": false,
+          "name": "baseBlobPath",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creationDate": {
+          "autoincrement": false,
+          "name": "creationDate",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creatorId": {
+          "autoincrement": false,
+          "name": "creatorId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "startDate": {
+          "autoincrement": false,
+          "name": "startDate",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "seekerId": {
+          "autoincrement": false,
+          "name": "seekerId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "default": "'active'",
+          "autoincrement": false,
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "farewellMessage": {
+          "autoincrement": false,
+          "name": "farewellMessage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "coverPhoto": {
+          "autoincrement": false,
+          "name": "coverPhoto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "media": {
+          "autoincrement": false,
+          "name": "media",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "screeningQuestions": {
+          "autoincrement": false,
+          "name": "screeningQuestions",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reshareLabel": {
+          "autoincrement": false,
+          "name": "reshareLabel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proposeAnswerLabel": {
+          "autoincrement": false,
+          "name": "proposeAnswerLabel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "saveForLaterLabel": {
+          "autoincrement": false,
+          "name": "saveForLaterLabel",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastContributionAt": {
+          "autoincrement": false,
+          "name": "lastContributionAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "finishedAt": {
+          "autoincrement": false,
+          "name": "finishedAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rootNodeId": {
+          "autoincrement": false,
+          "name": "rootNodeId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "compositePrimaryKeys": {},
+      "indexes": {},
+      "foreignKeys": {
+        "quest_rootNodeId_id_node_id_questId_fk": {
+          "name": "quest_rootNodeId_id_node_id_questId_fk",
+          "tableFrom": "quest",
+          "tableTo": "node",
+          "columnsFrom": [
+            "rootNodeId",
+            "id"
+          ],
+          "columnsTo": [
+            "id",
+            "questId"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "cascade"
+        },
+        "quest_rootNodeId_node_id_fk": {
+          "name": "quest_rootNodeId_node_id_fk",
+          "tableFrom": "quest",
+          "tableTo": "node",
+          "columnsFrom": [
+            "rootNodeId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "comment_likedBy_json_valid": {
+          "name": "comment_likedBy_json_valid",
+          "value": "json_valid(\"comment\".\"likedBy\""
+        },
+        "comment_dislikedBy_json_valid": {
+          "name": "comment_dislikedBy_json_valid",
+          "value": "json_valid(\"comment\".\"dislikedBy\""
+        },
+        "hist_ptr_reflow_chk": {
+          "name": "hist_ptr_reflow_chk",
+          "value": "\"questHistory\".\"type\" <> 'reflow' OR \"questHistory\".\"linkId\" IS NOT NULL"
+        },
+        "hist_ptr_node_chk": {
+          "name": "hist_ptr_node_chk",
+          "value": "\"questHistory\".\"type\" <> 'nodeJoined' OR \"questHistory\".\"nodeId\" IS NOT NULL"
+        },
+        "hist_ptr_comment_chk": {
+          "name": "hist_ptr_comment_chk",
+          "value": "\"questHistory\".\"type\" <> 'commentAdded' OR \"questHistory\".\"commentId\" IS NOT NULL"
+        },
+        "quest_reward_nonneg_chk": {
+          "name": "quest_reward_nonneg_chk",
+          "value": "\"quest\".\"rewardAmount\" >= 0"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  }
+}
