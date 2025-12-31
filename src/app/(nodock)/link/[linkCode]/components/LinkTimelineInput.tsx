@@ -70,7 +70,7 @@ export function LinkTimelineInput({
 
       return { previousTimeline };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       const previousTimeline = (
         context as { previousTimeline?: LinkTimelineReadResult } | undefined
       )?.previousTimeline;
@@ -80,6 +80,9 @@ export function LinkTimelineInput({
           previousTimeline,
         );
       }
+      setFormError(
+        error instanceof Error ? error.message : "Failed to post comment",
+      );
     },
     onSettled: () => {
       queryClient.invalidateQueries({
@@ -89,26 +92,19 @@ export function LinkTimelineInput({
         queryKey: getLinkStatsCardQueryKey({ questId, linkCode }),
       });
     },
+    onSuccess: () => {
+      setCommentText("");
+      setFormError(null);
+    },
   });
 
   const resolvedReferer: SocialMediaName = referer ?? "unknown";
   const { defer, consume } = useDeferredAction("comment");
 
   const handleMutation = useCallback(
-    async (content: string) => {
+    (content: string) => {
       setFormError(null);
-      try {
-        await create.mutateAsync({
-          content,
-          referer: resolvedReferer,
-          linkCode,
-        });
-        setCommentText("");
-      } catch (error) {
-        setFormError(
-          error instanceof Error ? error.message : "Failed to post comment",
-        );
-      }
+      create.mutate({ content, referer: resolvedReferer, linkCode });
     },
     [create, resolvedReferer, linkCode],
   );
@@ -116,15 +112,17 @@ export function LinkTimelineInput({
   useEffect(() => {
     const pendingComment = consume<string>();
     if (pendingComment && user) {
-      // Defer the mutation to avoid synchronous state update during render/effect
-      setTimeout(() => {
-        handleMutation(pendingComment);
-      }, 0);
+      create.mutate({
+        content: pendingComment,
+        referer: resolvedReferer,
+        linkCode,
+      });
     }
-  }, [consume, user, handleMutation]);
+  }, [consume, user, create, resolvedReferer, linkCode]);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setFormError(null);
 
     const trimmed = commentText.trim();
     if (!trimmed) {
@@ -137,7 +135,7 @@ export function LinkTimelineInput({
       }
       return;
     }
-    await handleMutation(trimmed);
+    handleMutation(trimmed);
   };
 
   const placeholder = "Share your thoughts …";
