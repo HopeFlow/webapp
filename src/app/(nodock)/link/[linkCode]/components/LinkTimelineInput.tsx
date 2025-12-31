@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent, useCallback } from "react";
 import { Avatar } from "@/components/user_avatar";
 import { SafeUser } from "@/helpers/server/auth";
 import { Button } from "@/components/button";
@@ -10,6 +10,8 @@ import type { SocialMediaName } from "./ReflowTree";
 import type { LinkTimelineReadResult } from "../../types";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLinkStatsCardQueryKey } from "@/apiHooks/link/linkStatsCard";
+import { useDeferredAction } from "@/app/deferred_action_context";
+import { useEffect } from "react";
 
 export function LinkTimelineInput({
   linkCode,
@@ -90,33 +92,57 @@ export function LinkTimelineInput({
   });
 
   const resolvedReferer: SocialMediaName = referer ?? "unknown";
+  const { defer, consume } = useDeferredAction("comment");
+
+  const handleMutation = useCallback(
+    async (content: string) => {
+      setFormError(null);
+      try {
+        await create.mutateAsync({
+          content,
+          referer: resolvedReferer,
+          linkCode,
+        });
+        setCommentText("");
+      } catch (error) {
+        setFormError(
+          error instanceof Error ? error.message : "Failed to post comment",
+        );
+      }
+    },
+    [create, resolvedReferer, linkCode],
+  );
+
+  useEffect(() => {
+    const pendingComment = consume<string>();
+    if (pendingComment && user) {
+      // Defer the mutation to avoid synchronous state update during render/effect
+      setTimeout(() => {
+        handleMutation(pendingComment);
+      }, 0);
+    }
+  }, [consume, user, handleMutation]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!user) return;
+
     const trimmed = commentText.trim();
     if (!trimmed) {
       setFormError("Please enter a comment before posting.");
       return;
     }
-    setFormError(null);
-    try {
-      await create.mutateAsync({
-        content: trimmed,
-        referer: resolvedReferer,
-        linkCode,
-      });
-      setCommentText("");
-    } catch (error) {
-      setFormError(
-        error instanceof Error ? error.message : "Failed to post comment",
-      );
+    if (!user) {
+      if (trimmed) {
+        defer(trimmed);
+      }
+      return;
     }
+    await handleMutation(trimmed);
   };
 
-  const placeholder = user ? "Share your thoughts …" : "Sign in to comment";
+  const placeholder = "Share your thoughts …";
 
-  const commentDisabled = create.isPending || !user;
+  const commentDisabled = create.isPending;
 
   return (
     <form

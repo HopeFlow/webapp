@@ -126,7 +126,6 @@ export function LoginMain({
 
   // Handle OAuth
   const handleSigninWith = async (strategy: OAuthStrategy) => {
-    console.log("handleSigninWith", strategy);
     if (!isSignInLoaded || !signIn) return;
     const redirectUrl = currentUrl;
     try {
@@ -153,7 +152,7 @@ export function LoginMain({
         const res = await signIn.create({ transfer: true });
         if (res.status === "complete") {
           await setSignInActive({ session: res.createdSessionId });
-          console.log("Redirecting to (SignIn):", url);
+          // Redirecting to (SignIn)
           if (url) goto(url);
           else gotoHome();
         }
@@ -165,7 +164,7 @@ export function LoginMain({
         const res = await signUp.create({ transfer: true });
         if (res.status === "complete") {
           await setSignUpActive({ session: res.createdSessionId });
-          console.log("Redirecting to (SignUp):", url);
+          // Redirecting to (SignUp)
           if (url) goto(url);
           else gotoHome();
         }
@@ -197,7 +196,7 @@ export function LoginMain({
         />
       </TransitionContainer>
       <TransitionContainer show={usingEmail}>
-        <LoginEmail />
+        <LoginEmail url={url} />
       </TransitionContainer>
     </div>
   );

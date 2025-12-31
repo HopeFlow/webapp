@@ -11,6 +11,9 @@ import {
   SubmitAnswerModal,
   showSubmitAnswerModal,
 } from "@/modals/submit_answer_modal";
+import { useDeferredAction } from "@/app/deferred_action_context";
+import { useEffect } from "react";
+import { SafeUser } from "@/helpers/server/auth";
 
 export type LinkOverviewMediaItem = {
   id: string;
@@ -44,6 +47,7 @@ export function LinkEngagement({
   isJoining,
   handleJoin,
   questType,
+  user,
 }: {
   inviter: LinkInviterInfo;
   submitQuestions: LinkSubmitQuestion[];
@@ -52,8 +56,38 @@ export function LinkEngagement({
   isJoining?: boolean;
   handleJoin?: () => void;
   questType?: "restricted" | "unrestricted";
+  user?: SafeUser; // Ideally this should be typed properly, importing SafeUser if available in context or passing it down
 }) {
   const hasMultipleInviters = (inviter.avatars?.length ?? 0) > 1;
+  const { defer: deferReflow, consume: consumeReflow } =
+    useDeferredAction("open_reflow");
+  const { defer: deferAnswer, consume: consumeAnswer } =
+    useDeferredAction("open_answer");
+
+  useEffect(() => {
+    if (consumeReflow()) {
+      showReflowModal();
+    }
+    if (consumeAnswer()) {
+      showSubmitAnswerModal();
+    }
+  }, [consumeReflow, consumeAnswer]);
+
+  const handleReflowClick = () => {
+    if (!user) {
+      deferReflow();
+    } else {
+      showReflowModal();
+    }
+  };
+
+  const handleSubmitClick = () => {
+    if (!user) {
+      deferAnswer();
+    } else {
+      showSubmitAnswerModal();
+    }
+  };
   const inviterRowClassName = [
     "flex-shink-0 flex flex-grow-0 flex-row items-center gap-2 select-none",
     hasMultipleInviters
@@ -79,7 +113,7 @@ export function LinkEngagement({
       </div>
       <div className="hidden flex-1 md:block" />
       <div className="flex flex-col justify-between gap-4 font-normal">
-        <Button buttonType="primary" onClick={() => showReflowModal()}>
+        <Button buttonType="primary" onClick={handleReflowClick}>
           <ReflowIcon size={18} /> {actionLabels.reflow}
         </Button>
         <ReflowModal questType={questType} />
@@ -87,9 +121,7 @@ export function LinkEngagement({
           <Button
             buttonType="secondary"
             className="flex-1"
-            onClick={() => {
-              showSubmitAnswerModal();
-            }}
+            onClick={handleSubmitClick}
           >
             <BulbIcon size={18} /> {actionLabels.submit}
           </Button>
