@@ -26,8 +26,9 @@ import { StatsCard } from "./components/StatsCard";
 import { useLinkStatsCard } from "@/apiHooks/link/linkStatsCard";
 import type { LinkStatusStat } from "../types";
 import { getReadNodesQueryKey, useReadNodes } from "@/apiHooks/link/readNodes";
-import { useGotoLogin } from "@/helpers/client/routes";
 import { useAddNode } from "@/apiHooks/link/addNode";
+import { useDeferredAction } from "@/app/deferred_action_context";
+import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { readNodes } from "../node.api";
 
@@ -334,13 +335,20 @@ export function LinkMain({
       });
     },
   });
-  const gotoLogin = useGotoLogin();
   const isJoining =
     createNode.isPending || hasOptimisticNode(linkNodeData?.treeRoot);
 
+  const { defer, consume } = useDeferredAction("node_join");
+
+  useEffect(() => {
+    if (consume() && user) {
+      createNode.mutate({ referer, linkCode });
+    }
+  }, [consume, user, createNode, referer, linkCode]);
+
   const handlePotentialNodeClick = async () => {
     if (!user) {
-      gotoLogin({ url: `/link/${linkCode}` });
+      defer();
       return;
     }
     await createNode.mutateAsync({ referer, linkCode });
@@ -364,6 +372,7 @@ export function LinkMain({
             isJoining={isJoining}
             handleJoin={handlePotentialNodeClick}
             questType={linkNodeData?.questType}
+            user={user}
           />
         </div>
         <div className="flex flex-col items-start gap-6 md:flex-row">
@@ -403,6 +412,7 @@ export function LinkMain({
           date={publishDate}
           questId={questId}
           nodeId={linkNodeData?.nodeId}
+          user={user}
         />
       </div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent, useCallback } from "react";
 import { Avatar } from "@/components/user_avatar";
 import { SafeUser } from "@/helpers/server/auth";
 import { Button } from "@/components/button";
@@ -10,6 +10,8 @@ import type { SocialMediaName } from "./ReflowTree";
 import type { LinkTimelineReadResult } from "../../types";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLinkStatsCardQueryKey } from "@/apiHooks/link/linkStatsCard";
+import { useDeferredAction } from "@/app/deferred_action_context";
+import { useEffect } from "react";
 
 export function LinkTimelineInput({
   linkCode,
@@ -68,7 +70,7 @@ export function LinkTimelineInput({
 
       return { previousTimeline };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       const previousTimeline = (
         context as { previousTimeline?: LinkTimelineReadResult } | undefined
       )?.previousTimeline;
@@ -78,6 +80,9 @@ export function LinkTimelineInput({
           previousTimeline,
         );
       }
+      setFormError(
+        error instanceof Error ? error.message : "Failed to post comment",
+      );
     },
     onSettled: () => {
       queryClient.invalidateQueries({
@@ -87,36 +92,55 @@ export function LinkTimelineInput({
         queryKey: getLinkStatsCardQueryKey({ questId, linkCode }),
       });
     },
+    onSuccess: () => {
+      setCommentText("");
+      setFormError(null);
+    },
   });
 
   const resolvedReferer: SocialMediaName = referer ?? "unknown";
+  const { defer, consume } = useDeferredAction("comment");
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleMutation = useCallback(
+    (content: string) => {
+      setFormError(null);
+      create.mutate({ content, referer: resolvedReferer, linkCode });
+    },
+    [create, resolvedReferer, linkCode],
+  );
+
+  useEffect(() => {
+    const pendingComment = consume<string>();
+    if (pendingComment && user) {
+      create.mutate({
+        content: pendingComment,
+        referer: resolvedReferer,
+        linkCode,
+      });
+    }
+  }, [consume, user, create, resolvedReferer, linkCode]);
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!user) return;
+    setFormError(null);
+
     const trimmed = commentText.trim();
     if (!trimmed) {
       setFormError("Please enter a comment before posting.");
       return;
     }
-    setFormError(null);
-    try {
-      await create.mutateAsync({
-        content: trimmed,
-        referer: resolvedReferer,
-        linkCode,
-      });
-      setCommentText("");
-    } catch (error) {
-      setFormError(
-        error instanceof Error ? error.message : "Failed to post comment",
-      );
+    if (!user) {
+      if (trimmed) {
+        defer(trimmed);
+      }
+      return;
     }
+    handleMutation(trimmed);
   };
 
-  const placeholder = user ? "Share your thoughts …" : "Sign in to comment";
+  const placeholder = "Share your thoughts …";
 
-  const commentDisabled = create.isPending || !user;
+  const commentDisabled = create.isPending;
 
   return (
     <form

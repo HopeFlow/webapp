@@ -15,6 +15,8 @@ import { LinkTimelineInput } from "./LinkTimelineInput";
 import type { SocialMediaName } from "./ReflowTree";
 import type { LinkTimelineReadResult, LinkTimelineReaction } from "../../types";
 import { useQueryClient } from "@tanstack/react-query";
+import { useDeferredAction } from "@/app/deferred_action_context";
+import { useEffect } from "react";
 
 export type TimelineAction = React.ComponentProps<
   typeof Timeline
@@ -108,6 +110,23 @@ export function LinkTimelineContent({
   });
   const resolvedReferer: SocialMediaName = referer ?? "unknown";
 
+  const { defer, consume } = useDeferredAction("reaction");
+
+  useEffect(() => {
+    const pendingReaction = consume<{
+      commentId: string;
+      reaction: LinkTimelineReaction;
+    }>();
+    if (pendingReaction && user && !update.isPending) {
+      update.mutate({
+        commentId: pendingReaction.commentId,
+        reaction: pendingReaction.reaction,
+        referer: resolvedReferer,
+        linkCode,
+      });
+    }
+  }, [consume, user, update, linkCode, resolvedReferer]);
+
   const timelineData: LinkTimelineReadResult =
     data && typeof data !== "boolean" ? data : EMPTY_TIMELINE;
   const pendingReactionId = update.variables?.commentId ?? null;
@@ -140,18 +159,20 @@ export function LinkTimelineContent({
           viewerReaction: entry.comment.viewerReaction,
           optimistic: isOptimisticEntry,
           isPending: update.isPending && pendingReactionId === entry.comment.id,
-          onReact: !!user
-            ? (desired: LinkTimelineReaction | null) => {
-                const nextReaction =
-                  entry.comment?.viewerReaction === desired ? null : desired;
-                update.mutate({
-                  commentId: entry.comment!.id,
-                  reaction: nextReaction,
-                  referer: resolvedReferer,
-                  linkCode,
-                });
-              }
-            : undefined,
+          onReact: (desired: LinkTimelineReaction | null) => {
+            if (!user) {
+              defer({ commentId: entry.comment!.id, reaction: desired });
+              return;
+            }
+            const nextReaction =
+              entry.comment?.viewerReaction === desired ? null : desired;
+            update.mutate({
+              commentId: entry.comment!.id,
+              reaction: nextReaction,
+              referer: resolvedReferer,
+              linkCode,
+            });
+          },
         };
       }
       mapped.unshift(action);
@@ -164,6 +185,7 @@ export function LinkTimelineContent({
     resolvedReferer,
     user,
     linkCode,
+    defer,
   ]);
 
   return (
