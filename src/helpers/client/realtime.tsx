@@ -163,6 +163,7 @@ export const useChatRoom = (questId: string, nodeId: string) => {
     const preInitQueue: Array<ChatMessage> = [];
     const unsubscribe = subscribe((type, timestamp, payload) => {
       if (type === "chat_message") {
+        // TODO: Check if the message belongs to this chat room
         if (!chatMessagesInitialized) {
           preInitQueue.push(payload as ChatMessage);
         } else {
