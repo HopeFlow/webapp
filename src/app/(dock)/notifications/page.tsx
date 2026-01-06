@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Button } from "@/components/button";
 import { ArrowRightIcon } from "@/components/icons/arrow_right";
 import { useNotificationControls } from "@/helpers/client/realtime";
-import { markNotificationsRead } from "@/helpers/server/realtime";
 import { cn } from "@/helpers/client/tailwind_helpers";
 
 const formatTime = (timestamp: string) => {
@@ -33,8 +32,7 @@ export default function Notifications() {
     if (unreadIds.length === 0) return;
     const run = async () => {
       try {
-        await markNotificationsRead({ ids: unreadIds });
-        markNotificationsAsRead();
+        markNotificationsAsRead(unreadIds);
       } catch (error) {
         console.error("Failed to mark notifications as read", error);
       }
@@ -46,8 +44,7 @@ export default function Notifications() {
     if (isMarking) return;
     setIsMarking(true);
     try {
-      // await markNotificationsRead();
-      markNotificationsAsRead();
+      markNotificationsAsRead(unreadIds);
     } catch (error) {
       console.error("Failed to mark notifications as read", error);
     } finally {

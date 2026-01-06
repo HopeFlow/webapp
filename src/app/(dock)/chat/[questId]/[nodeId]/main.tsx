@@ -32,6 +32,7 @@ export function ChatMain({
     currentUserImageUrl,
     targetUserImageUrl,
     targetUserName,
+    questTitle,
     isTargetTyping,
     isMessagesLoading,
   } = useChatRoom(questId, nodeId);
@@ -100,7 +101,7 @@ export function ChatMain({
             Quest chat
           </p>
           <h1 className="text-lg font-normal md:text-2xl">
-            Jacob&apos;s stolen sentimental bicycle
+            {questTitle ?? "Quest chat"}
           </h1>
         </div>
         <div className="hidden flex-wrap items-center gap-2 md:flex">

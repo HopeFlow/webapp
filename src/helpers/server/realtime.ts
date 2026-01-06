@@ -33,6 +33,19 @@ const toChatMessage = (
   status: row.status,
 });
 
+type ChatAck = {
+  state: "received" | "displayed";
+  messageId?: string | null;
+  questId?: string | null;
+  nodeId?: string | null;
+};
+
+const isChatAck = (value: unknown): value is ChatAck => {
+  if (!value || typeof value !== "object") return false;
+  const state = (value as { state?: unknown }).state;
+  return state === "received" || state === "displayed";
+};
+
 type NotificationHistory = Pick<
   typeof questHistoryTable.$inferSelect,
   "questId" | "nodeId" | "type"
@@ -166,13 +179,27 @@ const publishRealtimeMessage = defineServerFunction({
         `Failed to publish realtime message: ${result.status} ${result.statusText}`,
       );
     }
-    const resultJson: object = await result.json();
-    if ("error" in resultJson) {
+    const resultJson: unknown = await result.json();
+    if (
+      resultJson &&
+      typeof resultJson === "object" &&
+      "error" in resultJson &&
+      typeof (resultJson as { error?: unknown }).error === "string"
+    ) {
       throw new Error(
-        `Failed to publish realtime message: ${resultJson.error}`,
+        `Failed to publish realtime message: ${(resultJson as { error: string }).error}`,
       );
     }
-    return resultJson as { delivered: number; attempted: number };
+    if (
+      !resultJson ||
+      typeof resultJson !== "object" ||
+      typeof (resultJson as { clientCount?: unknown }).clientCount !==
+        "number" ||
+      !Array.isArray((resultJson as { results?: unknown }).results)
+    ) {
+      throw new Error("Failed to publish realtime message: invalid response");
+    }
+    return resultJson as { clientCount: number; results: unknown[] };
   },
 });
 
@@ -281,6 +308,7 @@ export const initializeChatRoom = defineServerFunction({
       currentUserImageUrl: user.imageUrl,
       targetUserImageUrl: targetUser.imageUrl,
       targetUserName: targetUser.firstName ?? targetUser.fullName ?? undefined,
+      questTitle: quest.title ?? undefined,
       messages,
     };
   },
@@ -329,12 +357,33 @@ export const sendChatMessage = defineServerFunction({
       targetUserId ?? undefined,
       user,
     );
-    if (publishResult.delivered >= 1) {
+    const ackResults = Array.isArray(publishResult.results)
+      ? publishResult.results
+      : [];
+    const chatAcks = ackResults.flatMap((ack) =>
+      Array.isArray(ack) ? ack.filter(isChatAck) : isChatAck(ack) ? [ack] : [],
+    );
+    const acksForMessage = chatAcks.filter(
+      (ack) => !ack.messageId || ack.messageId === chatMessage.id,
+    );
+    const hasDisplayedAck = acksForMessage.some(
+      (ack) => ack.state === "displayed",
+    );
+    const hasReceivedAck =
+      hasDisplayedAck || acksForMessage.some((ack) => ack.state === "received");
+
+    if (hasDisplayedAck) {
       await db
         .update(chatMessagesTable)
         .set({ status: "read" })
         .where(eq(chatMessagesTable.id, chatMessage.id));
       chatMessage = { ...chatMessage, status: "read" };
+    } else if (hasReceivedAck) {
+      await db
+        .update(chatMessagesTable)
+        .set({ status: "delivered" })
+        .where(eq(chatMessagesTable.id, chatMessage.id));
+      chatMessage = { ...chatMessage, status: "delivered" };
     } else if (targetUserId) {
       const eventTimestamp = new Date();
       const [notificationRow] = await db
@@ -505,9 +554,7 @@ export const initializeNotifications = defineServerFunction({
   },
 });
 
-export type MarkNotificationsReadParams =
-  | { ids: string[]; questId?: undefined; nodeId?: undefined }
-  | { ids?: undefined; questId: string; nodeId: string };
+export type MarkNotificationsReadParams = { ids: string[] };
 
 export const markNotificationsRead = defineServerFunction({
   uniqueKey: "realtime::markNotificationsRead",
@@ -517,39 +564,17 @@ export const markNotificationsRead = defineServerFunction({
     if (!user) throw new Error("Not authenticated");
     const db = await getHopeflowDatabase();
 
-    const notificationIds =
-      params.ids ??
-      (
-        await db
-          .select({ id: notificationsTable.id })
-          .from(notificationsTable)
-          .leftJoin(
-            questHistoryTable,
-            eq(questHistoryTable.id, notificationsTable.questHistoryId),
-          )
-          .leftJoin(
-            chatMessagesTable,
-            eq(chatMessagesTable.id, notificationsTable.chatMessageId),
-          )
-          .where(
-            or(
-              and(
-                eq(questHistoryTable.questId, params.questId),
-                eq(questHistoryTable.nodeId, params.nodeId),
-              ),
-              and(
-                eq(chatMessagesTable.questId, params.questId),
-                eq(chatMessagesTable.nodeId, params.nodeId),
-                ne(chatMessagesTable.userId, user.id),
-              ),
-            ),
-          )
-      ).map(({ id }) => id);
+    const notificationIds = params.ids;
     if (notificationIds.length > 0) {
       await db
         .update(notificationsTable)
         .set({ status: "read" })
-        .where(inArray(notificationsTable.id, notificationIds));
+        .where(
+          and(
+            inArray(notificationsTable.id, notificationIds),
+            eq(notificationsTable.userId, user.id),
+          ),
+        );
     }
     return true;
   },

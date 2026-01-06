@@ -13,15 +13,16 @@ import { REALTIME_SERVER_URL } from "./constants";
 import {
   initializeChatRoom,
   initializeNotifications,
+  markNotificationsRead as markNotificationsReadAction,
   sendChatMessage,
   sendChatTyping,
 } from "../server/realtime";
 import { messageStatusDef } from "@/db/constants";
 
 export type RealtimeEnvelope = {
+  envelopeId: string;
   type: string;
-  userId: string;
-  timestamp: string;
+  timestamp?: string;
   payload?: unknown;
 };
 
@@ -53,6 +54,8 @@ type ChatTypingEvent = {
 };
 
 type ConnectionState = "idle" | "connecting" | "open" | "closed" | "error";
+type RealtimeFilter = Record<string, string>;
+type ChatAckState = "received" | "displayed";
 
 const AGGREGATION_WINDOW_MS = 60 * 1000;
 
@@ -97,6 +100,23 @@ const aggregateNotifications = (items: Array<Notification>) => {
   );
 };
 
+const normalizeFilter = (filter: RealtimeFilter) => {
+  const entries = Object.entries(filter).map(([key, value]) => [
+    key,
+    String(value),
+  ]);
+  entries.sort(([a], [b]) => a.localeCompare(b));
+  return { key: JSON.stringify(entries), filter: Object.fromEntries(entries) };
+};
+
+const chunkFilters = (filters: RealtimeFilter[], size = 50) => {
+  const chunks: RealtimeFilter[][] = [];
+  for (let i = 0; i < filters.length; i += size) {
+    chunks.push(filters.slice(i, i + size));
+  }
+  return chunks;
+};
+
 const mergeNotifications = (
   existing: Array<Notification>,
   incoming: Array<Notification>,
@@ -111,9 +131,22 @@ type RealtimeContextType = {
   connectionState: ConnectionState;
   notifications: Array<Notification>;
   allNotifications: Array<Notification>;
-  markNotificationsAsRead: (questId?: string, nodeId?: string) => void;
+  markNotificationsAsRead: (ids: string[]) => void;
+  getThreadNotifications: (
+    questId: string,
+    nodeId?: string,
+  ) => {
+    all: Array<Notification>;
+    unread: Array<Notification>;
+    unreadIds: Array<string>;
+  };
   subscribe: (
-    handler: (type: string, timestamp: string, payload: unknown) => void,
+    handler: (
+      type: string,
+      timestamp: string | undefined,
+      payload: unknown,
+    ) => unknown | Promise<unknown>,
+    filters?: Array<RealtimeFilter>,
   ) => () => void;
 };
 
@@ -122,6 +155,9 @@ const RealtimeContext = createContext<RealtimeContextType>({
   notifications: [],
   allNotifications: [],
   markNotificationsAsRead: () => {
+    throw new Error("Context not initialized");
+  },
+  getThreadNotifications: () => {
     throw new Error("Context not initialized");
   },
   subscribe: () => {
@@ -135,13 +171,18 @@ export const useNotifications = () => {
 };
 
 export const useNotificationControls = () => {
-  const { notifications, allNotifications, markNotificationsAsRead } =
-    useContext(RealtimeContext);
+  const {
+    notifications,
+    allNotifications,
+    markNotificationsAsRead,
+    getThreadNotifications,
+  } = useContext(RealtimeContext);
   return { notifications, allNotifications, markNotificationsAsRead };
 };
 
 export const useChatRoom = (questId: string, nodeId: string) => {
-  const { subscribe, markNotificationsAsRead } = useContext(RealtimeContext);
+  const { subscribe, markNotificationsAsRead, getThreadNotifications } =
+    useContext(RealtimeContext);
   const [messages, setMessages] = useState<Array<ChatMessage>>([]);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const currentUserIdRef = useRef<string>("");
@@ -154,25 +195,41 @@ export const useChatRoom = (questId: string, nodeId: string) => {
   const [targetUserName, setTargetUserName] = useState<string | undefined>(
     undefined,
   );
+  const [questTitle, setQuestTitle] = useState<string | undefined>(undefined);
   const [isTargetTyping, setIsTargetTyping] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isMessagesLoading, setIsMessagesLoading] = useState(true);
+  const chatFilters = useMemo(
+    () => [
+      { type: "chat_message", questId, nodeId },
+      { type: "chat_typing", questId, nodeId },
+    ],
+    [nodeId, questId],
+  );
   useEffect(() => {
     let cancelled = false;
     let chatMessagesInitialized = false;
     const preInitQueue: Array<ChatMessage> = [];
     const unsubscribe = subscribe((type, timestamp, payload) => {
       if (type === "chat_message") {
-        // TODO: Check if the message belongs to this chat room
+        const message = payload as ChatMessage;
+        if (message.questId !== questId || message.nodeId !== nodeId) return;
         if (!chatMessagesInitialized) {
-          preInitQueue.push(payload as ChatMessage);
+          preInitQueue.push(message);
         } else {
           setMessages((prev) =>
-            prev.find((m) => m.id === (payload as ChatMessage).id)
-              ? prev
-              : [...prev, payload as ChatMessage],
+            prev.find((m) => m.id === message.id) ? prev : [...prev, message],
           );
         }
+        const ackState: ChatAckState = chatMessagesInitialized
+          ? "displayed"
+          : "received";
+        return {
+          state: ackState,
+          messageId: message.id,
+          questId: message.questId,
+          nodeId: message.nodeId,
+        };
       } else if (type === "chat_typing") {
         const typingPayload = payload as ChatTypingEvent;
         if (
@@ -190,7 +247,7 @@ export const useChatRoom = (questId: string, nodeId: string) => {
           );
         }
       }
-    });
+    }, chatFilters);
     (async () => {
       if (cancelled) return;
       setIsMessagesLoading(true);
@@ -200,6 +257,7 @@ export const useChatRoom = (questId: string, nodeId: string) => {
           currentUserImageUrl,
           targetUserImageUrl,
           targetUserName,
+          questTitle,
           messages,
         } = await initializeChatRoom(questId, nodeId);
         if (cancelled) return;
@@ -208,12 +266,16 @@ export const useChatRoom = (questId: string, nodeId: string) => {
         setCurrentUserImageUrl(currentUserImageUrl);
         setTargetUserImageUrl(targetUserImageUrl);
         setTargetUserName(targetUserName);
+        setQuestTitle(questTitle);
         setMessages([
           ...messages,
           ...preInitQueue.filter((m) => !messages.find((pm) => pm.id === m.id)),
         ]);
         chatMessagesInitialized = true;
-        markNotificationsAsRead(questId, nodeId);
+        const thread = getThreadNotifications(questId, nodeId);
+        if (thread.unreadIds.length > 0) {
+          markNotificationsAsRead(thread.unreadIds);
+        }
       } catch (error) {
         console.error("[realtime] failed to initialize chat room", error);
       } finally {
@@ -227,7 +289,14 @@ export const useChatRoom = (questId: string, nodeId: string) => {
       }
       unsubscribe();
     };
-  }, [markNotificationsAsRead, nodeId, questId, subscribe]);
+  }, [
+    chatFilters,
+    getThreadNotifications,
+    markNotificationsAsRead,
+    nodeId,
+    questId,
+    subscribe,
+  ]);
   const sendMessage = useCallback(
     async (content: string) => {
       const trimmed = content.trim();
@@ -253,6 +322,7 @@ export const useChatRoom = (questId: string, nodeId: string) => {
     currentUserImageUrl,
     targetUserImageUrl,
     targetUserName,
+    questTitle,
     isTargetTyping,
     isMessagesLoading,
   };
@@ -261,11 +331,7 @@ export const useChatRoom = (questId: string, nodeId: string) => {
 const isRealtimeEnvelope = (payload: unknown): payload is RealtimeEnvelope => {
   if (!payload || typeof payload !== "object") return false;
   const data = payload as Partial<RealtimeEnvelope>;
-  return (
-    typeof data.type === "string" &&
-    typeof data.userId === "string" &&
-    typeof data.timestamp === "string"
-  );
+  return typeof data.type === "string" && typeof data.envelopeId === "string";
 };
 
 export const RealtimeProvider = ({
@@ -282,31 +348,117 @@ export const RealtimeProvider = ({
     [],
   );
   const handlersRef = useRef<
-    Array<(type: string, timestamp: string, payload: unknown) => void>
+    Array<
+      (
+        type: string,
+        timestamp: string | undefined,
+        payload: unknown,
+      ) => unknown | Promise<unknown>
+    >
   >([]);
   const socketRef = useRef<WebSocket | null>(null);
+  const filterStateRef = useRef<
+    Map<string, { filter: RealtimeFilter; count: number }>
+  >(new Map());
   const notifications = useMemo(
     () => aggregateNotifications(notificationsRaw),
     [notificationsRaw],
   );
 
-  const markNotificationsAsRead = useCallback(
-    (questId?: string, nodeId?: string) => {
-      setNotificationsRaw((prev) =>
-        prev.map((notification) => {
-          const questMatch = questId ? notification.questId === questId : true;
-          const nodeMatch = nodeId
-            ? notification.nodeId === nodeId ||
-              notification.url.endsWith(`/${nodeId}`)
-            : true;
-          if (questMatch && nodeMatch && notification.status !== "read") {
-            return { ...notification, status: "read" };
-          }
-          return notification;
-        }),
-      );
+  const sendFilters = useCallback(
+    (action: "subscribe" | "unsubscribe", filters: RealtimeFilter[]) => {
+      if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN)
+        return;
+      for (const chunk of chunkFilters(filters)) {
+        socketRef.current.send(
+          JSON.stringify({ type: action, filters: chunk }),
+        );
+      }
     },
     [],
+  );
+
+  const addFilters = useCallback(
+    (filters: RealtimeFilter[]) => {
+      const additions: RealtimeFilter[] = [];
+      for (const filter of filters) {
+        const { key, filter: normalized } = normalizeFilter(filter);
+        const existing = filterStateRef.current.get(key);
+        if (existing) {
+          filterStateRef.current.set(key, {
+            filter: existing.filter,
+            count: existing.count + 1,
+          });
+        } else {
+          additions.push(normalized);
+          filterStateRef.current.set(key, { filter: normalized, count: 1 });
+        }
+      }
+      if (additions.length > 0) {
+        sendFilters("subscribe", additions);
+      }
+      return () => {
+        const removals: RealtimeFilter[] = [];
+        for (const filter of filters) {
+          const { key } = normalizeFilter(filter);
+          const existing = filterStateRef.current.get(key);
+          if (!existing) continue;
+          if (existing.count <= 1) {
+            filterStateRef.current.delete(key);
+            removals.push(existing.filter);
+          } else {
+            filterStateRef.current.set(key, {
+              filter: existing.filter,
+              count: existing.count - 1,
+            });
+          }
+        }
+        if (removals.length > 0) {
+          sendFilters("unsubscribe", removals);
+        }
+      };
+    },
+    [sendFilters],
+  );
+
+  const markNotificationsAsRead = useCallback((idsToMark: string[]) => {
+    setNotificationsRaw((prev) => {
+      if (idsToMark.length > 0) {
+        void (async () => {
+          try {
+            await markNotificationsReadAction({ ids: idsToMark });
+          } catch (error) {
+            console.error(
+              "[realtime] failed to mark notifications read",
+              error,
+            );
+          }
+        })();
+        return prev.map((n) =>
+          idsToMark.includes(n.id) ? { ...n, status: "read" } : n,
+        );
+      }
+      return prev;
+    });
+  }, []);
+
+  const getThreadNotifications = useCallback(
+    (questId: string, nodeId?: string) => {
+      const all = notificationsRaw.filter(
+        (notification) =>
+          notification.questId === questId &&
+          (typeof nodeId === "undefined" || notification.nodeId === nodeId),
+      );
+      const unread = all.filter(
+        (notification) => notification.status !== "read",
+      );
+      return {
+        all,
+        unread,
+        unreadIds: unread.map((notification) => notification.id),
+      };
+    },
+    [notificationsRaw],
   );
 
   const maybeShowBrowserNotification = useCallback(
@@ -331,7 +483,18 @@ export const RealtimeProvider = ({
   );
 
   useEffect(() => {
+    const removeFilters = addFilters([
+      { type: "notification" },
+      { type: "notifications_init" },
+    ]);
+    return () => {
+      removeFilters?.();
+    };
+  }, [addFilters]);
+
+  useEffect(() => {
     if (!url) return undefined;
+    let cancelled = false;
     const connect = async () => {
       setConnectionState("connecting");
       try {
@@ -349,6 +512,12 @@ export const RealtimeProvider = ({
         };
         socket.onopen = guard(() => {
           setConnectionState("open");
+          const activeFilters = Array.from(filterStateRef.current.values()).map(
+            ({ filter }) => filter,
+          );
+          if (activeFilters.length > 0) {
+            sendFilters("subscribe", activeFilters);
+          }
         });
         socket.onclose = guard(() => {
           setConnectionState("closed");
@@ -360,12 +529,22 @@ export const RealtimeProvider = ({
         let notificationsInitialized = false;
         const preInitNotifications: Array<Notification> = [];
         socket.onmessage = guard((event) => {
-          try {
-            const parsed = JSON.parse(
-              (event as { data: string }).data,
-            ) as unknown;
-            if (isRealtimeEnvelope(parsed)) {
-              console.log("[realtime] message received", parsed);
+          void (async () => {
+            try {
+              const parsed = JSON.parse(
+                (event as { data: string }).data,
+              ) as unknown;
+              if (!isRealtimeEnvelope(parsed)) {
+                console.warn(
+                  "[realtime] ignoring unknown payload",
+                  (event as { data: string }).data,
+                );
+                return;
+              }
+              let ackResult: unknown = null;
+              const envelopeTimestamp =
+                parsed.timestamp ??
+                (new Date().toISOString() as RealtimeEnvelope["timestamp"]);
               if (parsed.type === "notifications_init") {
                 const merged = mergeNotifications(
                   parsed.payload as typeof notifications,
@@ -383,22 +562,58 @@ export const RealtimeProvider = ({
                   );
                   maybeShowBrowserNotification(notification);
                 }
-              } else
+              } else {
                 for (const handler of handlersRef.current ?? []) {
-                  handler(parsed.type, parsed.timestamp, parsed.payload);
+                  try {
+                    const result = await handler(
+                      parsed.type,
+                      envelopeTimestamp,
+                      parsed.payload,
+                    );
+                    if (typeof result !== "undefined") {
+                      ackResult = result;
+                    }
+                  } catch (handlerError) {
+                    console.error("[realtime] handler failed", handlerError);
+                  }
                 }
-            } else {
-              console.warn(
-                "[realtime] ignoring unknown payload",
-                (event as { data: string }).data,
-              );
+              }
+              if (
+                socketRef.current &&
+                socketRef.current.readyState === WebSocket.OPEN
+              ) {
+                socketRef.current.send(
+                  JSON.stringify({
+                    type: "ack",
+                    envelopeId: parsed.envelopeId,
+                    result: ackResult ?? null,
+                  }),
+                );
+              }
+            } catch (error) {
+              console.error("[realtime] failed to parse message", error);
             }
-          } catch (error) {
-            console.error("[realtime] failed to parse message", error);
-          }
+          })();
         });
         socketRef.current = socket;
-        initializeNotifications();
+        const loadNotifications = async (attempt = 1) => {
+          try {
+            if (cancelled) return;
+            await initializeNotifications();
+          } catch (error) {
+            console.error(
+              `[realtime] failed to initialize notifications (attempt ${attempt})`,
+              error,
+            );
+            if (attempt < 3) {
+              setTimeout(
+                () => void loadNotifications(attempt + 1),
+                attempt * 1000,
+              );
+            }
+          }
+        };
+        void loadNotifications();
         return () => {
           if (socketRef.current === socket) {
             setConnectionState("closed");
@@ -418,26 +633,36 @@ export const RealtimeProvider = ({
     const callBackPromise = connect();
 
     return () => {
+      cancelled = true;
       callBackPromise.then((cleanup) => cleanup && cleanup());
     };
-  }, [maybeShowBrowserNotification, token, url]);
+  }, [maybeShowBrowserNotification, sendFilters, token, url]);
 
   const subscribe = useCallback(
-    (handler: (type: string, timestamp: string, payload: unknown) => void) => {
+    (
+      handler: (
+        type: string,
+        timestamp: string | undefined,
+        payload: unknown,
+      ) => unknown | Promise<unknown>,
+      filters: Array<RealtimeFilter> = [],
+    ) => {
+      const filterCleanup = filters.length > 0 ? addFilters(filters) : null;
       const index = handlersRef.current.indexOf(handler);
-      if (index !== -1)
-        return () => {
-          handlersRef.current.splice(index, 1);
-        };
-      handlersRef.current.push(handler);
+      if (index === -1) {
+        handlersRef.current.push(handler);
+      }
       return () => {
-        const index = handlersRef.current.indexOf(handler);
-        if (index !== -1) {
-          handlersRef.current.splice(index, 1);
+        const handlerIndex = handlersRef.current.indexOf(handler);
+        if (handlerIndex !== -1) {
+          handlersRef.current.splice(handlerIndex, 1);
+        }
+        if (filterCleanup) {
+          filterCleanup();
         }
       };
     },
-    [],
+    [addFilters],
   );
 
   return (
@@ -447,6 +672,7 @@ export const RealtimeProvider = ({
         allNotifications: notificationsRaw,
         connectionState,
         markNotificationsAsRead,
+        getThreadNotifications,
         subscribe,
       }}
     >
