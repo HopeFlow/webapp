@@ -11,7 +11,6 @@ import {
 } from "react";
 import { REALTIME_SERVER_URL } from "./constants";
 import {
-  initializeChatRoom,
   initializeNotifications,
   markNotificationsRead as markNotificationsReadAction,
   sendChatMessage,
@@ -180,25 +179,30 @@ export const useNotificationControls = () => {
   return { notifications, allNotifications, markNotificationsAsRead };
 };
 
-export const useChatRoom = (questId: string, nodeId: string) => {
-  const { subscribe, markNotificationsAsRead, getThreadNotifications } =
-    useContext(RealtimeContext);
-  const [messages, setMessages] = useState<Array<ChatMessage>>([]);
-  const [currentUserId, setCurrentUserId] = useState<string>("");
-  const currentUserIdRef = useRef<string>("");
-  const [currentUserImageUrl, setCurrentUserImageUrl] = useState<
-    string | undefined
-  >(undefined);
-  const [targetUserImageUrl, setTargetUserImageUrl] = useState<
-    string | undefined
-  >(undefined);
-  const [targetUserName, setTargetUserName] = useState<string | undefined>(
-    undefined,
+export const useChatRoom = (
+  questId: string,
+  nodeId: string,
+  initialData: {
+    currentUserId: string;
+    currentUserImageUrl?: string | null;
+    targetUserImageUrl?: string | null;
+    targetUserName?: string;
+    questTitle?: string;
+    messages: ChatMessage[];
+  },
+) => {
+  const { subscribe } = useContext(RealtimeContext);
+  const [messages, setMessages] = useState<Array<ChatMessage>>(
+    initialData.messages,
   );
-  const [questTitle, setQuestTitle] = useState<string | undefined>(undefined);
+
+  // We need a ref for the current user ID to use inside the stable useEffect closure
+  // without triggering re-runs on every render.
+  const currentUserIdRef = useRef<string>(initialData.currentUserId);
+
   const [isTargetTyping, setIsTargetTyping] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [isMessagesLoading, setIsMessagesLoading] = useState(true);
+
   const chatFilters = useMemo(
     () => [
       { type: "chat_message", questId, nodeId },
@@ -206,26 +210,17 @@ export const useChatRoom = (questId: string, nodeId: string) => {
     ],
     [nodeId, questId],
   );
+
   useEffect(() => {
-    let cancelled = false;
-    let chatMessagesInitialized = false;
-    const preInitQueue: Array<ChatMessage> = [];
     const unsubscribe = subscribe((type, timestamp, payload) => {
       if (type === "chat_message") {
         const message = payload as ChatMessage;
         if (message.questId !== questId || message.nodeId !== nodeId) return;
-        if (!chatMessagesInitialized) {
-          preInitQueue.push(message);
-        } else {
-          setMessages((prev) =>
-            prev.find((m) => m.id === message.id) ? prev : [...prev, message],
-          );
-        }
-        const ackState: ChatAckState = chatMessagesInitialized
-          ? "displayed"
-          : "received";
+        setMessages((prev) =>
+          prev.find((m) => m.id === message.id) ? prev : [...prev, message],
+        );
         return {
-          state: ackState,
+          state: "displayed",
           messageId: message.id,
           questId: message.questId,
           nodeId: message.nodeId,
@@ -248,55 +243,15 @@ export const useChatRoom = (questId: string, nodeId: string) => {
         }
       }
     }, chatFilters);
-    (async () => {
-      if (cancelled) return;
-      setIsMessagesLoading(true);
-      try {
-        const {
-          currentUserId,
-          currentUserImageUrl,
-          targetUserImageUrl,
-          targetUserName,
-          questTitle,
-          messages,
-        } = await initializeChatRoom(questId, nodeId);
-        if (cancelled) return;
-        setCurrentUserId(currentUserId);
-        currentUserIdRef.current = currentUserId;
-        setCurrentUserImageUrl(currentUserImageUrl);
-        setTargetUserImageUrl(targetUserImageUrl);
-        setTargetUserName(targetUserName);
-        setQuestTitle(questTitle);
-        setMessages([
-          ...messages,
-          ...preInitQueue.filter((m) => !messages.find((pm) => pm.id === m.id)),
-        ]);
-        chatMessagesInitialized = true;
-        const thread = getThreadNotifications(questId, nodeId);
-        if (thread.unreadIds.length > 0) {
-          markNotificationsAsRead(thread.unreadIds);
-        }
-      } catch (error) {
-        console.error("[realtime] failed to initialize chat room", error);
-      } finally {
-        if (!cancelled) setIsMessagesLoading(false);
-      }
-    })();
+
     return () => {
-      cancelled = true;
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
       unsubscribe();
     };
-  }, [
-    chatFilters,
-    getThreadNotifications,
-    markNotificationsAsRead,
-    nodeId,
-    questId,
-    subscribe,
-  ]);
+  }, [chatFilters, nodeId, questId, subscribe]);
+
   const sendMessage = useCallback(
     async (content: string) => {
       const trimmed = content.trim();
@@ -311,20 +266,21 @@ export const useChatRoom = (questId: string, nodeId: string) => {
     },
     [nodeId, questId],
   );
+
   const sendTyping = useCallback(async () => {
     await sendChatTyping(questId, nodeId);
   }, [nodeId, questId]);
+
   return {
     messages,
     sendMessage,
     sendTyping,
-    currentUserId,
-    currentUserImageUrl,
-    targetUserImageUrl,
-    targetUserName,
-    questTitle,
+    currentUserId: initialData.currentUserId,
+    currentUserImageUrl: initialData.currentUserImageUrl,
+    targetUserImageUrl: initialData.targetUserImageUrl,
+    targetUserName: initialData.targetUserName,
+    questTitle: initialData.questTitle,
     isTargetTyping,
-    isMessagesLoading,
   };
 };
 
@@ -421,26 +377,45 @@ export const RealtimeProvider = ({
     [sendFilters],
   );
 
-  const markNotificationsAsRead = useCallback((idsToMark: string[]) => {
-    setNotificationsRaw((prev) => {
-      if (idsToMark.length > 0) {
-        void (async () => {
-          try {
-            await markNotificationsReadAction({ ids: idsToMark });
-          } catch (error) {
-            console.error(
-              "[realtime] failed to mark notifications read",
-              error,
-            );
-          }
-        })();
-        return prev.map((n) =>
+  const markNotificationsAsRead = useCallback(
+    (idsToMark: string[]) => {
+      if (idsToMark.length === 0) return;
+
+      // Capture previous statuses for rollback
+      const previousStatuses = new Map<
+        string,
+        (typeof messageStatusDef)[number]
+      >();
+      notificationsRaw.forEach((n) => {
+        if (idsToMark.includes(n.id)) {
+          previousStatuses.set(n.id, n.status);
+        }
+      });
+
+      // Optimistic update
+      setNotificationsRaw((prev) =>
+        prev.map((n) =>
           idsToMark.includes(n.id) ? { ...n, status: "read" } : n,
-        );
-      }
-      return prev;
-    });
-  }, []);
+        ),
+      );
+
+      void (async () => {
+        try {
+          await markNotificationsReadAction({ ids: idsToMark });
+        } catch (error) {
+          console.error("[realtime] failed to mark notifications read", error);
+          // Rollback
+          setNotificationsRaw((prev) =>
+            prev.map((n) => {
+              const oldStatus = previousStatuses.get(n.id);
+              return oldStatus ? { ...n, status: oldStatus } : n;
+            }),
+          );
+        }
+      })();
+    },
+    [notificationsRaw],
+  );
 
   const getThreadNotifications = useCallback(
     (questId: string, nodeId?: string) => {

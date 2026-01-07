@@ -17,12 +17,23 @@ const formatTimestamp = (timestamp: string) => {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
 
+import { ChatMessage } from "@/helpers/client/realtime";
+
 export function ChatMain({
   questId,
   nodeId,
+  initialData,
 }: {
   questId: string;
   nodeId: string;
+  initialData: {
+    currentUserId: string;
+    currentUserImageUrl?: string | null;
+    targetUserImageUrl?: string | null;
+    targetUserName?: string;
+    questTitle?: string;
+    messages: ChatMessage[];
+  };
 }) {
   const {
     messages,
@@ -34,8 +45,7 @@ export function ChatMain({
     targetUserName,
     questTitle,
     isTargetTyping,
-    isMessagesLoading,
-  } = useChatRoom(questId, nodeId);
+  } = useChatRoom(questId, nodeId, initialData);
   const gotoQuest = useGotoQuest();
   const addToast = useToast();
   const [sending, setSending] = useState(false);
@@ -119,11 +129,7 @@ export function ChatMain({
           ref={chatScrollRef}
           className="card border-base-content/20 bg-base-100 flex-1 space-y-4 overflow-y-auto border p-4"
         >
-          {isMessagesLoading ? (
-            <div className="text-base-content/60 animate-pulse py-10 text-center text-sm">
-              Loading messages…
-            </div>
-          ) : sortedMessages.length === 0 ? (
+          {sortedMessages.length === 0 ? (
             <div className="text-base-content/60 py-10 text-center text-sm">
               No messages yet. Say hi to get the conversation started.
             </div>
@@ -140,7 +146,9 @@ export function ChatMain({
                     <Avatar
                       name={name}
                       imageUrl={
-                        isMine ? currentUserImageUrl : targetUserImageUrl
+                        isMine
+                          ? (currentUserImageUrl ?? undefined)
+                          : (targetUserImageUrl ?? undefined)
                       }
                       className="h-10 w-10"
                     />
