@@ -17,6 +17,7 @@ import {
   useGotoTrophies,
 } from "@/helpers/client/routes";
 import { ReactNode, useMemo } from "react";
+import { NotificationBadge } from "./notification_badge";
 import { ChatBubbleIcon } from "./icons/chat_bubble";
 
 type SidebarItem = {
@@ -48,7 +49,11 @@ export const Sidebar = ({ user }: { user: SafeUser }) => {
         id: "notifications",
         content: (
           <>
-            <BellIcon /> Notifications
+            <div className="relative">
+              <BellIcon />
+              <NotificationBadge className="absolute -top-2 -right-2" />
+            </div>
+            Notifications
           </>
         ),
         goto: gotoNotifications,
