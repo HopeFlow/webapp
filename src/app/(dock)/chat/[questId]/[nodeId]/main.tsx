@@ -48,7 +48,7 @@ export function ChatMain({
   } = useChatRoom(questId, nodeId, initialData);
   const gotoQuest = useGotoQuest();
   const addToast = useToast();
-  const [sending, setSending] = useState(false);
+
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const lastTypingSentRef = useRef<number>(0);
@@ -72,24 +72,24 @@ export function ChatMain({
   const handleSend = useCallback(
     async (draft: string) => {
       const content = draft.trim();
-      if (!content || sending) return;
-      setSending(true);
+      if (!content) return;
+
+      if (textAreaRef.current) textAreaRef.current.value = "";
+
       try {
-        const result = await sendMessage(content);
-        if (result && textAreaRef.current) textAreaRef.current.value = "";
+        await sendMessage(content);
       } catch (error) {
         console.error("Failed to send chat message", error);
+        if (textAreaRef.current) textAreaRef.current.value = content;
         addToast({
           type: "error",
           title: "Message not sent",
           description:
             error instanceof Error ? error.message : "Unknown error occurred",
         });
-      } finally {
-        setSending(false);
       }
     },
-    [addToast, sendMessage, sending],
+    [addToast, sendMessage],
   );
 
   const handleTyping = useCallback(
@@ -140,7 +140,11 @@ export function ChatMain({
               return (
                 <div
                   key={message.id}
-                  className={cn("chat", isMine ? "chat-end" : "chat-start")}
+                  className={cn(
+                    "chat",
+                    isMine ? "chat-end" : "chat-start",
+                    message.isOptimistic && "opacity-70",
+                  )}
                 >
                   <div className="chat-image">
                     <Avatar

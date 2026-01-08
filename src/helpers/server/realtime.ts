@@ -316,7 +316,12 @@ export const initializeChatRoom = defineServerFunction({
 
 export const sendChatMessage = defineServerFunction({
   uniqueKey: "realtime::sendChatMessage",
-  handler: async (questId: string, nodeId: string, content: string) => {
+  handler: async (
+    questId: string,
+    nodeId: string,
+    content: string,
+    id?: string,
+  ) => {
     const user = await currentUserNoThrow();
     if (!user) throw new Error("Not authenticated");
     const db = await getHopeflowDatabase();
@@ -338,6 +343,7 @@ export const sendChatMessage = defineServerFunction({
     const [message] = await db
       .insert(chatMessagesTable)
       .values({
+        id,
         questId,
         nodeId,
         userId: user.id,

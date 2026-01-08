@@ -33,6 +33,7 @@ export type ChatMessage = {
   content: string;
   timestamp: string;
   status: (typeof messageStatusDef)[number];
+  isOptimistic?: boolean;
 };
 
 export type Notification = {
@@ -256,13 +257,30 @@ export const useChatRoom = (
     async (content: string) => {
       const trimmed = content.trim();
       if (!trimmed) return null;
-      const sentMessage = await sendChatMessage(questId, nodeId, trimmed);
-      setMessages((prev) =>
-        prev.find((m) => m.id === sentMessage.id)
-          ? prev
-          : [...prev, sentMessage],
-      );
-      return sentMessage;
+
+      const id = crypto.randomUUID();
+      const timestamp = new Date().toISOString();
+      const optimisticMessage: ChatMessage = {
+        id,
+        questId,
+        nodeId,
+        userId: currentUserIdRef.current,
+        content: trimmed,
+        timestamp,
+        status: "sent",
+        isOptimistic: true,
+      };
+
+      setMessages((prev) => [...prev, optimisticMessage]);
+
+      try {
+        const sentMessage = await sendChatMessage(questId, nodeId, trimmed, id);
+        setMessages((prev) => prev.map((m) => (m.id === id ? sentMessage : m)));
+        return sentMessage;
+      } catch (error) {
+        setMessages((prev) => prev.filter((m) => m.id !== id));
+        throw error;
+      }
     },
     [nodeId, questId],
   );
