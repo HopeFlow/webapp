@@ -519,7 +519,7 @@ export const initializeNotifications = defineServerFunction({
   // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- any authenticated user can have notifications
   handler: async () => {
     const user = await currentUserNoThrow();
-    if (!user) throw new Error("Not authenticated");
+    if (!user) return null;
     const db = await getHopeflowDatabase();
     const notifications = (
       await db.query.notificationsTable.findMany({
@@ -551,12 +551,7 @@ export const initializeNotifications = defineServerFunction({
         ],
       })
     ).map(toNotification);
-    return publishRealtimeMessage(
-      "notifications_init",
-      notifications,
-      user.id,
-      user,
-    );
+    return notifications;
   },
 });
 

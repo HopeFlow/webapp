@@ -28,19 +28,15 @@ export const metadata: Metadata = {
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const user = await currentUserNoThrow();
-  const realtimeToken = await createRealtimeJwt({ userId: user?.id });
   return (
     <html lang="en" className="h-full w-full">
       <body
         className={`flex min-h-full w-full flex-col ${geistSans.variable} ${geistMono.variable} bg-base-200 text-base-content text-lg font-light antialiased`}
       >
         <NextTopLoader />
-        <RealtimeProvider token={realtimeToken}>
-          <Providers>
-            <Suspense fallback={<SplashScreen />}>{children}</Suspense>
-          </Providers>
-        </RealtimeProvider>
+        <Providers>
+          <Suspense fallback={<SplashScreen />}>{children}</Suspense>
+        </Providers>
       </body>
     </html>
   );

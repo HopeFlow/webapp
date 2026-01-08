@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ToastProvider } from "@/components/toast";
 import { DeferredActionProvider } from "./deferred_action_context";
+import { RealtimeProvider } from "@/helpers/client/realtime";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({
@@ -30,11 +31,13 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <ClerkProvider>
-      <QueryClientProvider client={queryClient}>
-        <DeferredActionProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </DeferredActionProvider>
-      </QueryClientProvider>
+      <RealtimeProvider>
+        <QueryClientProvider client={queryClient}>
+          <DeferredActionProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </DeferredActionProvider>
+        </QueryClientProvider>
+      </RealtimeProvider>
     </ClerkProvider>
   );
 }

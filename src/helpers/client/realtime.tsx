@@ -17,6 +17,7 @@ import {
   sendChatTyping,
 } from "../server/realtime";
 import { messageStatusDef } from "@/db/constants";
+import { createRealtimeJwt } from "../server/realtime.server";
 
 export type RealtimeEnvelope = {
   envelopeId: string;
@@ -309,12 +310,11 @@ const isRealtimeEnvelope = (payload: unknown): payload is RealtimeEnvelope => {
 };
 
 export const RealtimeProvider = ({
-  token,
   children,
 }: {
-  token: string;
   children?: React.ReactNode;
 }) => {
+  const [token, setToken] = useState<string>("");
   const url = `wss://${REALTIME_SERVER_URL}`;
   const [connectionState, setConnectionState] =
     useState<ConnectionState>("idle");
@@ -474,8 +474,14 @@ export const RealtimeProvider = ({
     },
     [],
   );
-
   useEffect(() => {
+    void (async () => {
+      const realtimeToken = await createRealtimeJwt();
+      setToken(realtimeToken);
+    })();
+  }, []);
+  useEffect(() => {
+    if (!token) return undefined;
     const removeFilters = addFilters([
       { type: "notification" },
       { type: "notifications_init" },
@@ -486,9 +492,10 @@ export const RealtimeProvider = ({
   }, [addFilters]);
 
   useEffect(() => {
-    if (!url) return undefined;
+    if (!url || !token) return undefined;
     let cancelled = false;
     const connect = async () => {
+      console.log("Call from RealtimeProvider CONNECT");
       setConnectionState("connecting");
       try {
         const finalUrl = new URL(url);
@@ -538,14 +545,15 @@ export const RealtimeProvider = ({
               const envelopeTimestamp =
                 parsed.timestamp ??
                 (new Date().toISOString() as RealtimeEnvelope["timestamp"]);
-              if (parsed.type === "notifications_init") {
-                const merged = mergeNotifications(
-                  parsed.payload as typeof notifications,
-                  preInitNotifications,
-                );
-                setNotificationsRaw((prev) => mergeNotifications(prev, merged));
-                notificationsInitialized = true;
-              } else if (parsed.type === "notification") {
+              // if (parsed.type === "notifications_init") {
+              //   const merged = mergeNotifications(
+              //     parsed.payload as typeof notifications,
+              //     preInitNotifications,
+              //   );
+              //   setNotificationsRaw((prev) => mergeNotifications(prev, merged));
+              //   notificationsInitialized = true;
+              // } else
+              if (parsed.type === "notification") {
                 const notification = parsed.payload as Notification;
                 if (!notificationsInitialized) {
                   preInitNotifications.push(notification);
@@ -592,7 +600,11 @@ export const RealtimeProvider = ({
         const loadNotifications = async (attempt = 1) => {
           try {
             if (cancelled) return;
-            await initializeNotifications();
+            const result = await initializeNotifications();
+            if (result !== null) {
+              setNotificationsRaw(result);
+            }
+            notificationsInitialized = true;
           } catch (error) {
             console.error(
               `[realtime] failed to initialize notifications (attempt ${attempt})`,
