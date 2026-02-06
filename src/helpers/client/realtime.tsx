@@ -315,7 +315,7 @@ export const RealtimeProvider = ({
   children?: React.ReactNode;
 }) => {
   const [token, setToken] = useState<string>("");
-  const url = `wss://${REALTIME_SERVER_URL}`;
+  const url = `${process.env.NODE_ENV === "development" ? "ws" : "wss"}://${REALTIME_SERVER_URL}`;
   const [connectionState, setConnectionState] =
     useState<ConnectionState>("idle");
   const [notificationsRaw, setNotificationsRaw] = useState<Array<Notification>>(
@@ -489,13 +489,12 @@ export const RealtimeProvider = ({
     return () => {
       removeFilters?.();
     };
-  }, [addFilters]);
+  }, [addFilters, token]);
 
   useEffect(() => {
     if (!url || !token) return undefined;
     let cancelled = false;
     const connect = async () => {
-      console.log("Call from RealtimeProvider CONNECT");
       setConnectionState("connecting");
       try {
         const finalUrl = new URL(url);

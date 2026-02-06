@@ -21,11 +21,10 @@ export function AutoCompleteOAuth({ url }: { url?: string }) {
         emailEnabled: USER_PROFILE_DEFAULTS.emailEnabled,
         emailFrequency: USER_PROFILE_DEFAULTS.emailFrequency,
       });
-      console.log("AutoCompleteOAuth:", ok);
       if (url) goto(url);
       else gotoHome();
     })().catch(() => {
-      console.log("AutoCompleteOAuth failed");
+      // TODO: Log failure
       if (url) goto(url);
       else gotoHome();
     });

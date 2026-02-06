@@ -162,18 +162,21 @@ const publishRealtimeMessage = defineServerFunction({
     const authenticatedUser = user ?? (await currentUserNoThrow());
     if (!authenticatedUser) throw new Error("Not authenticated");
     const jwt = await createRealtimeJwt({ userId: authenticatedUser.id });
-    const result = await fetch(`https://${REALTIME_SERVER_URL}/publish`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${jwt}`,
+    const result = await fetch(
+      `${process.env.NODE_ENV === "development" ? "http" : "https"}://${REALTIME_SERVER_URL}/publish`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${jwt}`,
+        },
+        body: JSON.stringify({
+          userId: targetUserId ?? authenticatedUser.id,
+          type,
+          payload,
+        }),
       },
-      body: JSON.stringify({
-        userId: targetUserId ?? authenticatedUser.id,
-        type,
-        payload,
-      }),
-    });
+    );
     if (!result.ok) {
       throw new Error(
         `Failed to publish realtime message: ${result.status} ${result.statusText}`,

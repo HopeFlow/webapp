@@ -8,7 +8,7 @@ import { useGotoQuest } from "@/helpers/client/routes";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { useToast } from "@/components/toast";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { MessageArea } from "@/components/message_area";
 
 const formatTimestamp = (timestamp: string) => {
