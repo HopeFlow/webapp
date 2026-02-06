@@ -35,6 +35,7 @@ export type ChatMessage = {
   timestamp: string;
   status: (typeof messageStatusDef)[number];
   isOptimistic?: boolean;
+  clientState?: "sending" | "failed";
 };
 
 export type Notification = {
@@ -56,7 +57,6 @@ type ChatTypingEvent = {
 
 type ConnectionState = "idle" | "connecting" | "open" | "closed" | "error";
 type RealtimeFilter = Record<string, string>;
-type ChatAckState = "received" | "displayed";
 
 const AGGREGATION_WINDOW_MS = 60 * 1000;
 
@@ -172,12 +172,8 @@ export const useNotifications = () => {
 };
 
 export const useNotificationControls = () => {
-  const {
-    notifications,
-    allNotifications,
-    markNotificationsAsRead,
-    getThreadNotifications,
-  } = useContext(RealtimeContext);
+  const { notifications, allNotifications, markNotificationsAsRead } =
+    useContext(RealtimeContext);
   return { notifications, allNotifications, markNotificationsAsRead };
 };
 
@@ -197,6 +193,16 @@ export const useChatRoom = (
   const [messages, setMessages] = useState<Array<ChatMessage>>(
     initialData.messages,
   );
+  const pendingSendsRef = useRef<
+    Map<
+      string,
+      {
+        content: string;
+        attempts: number;
+        timeoutId?: ReturnType<typeof setTimeout>;
+      }
+    >
+  >(new Map());
 
   // We need a ref for the current user ID to use inside the stable useEffect closure
   // without triggering re-runs on every render.
@@ -254,6 +260,98 @@ export const useChatRoom = (
     };
   }, [chatFilters, nodeId, questId, subscribe]);
 
+  const isRetryableError = useCallback((error: unknown) => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      return true;
+    }
+    if (error instanceof TypeError) return true;
+    const message =
+      error instanceof Error ? error.message.toLowerCase() : String(error);
+    return message.includes("network") || message.includes("fetch");
+  }, []);
+
+  const updateMessageState = useCallback(
+    (id: string, state: ChatMessage["clientState"]) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === id ? { ...m, clientState: state, isOptimistic: true } : m,
+        ),
+      );
+    },
+    [],
+  );
+
+  const attemptSend = useCallback(
+    async (
+      id: string,
+      content: string,
+      attempts: number,
+      fromRetry = false,
+    ) => {
+      const scheduleRetryImpl = (
+        id: string,
+        content: string,
+        attempts: number,
+      ) => {
+        const baseDelayMs = 1000;
+        const maxDelayMs = 15000;
+        const delay = Math.min(maxDelayMs, baseDelayMs * 2 ** attempts);
+        const timeoutId = setTimeout(() => {
+          void attempSendImpl();
+        }, delay);
+        const entry = pendingSendsRef.current.get(id);
+        if (entry) {
+          entry.timeoutId = timeoutId;
+        } else {
+          pendingSendsRef.current.set(id, { content, attempts, timeoutId });
+        }
+      };
+      const attempSendImpl = async () => {
+        const maxAttempts = 3;
+        const offline =
+          typeof navigator !== "undefined" && navigator.onLine === false;
+        if (offline) {
+          updateMessageState(id, "failed");
+          pendingSendsRef.current.set(id, { content, attempts });
+          return null;
+        }
+        updateMessageState(id, "sending");
+        try {
+          const sentMessage = await sendChatMessage(
+            questId,
+            nodeId,
+            content,
+            id,
+          );
+          const pending = pendingSendsRef.current.get(id);
+          if (pending?.timeoutId) clearTimeout(pending.timeoutId);
+          pendingSendsRef.current.delete(id);
+          setMessages((prev) =>
+            prev.map((m) => (m.id === id ? sentMessage : m)),
+          );
+          return sentMessage;
+        } catch (error) {
+          const retryable = isRetryableError(error);
+          if (retryable && attempts < maxAttempts) {
+            updateMessageState(id, "failed");
+            pendingSendsRef.current.set(id, {
+              content,
+              attempts: attempts + 1,
+            });
+            scheduleRetryImpl(id, content, attempts + 1);
+            return null;
+          }
+          updateMessageState(id, "failed");
+          if (!fromRetry) {
+            throw error;
+          }
+          return null;
+        }
+      };
+    },
+    [isRetryableError, nodeId, questId, updateMessageState],
+  );
+
   const sendMessage = useCallback(
     async (content: string) => {
       const trimmed = content.trim();
@@ -270,25 +368,44 @@ export const useChatRoom = (
         timestamp,
         status: "sent",
         isOptimistic: true,
+        clientState: "sending",
       };
 
       setMessages((prev) => [...prev, optimisticMessage]);
+      pendingSendsRef.current.set(id, { content: trimmed, attempts: 0 });
 
-      try {
-        const sentMessage = await sendChatMessage(questId, nodeId, trimmed, id);
-        setMessages((prev) => prev.map((m) => (m.id === id ? sentMessage : m)));
-        return sentMessage;
-      } catch (error) {
-        setMessages((prev) => prev.filter((m) => m.id !== id));
-        throw error;
-      }
+      return attemptSend(id, trimmed, 0, false);
     },
-    [nodeId, questId],
+    [attemptSend, nodeId, questId],
   );
 
   const sendTyping = useCallback(async () => {
     await sendChatTyping(questId, nodeId);
   }, [nodeId, questId]);
+
+  useEffect(() => {
+    const pendingSends = pendingSendsRef.current;
+    const handleOnline = () => {
+      for (const [id, entry] of pendingSends.entries()) {
+        if (entry.timeoutId) {
+          clearTimeout(entry.timeoutId);
+          entry.timeoutId = undefined;
+        }
+        void attemptSend(id, entry.content, entry.attempts, true);
+      }
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", handleOnline);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", handleOnline);
+      }
+      for (const entry of pendingSends.values()) {
+        if (entry.timeoutId) clearTimeout(entry.timeoutId);
+      }
+    };
+  }, [attemptSend]);
 
   return {
     messages,
@@ -331,6 +448,9 @@ export const RealtimeProvider = ({
     >
   >([]);
   const socketRef = useRef<WebSocket | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttemptsRef = useRef<number>(0);
+  const reconnectingRef = useRef<boolean>(false);
   const filterStateRef = useRef<
     Map<string, { filter: RealtimeFilter; count: number }>
   >(new Map());
@@ -494,6 +614,27 @@ export const RealtimeProvider = ({
   useEffect(() => {
     if (!url || !token) return undefined;
     let cancelled = false;
+    const clearReconnectTimer = () => {
+      if (reconnectTimerRef.current) {
+        clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+    };
+    const scheduleReconnect = () => {
+      if (cancelled) return;
+      if (reconnectingRef.current) return;
+      reconnectingRef.current = true;
+      const attempt = reconnectAttemptsRef.current + 1;
+      reconnectAttemptsRef.current = attempt;
+      const baseDelayMs = 1000;
+      const maxDelayMs = 15000;
+      const delay = Math.min(maxDelayMs, baseDelayMs * 2 ** (attempt - 1));
+      clearReconnectTimer();
+      reconnectTimerRef.current = setTimeout(() => {
+        reconnectingRef.current = false;
+        void connect();
+      }, delay);
+    };
     const connect = async () => {
       setConnectionState("connecting");
       try {
@@ -511,6 +652,8 @@ export const RealtimeProvider = ({
         };
         socket.onopen = guard(() => {
           setConnectionState("open");
+          reconnectAttemptsRef.current = 0;
+          clearReconnectTimer();
           const activeFilters = Array.from(filterStateRef.current.values()).map(
             ({ filter }) => filter,
           );
@@ -520,10 +663,12 @@ export const RealtimeProvider = ({
         });
         socket.onclose = guard(() => {
           setConnectionState("closed");
+          scheduleReconnect();
         });
         socket.onerror = guard((event) => {
           console.error("[realtime] websocket error", event);
           setConnectionState("error");
+          scheduleReconnect();
         });
         let notificationsInitialized = false;
         const preInitNotifications: Array<Notification> = [];
@@ -601,7 +746,12 @@ export const RealtimeProvider = ({
             if (cancelled) return;
             const result = await initializeNotifications();
             if (result !== null) {
-              setNotificationsRaw(result);
+              const merged = mergeNotifications(result, preInitNotifications);
+              setNotificationsRaw((prev) => mergeNotifications(prev, merged));
+            } else if (preInitNotifications.length > 0) {
+              setNotificationsRaw((prev) =>
+                mergeNotifications(prev, preInitNotifications),
+              );
             }
             notificationsInitialized = true;
           } catch (error) {
@@ -631,6 +781,7 @@ export const RealtimeProvider = ({
           error,
         );
         setConnectionState("error");
+        scheduleReconnect();
       }
     };
 
@@ -638,6 +789,7 @@ export const RealtimeProvider = ({
 
     return () => {
       cancelled = true;
+      clearReconnectTimer();
       callBackPromise.then((cleanup) => cleanup && cleanup());
     };
   }, [maybeShowBrowserNotification, sendFilters, token, url]);
