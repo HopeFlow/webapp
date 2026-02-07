@@ -395,12 +395,7 @@ export const useChatRoom = (
     if (isLoadingMore || !hasMore || !nextCursor) return 0;
     setIsLoadingMore(true);
     try {
-      const result = await fetchChatMessagesBefore(
-        questId,
-        nodeId,
-        nextCursor,
-        3,
-      );
+      const result = await fetchChatMessagesBefore(questId, nodeId, nextCursor);
       const incoming = result.messages ?? [];
       setMessages((prev) => {
         if (incoming.length === 0) return prev;
