@@ -240,6 +240,7 @@ export const initializeChatRoom = defineServerFunction({
       true,
     );
 
+    const pageSize = 100;
     const rows = await db.query.chatMessagesTable.findMany({
       where: (chatMessagesTable, { and, eq }) =>
         and(
@@ -249,8 +250,10 @@ export const initializeChatRoom = defineServerFunction({
       orderBy: (chatMessagesTable, { desc }) => [
         desc(chatMessagesTable.timestamp),
       ],
-      limit: 100,
+      limit: pageSize + 1,
     });
+    const hasMore = rows.length > pageSize;
+    const pageRows = rows.slice(0, pageSize);
 
     await db
       .update(chatMessagesTable)
@@ -301,7 +304,7 @@ export const initializeChatRoom = defineServerFunction({
         .where(inArray(notificationsTable.id, notificationIds));
     }
 
-    const messages = rows.map((row) =>
+    const messages = pageRows.map((row) =>
       row.userId === counterpartUserId
         ? toChatMessage({ ...row, status: "read" })
         : toChatMessage(row),
@@ -313,6 +316,68 @@ export const initializeChatRoom = defineServerFunction({
       targetUserName: targetUser.firstName ?? targetUser.fullName ?? undefined,
       questTitle: quest.title ?? undefined,
       messages,
+      hasMore,
+      nextCursor:
+        pageRows.length > 0
+          ? toTimestampString(pageRows[pageRows.length - 1].timestamp)
+          : null,
+    };
+  },
+});
+
+export const fetchChatMessagesBefore = defineServerFunction({
+  uniqueKey: "realtime::fetchChatMessagesBefore",
+  handler: async (
+    questId: string,
+    nodeId: string,
+    beforeTimestamp: string,
+    limit = 100,
+  ) => {
+    const user = await currentUserNoThrow();
+    if (!user) throw new Error("Not authenticated");
+    const db = await getHopeflowDatabase();
+    const node = await db.query.nodeTable.findFirst({
+      where: (nodeTable, { and, eq }) =>
+        and(eq(nodeTable.id, nodeId), eq(nodeTable.questId, questId)),
+      with: { quest: { columns: { seekerId: true } } },
+    });
+    if (!node || !node.quest?.seekerId) {
+      throw new Error("Chat not found");
+    }
+    ensureUserHasRole(
+      node.quest.seekerId,
+      [node.userId],
+      ["seeker", "contributor"],
+      user.id,
+      true,
+    );
+    const cursor = new Date(beforeTimestamp);
+    if (Number.isNaN(cursor.valueOf())) {
+      throw new Error("Invalid cursor timestamp");
+    }
+    const pageSize = Math.max(1, Math.min(limit, 200));
+    const rows = await db.query.chatMessagesTable.findMany({
+      where: (chatMessagesTable, { and, eq, lt }) =>
+        and(
+          eq(chatMessagesTable.questId, questId),
+          eq(chatMessagesTable.nodeId, nodeId),
+          lt(chatMessagesTable.timestamp, cursor),
+        ),
+      orderBy: (chatMessagesTable, { desc }) => [
+        desc(chatMessagesTable.timestamp),
+      ],
+      limit: pageSize + 1,
+    });
+    const hasMore = rows.length > pageSize;
+    const pageRows = rows.slice(0, pageSize);
+    const messages = pageRows.map((row) => toChatMessage(row));
+    return {
+      messages,
+      hasMore,
+      nextCursor:
+        pageRows.length > 0
+          ? toTimestampString(pageRows[pageRows.length - 1].timestamp)
+          : null,
     };
   },
 });

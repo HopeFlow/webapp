@@ -15,6 +15,7 @@ import {
   markNotificationsRead as markNotificationsReadAction,
   sendChatMessage,
   sendChatTyping,
+  fetchChatMessagesBefore,
 } from "../server/realtime";
 import { messageStatusDef } from "@/db/constants";
 import { createRealtimeJwt } from "../server/realtime.server";
@@ -187,12 +188,19 @@ export const useChatRoom = (
     targetUserName?: string;
     questTitle?: string;
     messages: ChatMessage[];
+    hasMore?: boolean;
+    nextCursor?: string | null;
   },
 ) => {
   const { subscribe } = useContext(RealtimeContext);
   const [messages, setMessages] = useState<Array<ChatMessage>>(
     initialData.messages,
   );
+  const [hasMore, setHasMore] = useState<boolean>(initialData.hasMore ?? false);
+  const [nextCursor, setNextCursor] = useState<string | null>(
+    initialData.nextCursor ?? null,
+  );
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const pendingSendsRef = useRef<
     Map<
       string,
@@ -383,6 +391,32 @@ export const useChatRoom = (
     await sendChatTyping(questId, nodeId);
   }, [nodeId, questId]);
 
+  const loadOlderMessages = useCallback(async () => {
+    if (isLoadingMore || !hasMore || !nextCursor) return 0;
+    setIsLoadingMore(true);
+    try {
+      const result = await fetchChatMessagesBefore(
+        questId,
+        nodeId,
+        nextCursor,
+        3,
+      );
+      const incoming = result.messages ?? [];
+      setMessages((prev) => {
+        if (incoming.length === 0) return prev;
+        const seen = new Set(prev.map((m) => m.id));
+        const uniqueIncoming = incoming.filter((m) => !seen.has(m.id));
+        if (uniqueIncoming.length === 0) return prev;
+        return [...uniqueIncoming, ...prev];
+      });
+      setHasMore(result.hasMore ?? false);
+      setNextCursor(result.nextCursor ?? null);
+      return incoming.length;
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [hasMore, isLoadingMore, nextCursor, nodeId, questId]);
+
   useEffect(() => {
     const pendingSends = pendingSendsRef.current;
     const handleOnline = () => {
@@ -411,12 +445,15 @@ export const useChatRoom = (
     messages,
     sendMessage,
     sendTyping,
+    loadOlderMessages,
     currentUserId: initialData.currentUserId,
     currentUserImageUrl: initialData.currentUserImageUrl,
     targetUserImageUrl: initialData.targetUserImageUrl,
     targetUserName: initialData.targetUserName,
     questTitle: initialData.questTitle,
     isTargetTyping,
+    hasMoreMessages: hasMore,
+    isLoadingMore,
   };
 };
 

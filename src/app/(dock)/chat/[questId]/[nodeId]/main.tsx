@@ -8,7 +8,13 @@ import { useGotoQuest } from "@/helpers/client/routes";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import { useToast } from "@/components/toast";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { MessageArea } from "@/components/message_area";
 
 const formatTimestamp = (timestamp: string) => {
@@ -33,25 +39,39 @@ export function ChatMain({
     targetUserName?: string;
     questTitle?: string;
     messages: ChatMessage[];
+    hasMore?: boolean;
+    nextCursor?: string | null;
   };
 }) {
   const {
     messages,
     sendMessage,
     sendTyping,
+    loadOlderMessages,
     currentUserId,
     currentUserImageUrl,
     targetUserImageUrl,
     targetUserName,
     questTitle,
     isTargetTyping,
+    hasMoreMessages,
+    isLoadingMore,
   } = useChatRoom(questId, nodeId, initialData);
   const gotoQuest = useGotoQuest();
   const addToast = useToast();
 
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const topSentinelRef = useRef<HTMLDivElement>(null);
   const lastTypingSentRef = useRef<number>(0);
+  const isAtBottomRef = useRef<boolean>(true);
+  const isLoadingRef = useRef<boolean>(false);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const lastLoadAtRef = useRef<number>(0);
+  const anchorMessageRef = useRef<{
+    chatMessage: HTMLDivElement;
+    offsetTop: number;
+  } | null>(null);
 
   const sortedMessages = useMemo(
     () =>
@@ -64,10 +84,109 @@ export function ChatMain({
 
   useEffect(() => {
     const el = chatScrollRef.current;
-    if (el) {
+    if (!el) return;
+    if (isAtBottomRef.current) {
       el.scrollTop = el.scrollHeight;
     }
   }, [sortedMessages]);
+
+  const updateIsAtBottom = useCallback(() => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const threshold = 80;
+    isAtBottomRef.current =
+      el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+  }, []);
+
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const handleScroll = () => updateIsAtBottom();
+    el.addEventListener("scroll", handleScroll);
+    updateIsAtBottom();
+    return () => {
+      el.removeEventListener("scroll", handleScroll);
+    };
+  }, [updateIsAtBottom]);
+
+  const observeLoadingSentinel = useCallback(() => {
+    if (!observerRef.current || !topSentinelRef.current) {
+      console.warn(
+        "observeLoadingSentinel is called before components mounted",
+      );
+      return;
+    }
+    observerRef.current.observe(topSentinelRef.current);
+  }, []);
+
+  const handleLoadOlder = useCallback(async () => {
+    if (isLoadingRef.current || !hasMoreMessages) return;
+    const now = Date.now();
+    if (now - lastLoadAtRef.current < 300) return;
+    lastLoadAtRef.current = now;
+    isLoadingRef.current = true;
+    if (chatScrollRef.current) {
+      for (const item of chatScrollRef.current.querySelectorAll("div.chat")) {
+        const chatMessage = item as HTMLDivElement;
+        if (
+          chatMessage.offsetTop + chatMessage.offsetHeight >
+          chatScrollRef.current.scrollTop
+        ) {
+          anchorMessageRef.current = {
+            chatMessage,
+            offsetTop: chatScrollRef.current.scrollTop - chatMessage.offsetTop,
+          };
+          console.log({ anchorMessage: anchorMessageRef.current });
+        }
+        break;
+      }
+    }
+    await loadOlderMessages();
+    isLoadingRef.current = false;
+  }, [hasMoreMessages, loadOlderMessages]);
+
+  useLayoutEffect(() => {
+    if (!isLoadingRef.current) return;
+    isLoadingRef.current = false;
+    if (!anchorMessageRef.current) return;
+    const anchorMessage = anchorMessageRef.current;
+    const tryRestoringAnchorMessagePosition = async () => {
+      console.log({ restoreAnchorMessage: anchorMessage });
+      if (!chatScrollRef.current) {
+        // This is placed just in case something strange happens
+        console.warn(
+          "tryRestoringAnchorMessagePosition called without a chatScroll reference",
+        );
+        setTimeout(tryRestoringAnchorMessagePosition, 500);
+        return;
+      }
+      chatScrollRef.current.scrollTop =
+        anchorMessage.offsetTop + anchorMessage.chatMessage.offsetTop;
+    };
+    tryRestoringAnchorMessagePosition();
+  }, [messages]);
+
+  useEffect(() => {
+    const root = chatScrollRef.current;
+    const sentinel = topSentinelRef.current;
+    if (!root || !sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          if (isLoadingRef.current) return;
+          observer.disconnect();
+          handleLoadOlder().finally(() => observeLoadingSentinel());
+        }
+      },
+      { root, rootMargin: "80px", threshold: 0 },
+    );
+    observerRef.current = observer;
+    observeLoadingSentinel();
+    return () => {
+      observer.disconnect();
+      observerRef.current = null;
+    };
+  }, [handleLoadOlder, observeLoadingSentinel]);
 
   const handleSend = useCallback(
     async (draft: string) => {
@@ -129,6 +248,12 @@ export function ChatMain({
           ref={chatScrollRef}
           className="card border-base-content/20 bg-base-100 flex-1 space-y-4 overflow-y-auto border p-4"
         >
+          <div ref={topSentinelRef} />
+          {isLoadingMore ? (
+            <div className="text-base-content/60 text-center text-xs">
+              Loading earlier messages…
+            </div>
+          ) : null}
           {sortedMessages.length === 0 ? (
             <div className="text-base-content/60 py-10 text-center text-sm">
               No messages yet. Say hi to get the conversation started.
@@ -140,6 +265,7 @@ export function ChatMain({
               return (
                 <div
                   key={message.id}
+                  data-message-id={message.id}
                   className={cn(
                     "chat",
                     isMine ? "chat-end" : "chat-start",
