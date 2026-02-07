@@ -74,7 +74,7 @@ const aggregateNotifications = (items: Array<Notification>) => {
   const sorted = [...items].sort(
     (a, b) => new Date(a.timestamp).valueOf() - new Date(b.timestamp).valueOf(),
   );
-  const aggregated: Array<Notification> = [];
+  const aggregated: Array<Notification & { components: Notification[] }> = [];
   for (const notification of sorted) {
     const last = aggregated[aggregated.length - 1];
     const lastTs = last ? new Date(last.timestamp).valueOf() : null;
@@ -92,9 +92,10 @@ const aggregateNotifications = (items: Array<Notification>) => {
         ...last,
         message: `${base} (${currentCount + 1})`,
         timestamp: notification.timestamp,
+        components: [...[last ?? []], notification],
       };
     } else {
-      aggregated.push(notification);
+      aggregated.push({ ...notification, components: [notification] });
     }
   }
   return aggregated.sort(
@@ -131,8 +132,7 @@ const mergeNotifications = (
 
 type RealtimeContextType = {
   connectionState: ConnectionState;
-  notifications: Array<Notification>;
-  allNotifications: Array<Notification>;
+  notifications: Array<Notification & { components: Notification[] }>;
   markNotificationsAsRead: (ids: string[]) => void;
   getThreadNotifications: (
     questId: string,
@@ -155,7 +155,6 @@ type RealtimeContextType = {
 const RealtimeContext = createContext<RealtimeContextType>({
   connectionState: "idle",
   notifications: [],
-  allNotifications: [],
   markNotificationsAsRead: () => {
     throw new Error("Context not initialized");
   },
@@ -173,9 +172,9 @@ export const useNotifications = () => {
 };
 
 export const useNotificationControls = () => {
-  const { notifications, allNotifications, markNotificationsAsRead } =
+  const { notifications, markNotificationsAsRead } =
     useContext(RealtimeContext);
-  return { notifications, allNotifications, markNotificationsAsRead };
+  return { notifications, markNotificationsAsRead };
 };
 
 export const useChatRoom = (
@@ -634,18 +633,16 @@ export const RealtimeProvider = ({
   }, []);
   useEffect(() => {
     if (!token) return undefined;
-    const removeFilters = addFilters([
-      { type: "notification" },
-      { type: "notifications_init" },
-    ]);
+    const removeFilters = addFilters([{ type: "notification" }]);
     return () => {
-      removeFilters?.();
+      removeFilters();
     };
   }, [addFilters, token]);
 
   useEffect(() => {
     if (!url || !token) return undefined;
     let cancelled = false;
+    let initTimeoutId: ReturnType<typeof setTimeout> | null = null;
     const clearReconnectTimer = () => {
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current);
@@ -721,16 +718,12 @@ export const RealtimeProvider = ({
               const envelopeTimestamp =
                 parsed.timestamp ??
                 (new Date().toISOString() as RealtimeEnvelope["timestamp"]);
-              // if (parsed.type === "notifications_init") {
-              //   const merged = mergeNotifications(
-              //     parsed.payload as typeof notifications,
-              //     preInitNotifications,
-              //   );
-              //   setNotificationsRaw((prev) => mergeNotifications(prev, merged));
-              //   notificationsInitialized = true;
-              // } else
               if (parsed.type === "notification") {
                 const notification = parsed.payload as Notification;
+                ackResult = {
+                  state: "received",
+                  notificationId: notification.id,
+                };
                 if (!notificationsInitialized) {
                   preInitNotifications.push(notification);
                 } else {
@@ -773,6 +766,32 @@ export const RealtimeProvider = ({
           })();
         });
         socketRef.current = socket;
+        const flushPreInitNotifications = () => {
+          if (preInitNotifications.length === 0) return;
+          setNotificationsRaw((prev) =>
+            mergeNotifications(prev, preInitNotifications),
+          );
+          preInitNotifications.forEach((notification) =>
+            maybeShowBrowserNotification(notification),
+          );
+          preInitNotifications.length = 0;
+        };
+        const finalizeNotificationInit = () => {
+          if (notificationsInitialized) return;
+          notificationsInitialized = true;
+          if (initTimeoutId) {
+            clearTimeout(initTimeoutId);
+            initTimeoutId = null;
+          }
+        };
+        initTimeoutId = setTimeout(() => {
+          if (notificationsInitialized || cancelled) return;
+          console.warn(
+            "[realtime] notifications init timed out; using buffered realtime notifications",
+          );
+          flushPreInitNotifications();
+          finalizeNotificationInit();
+        }, 8000);
         const loadNotifications = async (attempt = 1) => {
           try {
             if (cancelled) return;
@@ -785,7 +804,6 @@ export const RealtimeProvider = ({
                 mergeNotifications(prev, preInitNotifications),
               );
             }
-            notificationsInitialized = true;
           } catch (error) {
             console.error(
               `[realtime] failed to initialize notifications (attempt ${attempt})`,
@@ -797,6 +815,11 @@ export const RealtimeProvider = ({
                 attempt * 1000,
               );
             }
+          } finally {
+            if (attempt >= 3) {
+              flushPreInitNotifications();
+            }
+            finalizeNotificationInit();
           }
         };
         void loadNotifications();
@@ -857,7 +880,6 @@ export const RealtimeProvider = ({
     <RealtimeContext.Provider
       value={{
         notifications,
-        allNotifications: notificationsRaw,
         connectionState,
         markNotificationsAsRead,
         getThreadNotifications,

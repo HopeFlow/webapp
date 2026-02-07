@@ -46,6 +46,14 @@ const isChatAck = (value: unknown): value is ChatAck => {
   return state === "received" || state === "displayed";
 };
 
+type NotificationAck = { state: "received"; notificationId?: string | null };
+
+const isNotificationAck = (value: unknown): value is NotificationAck => {
+  if (!value || typeof value !== "object") return false;
+  const state = (value as { state?: unknown }).state;
+  return state === "received";
+};
+
 type NotificationHistory = Pick<
   typeof questHistoryTable.$inferSelect,
   "questId" | "nodeId" | "type"
@@ -149,6 +157,8 @@ const toDate = (value?: Date | string | number) => {
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.valueOf()) ? new Date() : date;
 };
+
+const NOTIFICATION_GRACE_WINDOW_MS = 1500;
 
 const publishRealtimeMessage = defineServerFunction({
   uniqueKey: "realtime::publishMessage",
@@ -459,6 +469,19 @@ export const sendChatMessage = defineServerFunction({
         .where(eq(chatMessagesTable.id, chatMessage.id));
       chatMessage = { ...chatMessage, status: "delivered" };
     } else if (targetUserId) {
+      if (NOTIFICATION_GRACE_WINDOW_MS > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, NOTIFICATION_GRACE_WINDOW_MS),
+        );
+      }
+      const refreshed = await db.query.chatMessagesTable.findFirst({
+        where: (chatMessagesTable, { eq }) =>
+          eq(chatMessagesTable.id, chatMessage.id),
+        columns: { status: true },
+      });
+      if (refreshed?.status && refreshed.status !== "sent") {
+        return chatMessage;
+      }
       const eventTimestamp = new Date();
       const [notificationRow] = await db
         .insert(notificationsTable)
@@ -492,12 +515,34 @@ export const sendChatMessage = defineServerFunction({
       }
     }
     if (notificationPayload) {
-      await publishRealtimeMessage(
+      const notificationPublishResult = await publishRealtimeMessage(
         "notification",
         notificationPayload,
         targetUserId ?? undefined,
         user,
       );
+      const notificationAckResults = Array.isArray(
+        notificationPublishResult.results,
+      )
+        ? notificationPublishResult.results
+        : [];
+      const notificationAcks = notificationAckResults.flatMap((ack) =>
+        Array.isArray(ack)
+          ? ack.filter(isNotificationAck)
+          : isNotificationAck(ack)
+            ? [ack]
+            : [],
+      );
+      const wasDelivered = notificationAcks.some(
+        (ack) =>
+          !ack.notificationId || ack.notificationId === notificationPayload.id,
+      );
+      if (wasDelivered) {
+        await db
+          .update(notificationsTable)
+          .set({ status: "delivered" })
+          .where(eq(notificationsTable.id, notificationPayload.id));
+      }
     }
     return chatMessage;
   },
@@ -563,25 +608,6 @@ const notificationPointerByType: Record<
   commentAdded: "commentId",
 };
 
-type SendNotificationParams =
-  | {
-      recipientUserId: string;
-      questHistoryId: string;
-      timestamp?: Date | string | number;
-      actorUserId?: string;
-    }
-  | {
-      recipientUserId: string;
-      questId: string;
-      type: NotificationEventType;
-      nodeId?: string;
-      commentId?: string;
-      proposedAnswerId?: string;
-      linkId?: string;
-      timestamp?: Date | string | number;
-      actorUserId?: string;
-    };
-
 export const initializeNotifications = defineServerFunction({
   uniqueKey: "realtime::initializeNotifications",
   // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- any authenticated user can have notifications
@@ -589,6 +615,29 @@ export const initializeNotifications = defineServerFunction({
     const user = await currentUserNoThrow();
     if (!user) return null;
     const db = await getHopeflowDatabase();
+    const resolvedNotifications = (
+      await db
+        .select({ id: notificationsTable.id })
+        .from(notificationsTable)
+        .leftJoin(
+          chatMessagesTable,
+          eq(chatMessagesTable.id, notificationsTable.chatMessageId),
+        )
+        .where(
+          and(
+            eq(notificationsTable.userId, user.id),
+            ne(notificationsTable.status, "read"),
+            eq(chatMessagesTable.status, "read"),
+          ),
+        )
+    ).map(({ id }) => id);
+
+    if (resolvedNotifications.length > 0) {
+      await db
+        .update(notificationsTable)
+        .set({ status: "read" })
+        .where(inArray(notificationsTable.id, resolvedNotifications));
+    }
     const notifications = (
       await db.query.notificationsTable.findMany({
         where: (notificationsTable, { eq }) =>
@@ -646,138 +695,5 @@ export const markNotificationsRead = defineServerFunction({
         );
     }
     return true;
-  },
-});
-
-export const sendNotification = defineServerFunction({
-  uniqueKey: "realtime::sendNotification",
-  // eslint-disable-next-line hopeflow/require-ensure-user-has-role
-  handler: async (params: SendNotificationParams) => {
-    // TODO: Rethink this
-    const user = await currentUserNoThrow();
-    if (!user) throw new Error("Not authenticated");
-
-    const actingUserId =
-      "actorUserId" in params && params.actorUserId
-        ? params.actorUserId
-        : user.id;
-    const eventTimestamp = toDate(params.timestamp);
-
-    const db = await getHopeflowDatabase();
-    let questHistoryId: string;
-
-    if ("questHistoryId" in params) {
-      questHistoryId = params.questHistoryId;
-    } else {
-      const quest = await db.query.questTable.findFirst({
-        where: (questTable, { eq }) => eq(questTable.id, params.questId),
-        columns: { id: true },
-      });
-      if (!quest) throw new Error("Quest not found");
-
-      const pointerValues: Record<NotificationPointerKey, string | undefined> =
-        {
-          linkId: params.linkId,
-          nodeId: params.nodeId,
-          commentId: params.commentId,
-          proposedAnswerId: params.proposedAnswerId,
-        };
-
-      const expectedPointer = notificationPointerByType[params.type];
-      const providedPointerEntries = Object.entries(pointerValues).filter(
-        ([, value]) => value,
-      ) as [NotificationPointerKey, string][];
-
-      if (expectedPointer) {
-        if (!pointerValues[expectedPointer]) {
-          throw new Error(
-            `${expectedPointer} is required for notification type "${params.type}"`,
-          );
-        }
-        const extraPointers = providedPointerEntries
-          .map(([key]) => key)
-          .filter((key) => key !== expectedPointer);
-        if (extraPointers.length > 0) {
-          throw new Error(
-            `Notification type "${params.type}" must only include ${expectedPointer}; received ${extraPointers.join(", ")}`,
-          );
-        }
-      } else if (providedPointerEntries.length > 0) {
-        throw new Error(
-          `Notification type "${params.type}" does not use linkId, nodeId, commentId, or proposedAnswerId`,
-        );
-      }
-
-      const historyPointers: Record<
-        NotificationPointerKey,
-        string | undefined
-      > = {
-        linkId: undefined,
-        nodeId: undefined,
-        commentId: undefined,
-        proposedAnswerId: undefined,
-      };
-
-      if (expectedPointer) {
-        historyPointers[expectedPointer] = pointerValues[expectedPointer];
-      }
-
-      const [history] = await db
-        .insert(questHistoryTable)
-        .values({
-          questId: params.questId,
-          actorUserId: actingUserId,
-          type: params.type,
-          createdAt: eventTimestamp,
-          ...historyPointers,
-        })
-        .returning({ id: questHistoryTable.id });
-      if (!history?.id) throw new Error("Failed to create quest history");
-      questHistoryId = history.id;
-    }
-
-    const [notificationRow] = await db
-      .insert(notificationsTable)
-      .values({
-        userId: params.recipientUserId,
-        questHistoryId,
-        timestamp: eventTimestamp,
-      })
-      .returning({ id: notificationsTable.id });
-
-    if (!notificationRow?.id) throw new Error("Failed to create notification");
-
-    const notification = await db.query.notificationsTable.findFirst({
-      where: (notificationsTable, { eq }) =>
-        eq(notificationsTable.id, notificationRow.id),
-      with: {
-        history: {
-          columns: {
-            id: true,
-            type: true,
-            questId: true,
-            nodeId: true,
-            commentId: true,
-            proposedAnswerId: true,
-          },
-          with: {
-            quest: { columns: { title: true, rootNodeId: true } },
-            comment: { columns: { nodeId: true } },
-            proposedAnswer: { columns: { nodeId: true } },
-          },
-        },
-      },
-    });
-
-    if (!notification) throw new Error("Notification not found");
-
-    const payload = toNotification(notification);
-
-    return publishRealtimeMessage(
-      "notification",
-      payload,
-      params.recipientUserId,
-      user,
-    );
   },
 });
