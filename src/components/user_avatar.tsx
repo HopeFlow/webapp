@@ -21,9 +21,7 @@ export const Avatar = ({
   onClick,
 }: UserAvatarProps) => (
   <div className="avatar">
-    <div
-      className={cn("w-12", "bg-white", onClick && "cursor-pointer", className)}
-    >
+    <div className={cn("w-12", onClick && "cursor-pointer", className)}>
       <Image
         src={imageUrl ?? "/img/unknown_user.svg"}
         alt={name}
