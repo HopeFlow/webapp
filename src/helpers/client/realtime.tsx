@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { REALTIME_SERVER_URL } from "./constants";
+import { REALTIME_SERVER_CHANNEL_URL } from "./constants";
 import {
   initializeNotifications,
   markNotificationsRead as markNotificationsReadAction,
@@ -295,11 +295,7 @@ export const useChatRoom = (
       attempts: number,
       fromRetry = false,
     ) => {
-      const scheduleRetryImpl = (
-        id: string,
-        content: string,
-        attempts: number,
-      ) => {
+      const scheduleRetryImpl = () => {
         const baseDelayMs = 1000;
         const maxDelayMs = 15000;
         const delay = Math.min(maxDelayMs, baseDelayMs * 2 ** attempts);
@@ -345,7 +341,7 @@ export const useChatRoom = (
               content,
               attempts: attempts + 1,
             });
-            scheduleRetryImpl(id, content, attempts + 1);
+            scheduleRetryImpl();
             return null;
           }
           updateMessageState(id, "failed");
@@ -355,6 +351,7 @@ export const useChatRoom = (
           return null;
         }
       };
+      return await attempSendImpl();
     },
     [isRetryableError, nodeId, questId, updateMessageState],
   );
@@ -463,7 +460,6 @@ export const RealtimeProvider = ({
   children?: React.ReactNode;
 }) => {
   const [token, setToken] = useState<string>("");
-  const url = `${process.env.NODE_ENV === "development" ? "ws" : "wss"}://${REALTIME_SERVER_URL}`;
   const [connectionState, setConnectionState] =
     useState<ConnectionState>("idle");
   const [notificationsRaw, setNotificationsRaw] = useState<Array<Notification>>(
@@ -640,7 +636,7 @@ export const RealtimeProvider = ({
   }, [addFilters, token]);
 
   useEffect(() => {
-    if (!url || !token) return undefined;
+    if (!token) return undefined;
     let cancelled = false;
     let initTimeoutId: ReturnType<typeof setTimeout> | null = null;
     const clearReconnectTimer = () => {
@@ -667,7 +663,7 @@ export const RealtimeProvider = ({
     const connect = async () => {
       setConnectionState("connecting");
       try {
-        const finalUrl = new URL(url);
+        const finalUrl = new URL(REALTIME_SERVER_CHANNEL_URL);
         finalUrl.searchParams.append("token", token);
         const socket = new WebSocket(finalUrl);
         const guard = function <F extends (...args: unknown[]) => unknown>(
@@ -847,7 +843,7 @@ export const RealtimeProvider = ({
       clearReconnectTimer();
       callBackPromise.then((cleanup) => cleanup && cleanup());
     };
-  }, [maybeShowBrowserNotification, sendFilters, token, url]);
+  }, [maybeShowBrowserNotification, sendFilters, token]);
 
   const subscribe = useCallback(
     (

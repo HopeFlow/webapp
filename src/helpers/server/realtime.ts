@@ -1,7 +1,7 @@
 "use server";
 
 import { getHopeflowDatabase } from "@/db";
-import { REALTIME_SERVER_URL } from "../client/constants";
+import { REALTIME_SERVER_PUBLISH_URL } from "../client/constants";
 import { currentUserNoThrow, ensureUserHasRole, withUserData } from "./auth";
 import { defineServerFunction } from "./define_server_function";
 import { createRealtimeJwt } from "./realtime.server";
@@ -11,7 +11,6 @@ import {
   notificationsTable,
   questHistoryTable,
 } from "@/db/schema";
-import { updateTypeDef } from "@/db/constants";
 import { and, eq, inArray, ne, or } from "drizzle-orm";
 
 const toTimestampString = (value: Date | string | number) => {
@@ -152,12 +151,6 @@ const toNotification = (row: NotificationWithPointers): Notification => {
   };
 };
 
-const toDate = (value?: Date | string | number) => {
-  if (!value) return new Date();
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.valueOf()) ? new Date() : date;
-};
-
 const NOTIFICATION_GRACE_WINDOW_MS = 1500;
 
 const publishRealtimeMessage = defineServerFunction({
@@ -172,21 +165,18 @@ const publishRealtimeMessage = defineServerFunction({
     const authenticatedUser = user ?? (await currentUserNoThrow());
     if (!authenticatedUser) throw new Error("Not authenticated");
     const jwt = await createRealtimeJwt({ userId: authenticatedUser.id });
-    const result = await fetch(
-      `${process.env.NODE_ENV === "development" ? "http" : "https"}://${REALTIME_SERVER_URL}/publish`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${jwt}`,
-        },
-        body: JSON.stringify({
-          userId: targetUserId ?? authenticatedUser.id,
-          type,
-          payload,
-        }),
+    const result = await fetch(REALTIME_SERVER_PUBLISH_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
       },
-    );
+      body: JSON.stringify({
+        userId: targetUserId ?? authenticatedUser.id,
+        type,
+        payload,
+      }),
+    });
     if (!result.ok) {
       throw new Error(
         `Failed to publish realtime message: ${result.status} ${result.statusText}`,
@@ -585,28 +575,6 @@ export const sendChatTyping = defineServerFunction({
     return true;
   },
 });
-
-type NotificationEventType = (typeof updateTypeDef)[number];
-
-type NotificationPointerKey =
-  | "linkId"
-  | "nodeId"
-  | "commentId"
-  | "proposedAnswerId";
-
-const notificationPointerByType: Record<
-  NotificationEventType,
-  NotificationPointerKey | null
-> = {
-  reflow: "linkId",
-  answerProposed: "proposedAnswerId",
-  answerAccepted: "proposedAnswerId",
-  terminated: null,
-  expired: null,
-  questEdited: null,
-  nodeJoined: "nodeId",
-  commentAdded: "commentId",
-};
 
 export const initializeNotifications = defineServerFunction({
   uniqueKey: "realtime::initializeNotifications",

@@ -136,7 +136,6 @@ export function ChatMain({
             chatMessage,
             offsetTop: chatScrollRef.current.scrollTop - chatMessage.offsetTop,
           };
-          console.log({ anchorMessage: anchorMessageRef.current });
         }
         break;
       }
@@ -151,7 +150,6 @@ export function ChatMain({
     if (!anchorMessageRef.current) return;
     const anchorMessage = anchorMessageRef.current;
     const tryRestoringAnchorMessagePosition = async () => {
-      console.log({ restoreAnchorMessage: anchorMessage });
       if (!chatScrollRef.current) {
         // This is placed just in case something strange happens
         console.warn(
