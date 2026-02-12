@@ -124,7 +124,6 @@ export const generateCoverPhoto = defineServerFunction({
     });
     if (!output_parsed)
       throw new Error("Failed to generate prompt from description");
-    console.log({ coverPhotoPrompt: output_parsed.prompt });
     const base64Image =
       process.env.NODE_ENV === "development"
         ? await generateByGptImage1(output_parsed.prompt)
