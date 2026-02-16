@@ -1,6 +1,6 @@
 import { cn } from "@/helpers/client/tailwind_helpers";
 
-interface TrophyCardProps {
+interface AchievementCardProps {
   title: string;
   value: number | string | undefined;
   subtitle: string;
@@ -8,19 +8,19 @@ interface TrophyCardProps {
   emptyMessage: string;
 }
 
-function TrophyCard({
+function AchievementCard({
   title,
   value,
   subtitle,
   icon,
   emptyMessage,
-}: TrophyCardProps) {
+}: AchievementCardProps) {
   const isEmpty = value === 0 || value === undefined;
 
   return (
     <div
       className={cn(
-        "card border border-base-content/30 flex-shrink-0 w-xl max-w-full p-6 flex flex-col gap-4 bg-base-100 text-center transition-all duration-300",
+        "card border-base-content/30 bg-base-100 flex w-xl max-w-full flex-shrink-0 flex-col gap-4 border p-6 text-center transition-all duration-300",
         isEmpty ? "opacity-75" : "",
       )}
     >
@@ -36,8 +36,8 @@ function TrophyCard({
   );
 }
 
-export function TrophiesMain() {
-  const cards: TrophyCardProps[] = [
+export function AchievementsMain() {
+  const cards: AchievementCardProps[] = [
     {
       title: "Contributed Quests",
       value: 3,
@@ -83,11 +83,11 @@ export function TrophiesMain() {
     },
   ];
   return (
-    <div className="w-full flex-1 flex flex-col gap-12 items-center justify-center relative">
-      <div className="w-full flex-1 p-8 min-h-full overflow-auto">
-        <div className="w-full flex flex-col gap-8 items-center justify-center">
+    <div className="relative flex w-full flex-1 flex-col items-center justify-center gap-12">
+      <div className="min-h-full w-full flex-1 overflow-auto p-8">
+        <div className="flex w-full flex-col items-center justify-center gap-8">
           {cards.map((item) => (
-            <TrophyCard key={item.title} {...item} />
+            <AchievementCard key={item.title} {...item} />
           ))}
         </div>
       </div>

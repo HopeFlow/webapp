@@ -38,6 +38,9 @@ const toSearchParams = <T extends { [key: string]: unknown }>(
 // Corresponding to src/app/sample/page.tsx
 export const redirectToSample = (): never => redirect("/sample");
 
+// Corresponding to src/app/(dock)/achievements/page.tsx
+export const redirectToAchievements = (): never => redirect("/achievements");
+
 // Corresponding to src/app/(dock)/create_quest/page.tsx
 export const redirectToCreateQuest = (): never => redirect("/create_quest");
 
@@ -49,9 +52,6 @@ export const redirectToNotifications = (): never => redirect("/notifications");
 
 // Corresponding to src/app/(dock)/profile/page.tsx
 export const redirectToProfile = (): never => redirect("/profile");
-
-// Corresponding to src/app/(dock)/trophies/page.tsx
-export const redirectToTrophies = (): never => redirect("/trophies");
 
 // Corresponding to src/app/(nodock)/(root)/page.tsx
 export const redirectToIndex = (): never => redirect("/");
@@ -126,11 +126,11 @@ export const redirectToChat = (props: {
 
 const routeSpecs: Map<
   | "Sample"
+  | "Achievements"
   | "CreateQuest"
   | "Home"
   | "Notifications"
   | "Profile"
-  | "Trophies"
   | "Index"
   | "CreateAccount"
   | "Login"
@@ -150,6 +150,15 @@ const routeSpecs: Map<
     "Sample",
     {
       pathRegExp: /^\/sample$/,
+      paramsTypeDef: undefined,
+      searchParamsTypeDef: undefined,
+      isPublic: false,
+    },
+  ],
+  [
+    "Achievements",
+    {
+      pathRegExp: /^\/achievements$/,
       paramsTypeDef: undefined,
       searchParamsTypeDef: undefined,
       isPublic: false,
@@ -186,15 +195,6 @@ const routeSpecs: Map<
     "Profile",
     {
       pathRegExp: /^\/profile$/,
-      paramsTypeDef: undefined,
-      searchParamsTypeDef: undefined,
-      isPublic: false,
-    },
-  ],
-  [
-    "Trophies",
-    {
-      pathRegExp: /^\/trophies$/,
       paramsTypeDef: undefined,
       searchParamsTypeDef: undefined,
       isPublic: false,
@@ -316,6 +316,8 @@ export const redirectTo = (urlString: string): never => {
   switch (routeName) {
     case "Sample":
       return redirectToSample();
+    case "Achievements":
+      return redirectToAchievements();
     case "CreateQuest":
       return redirectToCreateQuest();
     case "Home":
@@ -324,8 +326,6 @@ export const redirectTo = (urlString: string): never => {
       return redirectToNotifications();
     case "Profile":
       return redirectToProfile();
-    case "Trophies":
-      return redirectToTrophies();
     case "Index":
       return redirectToIndex();
     case "CreateAccount":

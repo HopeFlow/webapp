@@ -14,7 +14,7 @@ import {
   useGotoHome,
   useGotoNotifications,
   useGotoProfile,
-  useGotoTrophies,
+  useGotoAchievements,
 } from "@/helpers/client/routes";
 import { ReactNode, useMemo } from "react";
 import { NotificationBadge } from "./notification_badge";
@@ -30,7 +30,7 @@ type SidebarItem = {
 export const Sidebar = ({ user }: { user: SafeUser }) => {
   const gotoHome = useGotoHome();
   const gotoNotifications = useGotoNotifications();
-  const gotoTrophies = useGotoTrophies();
+  const gotoAchievements = useGotoAchievements();
   const gotoProfile = useGotoProfile();
   const gotoCreateQuest = useGotoCreateQuest();
 
@@ -68,13 +68,13 @@ export const Sidebar = ({ user }: { user: SafeUser }) => {
         disabled: true,
       },
       {
-        id: "trophies",
+        id: "achievements",
         content: (
           <>
-            <TrophyIcon /> Trophies
+            <TrophyIcon /> Achievements
           </>
         ),
-        goto: gotoTrophies,
+        goto: gotoAchievements,
       },
       {
         id: "profile",
@@ -95,7 +95,13 @@ export const Sidebar = ({ user }: { user: SafeUser }) => {
         goto: gotoCreateQuest,
       },
     ],
-    [gotoHome, gotoNotifications, gotoTrophies, gotoProfile, gotoCreateQuest],
+    [
+      gotoHome,
+      gotoNotifications,
+      gotoAchievements,
+      gotoProfile,
+      gotoCreateQuest,
+    ],
   );
   return (
     <div className="bg-base-100 border-base-300 hidden h-auto w-60 flex-col items-center border-r-2 p-6 md:flex">

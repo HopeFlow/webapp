@@ -40,6 +40,12 @@ export const useGotoSample = () => {
   return useCallback(() => router.push("/sample"), [router]);
 };
 
+// Corresponding to src/app/(dock)/achievements/page.tsx
+export const useGotoAchievements = () => {
+  const router = useRouter();
+  return useCallback(() => router.push("/achievements"), [router]);
+};
+
 // Corresponding to src/app/(dock)/create_quest/page.tsx
 export const useGotoCreateQuest = () => {
   const router = useRouter();
@@ -62,12 +68,6 @@ export const useGotoNotifications = () => {
 export const useGotoProfile = () => {
   const router = useRouter();
   return useCallback(() => router.push("/profile"), [router]);
-};
-
-// Corresponding to src/app/(dock)/trophies/page.tsx
-export const useGotoTrophies = () => {
-  const router = useRouter();
-  return useCallback(() => router.push("/trophies"), [router]);
 };
 
 // Corresponding to src/app/(nodock)/(root)/page.tsx
