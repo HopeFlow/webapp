@@ -56,7 +56,9 @@ export const StarterQuestCardNodes = ({
         {...nodes[0]}
       />
       <div className="absolute bottom-0 left-[calc(100%+0.5rem)] w-auto text-sm whitespace-nowrap">
-        <h1 className="font-bold">{nodes[0].name.replace(" ", "\xA0")}</h1>
+        <h1 className="font-bold">
+          {nodes[0].name.replace(" ", "\xA0") /* 0xA0 is &nbsp; */}
+        </h1>
         <p className="text-xs">
           <AppTimeAgo date={nodes[0].activityDate} />
         </p>
@@ -98,7 +100,9 @@ export const ContributorQuestCardNodes = ({
         {...nodes[0]}
       />
       <div className="absolute bottom-0 left-[calc(100%+0.5rem)] w-auto text-sm whitespace-nowrap">
-        <h1 className="font-bold">{nodes[0].name.replace(" ", "\xA0")}</h1>
+        <h1 className="font-bold">
+          {nodes[0].name.replace(" ", "\xA0") /* 0xA0 is &nbsp; */}
+        </h1>
         <p className="text-xs">
           <AppTimeAgo date={nodes[0].activityDate} />
         </p>

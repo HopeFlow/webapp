@@ -1,7 +1,7 @@
 import type { SafeUser } from "@/helpers/server/auth";
 import { useEffect, useState } from "react";
 
-// TODO: Revisit thise hook
+// TODO: Revisit this hook
 export function useProfileFields(user?: SafeUser | null) {
   const [name, setName] = useState<string>(
     user ? [user.firstName, user.lastName].filter(Boolean).join(" ") : "",

@@ -7,7 +7,7 @@ import { ContributorQuestCardNodes, StarterQuestCardNodes } from "./card_nodes";
 import { ShareIcon } from "@/components/icons/share";
 import { withLoading } from "@/helpers/client/HOCs";
 import { QuestCardSkeleton } from "./card_skeleton";
-import { useGotoLink } from "@/helpers/client/routes";
+import { useGotoLink, useGotoQuest } from "@/helpers/client/routes";
 import type { QuestState } from "@/helpers/server/db";
 
 const questStatesIcons: Record<QuestState, string> = {
@@ -21,7 +21,7 @@ const questStatesIcons: Record<QuestState, string> = {
 // ---- THEME / HELPERS --------------------------------------------------------
 
 const questStateTheme: Record<
-  Exclude<QuestState, "Fading"> | "Fading", // keep type simple
+  Exclude<QuestState, "Fading"> | "Fading", // TODO: What is this?!
   {
     base: "fuchsia" | "emerald" | "blue" | "amber";
     text300: string;
@@ -201,9 +201,9 @@ function StarterQuestCard({
   numberOfLeads,
   questState,
   nodes,
-  // id,
+  id,
 }: StaterQuestCardProps) {
-  // const gotoQuest = useGotoQuest();
+  const gotoQuest = useGotoQuest();
   return (
     <div className="flex h-auto max-w-4xl flex-1 flex-row gap-2 border-b py-4">
       <StarterQuestCardNodes nodes={nodes} />
@@ -214,9 +214,7 @@ function StarterQuestCard({
         <LeadsBadge numberOfLeads={numberOfLeads} />
         <ActionButton
           label="Manage"
-          // onClick={
-          // () => gotoQuest(id)
-          // }
+          onClick={() => gotoQuest({ questId: id })}
         />
       </div>
     </div>

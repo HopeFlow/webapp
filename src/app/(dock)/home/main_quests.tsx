@@ -5,7 +5,7 @@ import {
   ContributorQuestCardWithLoading as ContributorQuestCard,
   StarterQuestCardWithLoading as StarterQuestCard,
 } from "./quest_card";
-import { HomeMain as HomeMainEmpty } from "./main";
+import { HomeMain as HomeMainEmpty } from "./main_empty";
 import { Button } from "@/components/button";
 
 export function HomeMain() {
