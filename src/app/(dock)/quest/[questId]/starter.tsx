@@ -16,21 +16,86 @@ import { MediatorsIcon } from "@/components/icons/mediators";
 import { ReflowModal, showReflowModal } from "@/modals/reflow_modal";
 import { PencilSquareIcon } from "@/components/icons/pencil_square";
 import { ArrowRightIcon } from "@/components/icons/arrow_right";
+import type { questTable } from "@/db/schema";
+import type { QuestState } from "@/helpers/server/db";
 
-export function QuestStarterView() {
+type QuestStatus = typeof questTable.$inferSelect.status;
+type UserShape = { name: string | null; imageUrl: string | null };
+
+export type QuestPageData = {
+  questId: string;
+  questTitle: string;
+  rewardAmount: number;
+  latestLeads: Array<{
+    id: string;
+    content: string;
+    status: string;
+    createdAt: Date | null;
+    decidedAt: Date | null;
+    contributor: UserShape;
+  }>;
+  questStatistics: {
+    views: number;
+    shares: number;
+    leads: number;
+    comments: number;
+    latestCommenterName: string | null;
+  };
+  questHealth: { state: QuestState; text: string };
+  latestQuestions: Array<{
+    id: string;
+    content: string;
+    timestamp: Date | null;
+    askedBy: UserShape;
+  }>;
+  questDescription: string;
+  questHistory: Array<{
+    id: string;
+    type: string;
+    createdAt: Date | null;
+    actor: UserShape;
+    comment: string | null;
+    lead: string | null;
+    linkId: string | null;
+    nodeId: string | null;
+  }>;
+  shareTreeNodes: Array<{
+    id: string;
+    parentId: string | null;
+    userId: string;
+    user: UserShape;
+    createdAt: Date | null;
+    referer: string;
+    viewLinkId: string | null;
+    edgeStrength: number | null;
+    edgeLinkCode: string | null;
+    edgeType: string | null;
+  }>;
+  terminationStatus: {
+    status: QuestStatus;
+    isTerminated: boolean;
+    isClosed: boolean;
+    finishedAt: Date | null;
+    terminatedAt: Date | null;
+    farewellMessage: string | null;
+  };
+};
+
+export function QuestStarterView({ questData }: { questData: QuestPageData }) {
+  void questData;
   return (
-    <div className="max-w-6xl w-full flex flex-col self-center">
-      <div className="flex flex-col gap-4 md:gap-6 p-6">
-        <div className="w-full flex flex-row items-center justify-start gap-1">
-          <h1 className="font-normal text-4xl">
+    <div className="flex w-full max-w-6xl flex-col self-center">
+      <div className="flex flex-col gap-4 p-6 md:gap-6">
+        <div className="flex w-full flex-row items-center justify-start gap-1">
+          <h1 className="text-4xl font-normal">
             Looking for my sentimental stolen Trek 520
           </h1>
           <GhostButton className="px-2">
             <PencilSquareIcon />
           </GhostButton>
         </div>
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
-          <div className="md:w-2/3 flex flex-col gap-4">
+        <div className="flex flex-col gap-4 md:flex-row md:gap-6">
+          <div className="flex flex-col gap-4 md:w-2/3">
             <MediaCarousel className="outline-base-content outline-2">
               <Image
                 src="https://pub-7027dcead7294deeacde6da1a50ed32f.r2.dev/trek-520-grando-51cm-v0.jpeg"
@@ -47,11 +112,11 @@ export function QuestStarterView() {
                 className="w-auto object-contain"
               />
             </MediaCarousel>
-            <div className="p-4 text-sm md:text-lg flex flex-row md:flex-row items-center gap-4 rounded-box bg-base-300">
+            <div className="rounded-box bg-base-300 flex flex-row items-center gap-4 p-4 text-sm md:flex-row md:text-lg">
               <div>
                 <b className="text-amber-700">Withering </b>
                 <div
-                  className="inline-flex flex-row justify-center items-center align-middle"
+                  className="inline-flex flex-row items-center justify-center align-middle"
                   style={
                     {
                       "--branch-color": "var(--color-amber-600, #22c55e)",
@@ -74,10 +139,10 @@ export function QuestStarterView() {
               </p>
             </div>
           </div>
-          <div className="flex-1 font-light text-base-content flex-col gap-4 flex">
-            <div className="card p-2 md:p-4 flex flex-col gap-2 text-base-content/95 bg-base-100">
-              <h1 className="font-bold text-lg text-success">Recompense</h1>
-              <div className="flex flex-row gap-2 items-center">
+          <div className="text-base-content flex flex-1 flex-col gap-4 font-light">
+            <div className="card text-base-content/95 bg-base-100 flex flex-col gap-2 p-2 md:p-4">
+              <h1 className="text-success text-lg font-bold">Recompense</h1>
+              <div className="flex flex-row items-center gap-2">
                 <p className="text-lg">
                   <span className="font-semibold">$2,000</span> Total
                 </p>
@@ -85,20 +150,21 @@ export function QuestStarterView() {
                   <PencilSquareIcon />
                 </GhostButton>
               </div>
-              <div className="flex flex-row gap-2 items-center justify-between">
-                <div className="flex flex-row gap-2 items-start text-sm">
+              <div className="flex flex-row items-center justify-between gap-2">
+                <div className="flex flex-row items-start gap-2 text-sm">
                   <BulbIcon
                     size={24}
-                    className="bg-base-300 text-base-content border p-1 rounded-full"
+                    className="bg-base-300 text-base-content rounded-full border p-1"
                   />
                   <p className="text-sm">
-                    <span className="font-semibold">$1,000</span> Finder&apos;s Fee
+                    <span className="font-semibold">$1,000</span> Finder&apos;s
+                    Fee
                   </p>
                 </div>
-                <div className="flex flex-row gap-2 items-start text-sm">
+                <div className="flex flex-row items-start gap-2 text-sm">
                   <ReflowIcon
                     size={24}
-                    className="bg-base-300 text-base-content border p-1 rounded-full"
+                    className="bg-base-300 text-base-content rounded-full border p-1"
                   />
                   <p className="text-sm">
                     <span className="font-semibold">$500(Max)</span> ReFlow
@@ -107,8 +173,8 @@ export function QuestStarterView() {
                 </div>
               </div>
             </div>
-            <div className="card flex-1 p-2 md:p-4 bg-base-100 flex flex-col gap-2 text-base-content/95 text-sm">
-              <h1 className="font-bold text-lg text-success">Statistics</h1>
+            <div className="card bg-base-100 text-base-content/95 flex flex-1 flex-col gap-2 p-2 text-sm md:p-4">
+              <h1 className="text-success text-lg font-bold">Statistics</h1>
               <div className="flex flex-row gap-4">
                 <EyeIcon /> 150 people have seen this quest
               </div>
@@ -122,7 +188,7 @@ export function QuestStarterView() {
                 <ChatBubbleIcon /> Martha commented on the quest
               </div>
             </div>
-            <div className="card bg-info p-4 flex flex-col justify-end gap-4 font-normal">
+            <div className="card bg-info flex flex-col justify-end gap-4 p-4 font-normal">
               <p>Invite more people, get more possible leads</p>
               <Button buttonType="primary" onClick={() => showReflowModal()}>
                 <ReflowIcon size={18} /> ReFlow to more people
@@ -131,10 +197,10 @@ export function QuestStarterView() {
             </div>
           </div>
         </div>
-        <div className="flex flex-col-reverse md:flex-row gap-4 md:gap-6">
-          <div className="md:w-2/3 card p-4 bg-base-100 self-stretch">
-            <div className="mb-4 flex flex-row justify-between items-center">
-              <h1 className="font-bold text-2xl text-primary">
+        <div className="flex flex-col-reverse gap-4 md:flex-row md:gap-6">
+          <div className="card bg-base-100 self-stretch p-4 md:w-2/3">
+            <div className="mb-4 flex flex-row items-center justify-between">
+              <h1 className="text-primary text-2xl font-bold">
                 Contributors say ...
               </h1>
             </div>
@@ -165,14 +231,14 @@ export function QuestStarterView() {
               ].map((user, index) => (
                 <li
                   key={index}
-                  className="py-1 flex flex-row items-center gap-2"
+                  className="flex flex-row items-center gap-2 py-1"
                 >
-                  <Avatar className="rounded-full w-8 md:w-8" {...user} />
-                  <span className="hidden md:inline font-bold">
+                  <Avatar className="w-8 rounded-full md:w-8" {...user} />
+                  <span className="hidden font-bold md:inline">
                     {user.name}
                   </span>
                   <span className="hidden md:inline"> says</span>
-                  <span className="italic text-ellipsis overflow-hidden flex-1 whitespace-nowrap">
+                  <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap italic">
                     {user.message}
                   </span>
                   <Button buttonType="primary" buttonSize="sm" className="px-2">
@@ -182,11 +248,9 @@ export function QuestStarterView() {
               ))}
             </ul>
           </div>
-          <div className="flex-1 card p-4 bg-secondary-content text-secondary border-secondary border self-stretch justify-center items-center">
-            <div className="w-full mb-4 flex flex-row justify-between items-center">
-              <h1 className="font-bold text-2xl">
-                Leads
-              </h1>
+          <div className="card bg-secondary-content text-secondary border-secondary flex-1 items-center justify-center self-stretch border p-4">
+            <div className="mb-4 flex w-full flex-row items-center justify-between">
+              <h1 className="text-2xl font-bold">Leads</h1>
             </div>
             <ul className="w-full">
               {[
@@ -214,17 +278,21 @@ export function QuestStarterView() {
               ].map((user, index) => (
                 <li
                   key={index}
-                  className="w-full py-1 flex flex-row items-center gap-2"
+                  className="flex w-full flex-row items-center gap-2 py-1"
                 >
-                  <Avatar className="rounded-full w-8 md:w-8" {...user} />
-                  <div className="italic text-ellipsis overflow-hidden flex-1 whitespace-nowrap">
+                  <Avatar className="w-8 rounded-full md:w-8" {...user} />
+                  <div className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap italic">
                     <progress
                       className="progress progress-secondary w-full"
                       value={user.score}
                       max="100"
                     ></progress>
                   </div>
-                  <Button buttonType="secondary" buttonSize="sm" className="px-2">
+                  <Button
+                    buttonType="secondary"
+                    buttonSize="sm"
+                    className="px-2"
+                  >
                     <ArrowRightIcon />
                   </Button>
                 </li>
@@ -232,10 +300,10 @@ export function QuestStarterView() {
             </ul>
           </div>
         </div>
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
-          <div className="md:w-2/3 card p-4 bg-base-100 self-stretch">
-            <div className="mb-4 flex flex-row justify-between items-center">
-              <h1 className="font-bold text-2xl text-primary">Description</h1>
+        <div className="flex flex-col gap-4 md:flex-row md:gap-6">
+          <div className="card bg-base-100 self-stretch p-4 md:w-2/3">
+            <div className="mb-4 flex flex-row items-center justify-between">
+              <h1 className="text-primary text-2xl font-bold">Description</h1>
               <GhostButton className="px-2">
                 <PencilSquareIcon />
               </GhostButton>
@@ -262,14 +330,14 @@ export function QuestStarterView() {
               miles of the commute back from work.
             </p>
           </div>
-          <div className="flex-1 card p-4 bg-accent-content text-accent border-accent border self-stretch justify-center items-center">
+          <div className="card bg-accent-content text-accent border-accent flex-1 items-center justify-center self-stretch border p-4">
             <ReflowTree />
           </div>
         </div>
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-start">
+        <div className="flex flex-col items-start gap-4 md:flex-row md:gap-6">
           <ReadMore
             maxHeight="15rem"
-            className="md:w-2/3 card p-4 bg-base-100 outline-1"
+            className="card bg-base-100 p-4 outline-1 md:w-2/3"
           >
             <Timeline
               actions={[
@@ -310,9 +378,9 @@ export function QuestStarterView() {
               ]}
             />
           </ReadMore>
-          <div className="flex-1 flex flex-col gap-4 self-stretch">
-            <div className="md:h-[15rem] card p-4 bg-error-content text-error border-secondary border flex flex-col justify-start items-start">
-              <b className="font-bold mb-3">Danger Zone</b>
+          <div className="flex flex-1 flex-col gap-4 self-stretch">
+            <div className="card bg-error-content text-error border-secondary flex flex-col items-start justify-start border p-4 md:h-[15rem]">
+              <b className="mb-3 font-bold">Danger Zone</b>
               <div className="flex-1"></div>
               <Button buttonType="error" className="w-full">
                 Terminate the quest
