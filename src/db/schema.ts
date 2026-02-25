@@ -397,6 +397,7 @@ export const proposedAnswerTable = sqliteTable(
     screeningAnswers: text({ mode: "json" })
       .$type<ScreeningAnswer[]>()
       .notNull(),
+    score: integer().notNull().default(0),
     status: text({ enum: proposedAnswerStatus }).notNull().default("pending"),
     createdAt: timestamp()
       .notNull()

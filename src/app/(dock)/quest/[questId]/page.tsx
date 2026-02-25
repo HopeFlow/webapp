@@ -5,6 +5,7 @@ import {
   linkTable,
   nodeTable,
   proposedAnswerTable,
+  questHistoryTable,
   questTable,
 } from "@/db/schema";
 import { withUserData } from "@/helpers/server/auth";
@@ -24,16 +25,26 @@ import {
 
 // import { QuestContributorView } from "./contributor";
 
-const healthCopyByState: Record<QuestState, string> = {
-  Young: "This quest is new. Reflow it now to establish early momentum.",
-  Thriving:
-    "Great momentum. Keep sharing with high-context contacts to land leads faster.",
-  Stable:
-    "Progress is steady. A few targeted reflows can push this quest into a breakthrough.",
-  Fading:
-    "Momentum is cooling. Re-engage your strongest connectors and ask one clear question.",
-  Withering:
-    "Activity is low. Share again with a fresh angle and a concrete call to action.",
+const healthCopyByState = (
+  quest: typeof questTable.$inferSelect,
+  state: QuestState,
+  statistics: QuestPageData["questStatistics"],
+) => {
+  // TODO: Actually use the statistics to make copies more intimate
+  void statistics;
+  const copyByStateMap: Record<QuestState, string> = {
+    Young:
+      "The quest is realtively new. Your contribution can have a big impact in getting it off the ground.",
+    Thriving:
+      "Thing have great momentum. This has happenned because people like you got involved early.",
+    Stable:
+      "Progress is steady. Contribute to make the engine go full throttle.",
+    Fading:
+      "We are loosing momentum :( Contribute to give it a boost and get it back on track.",
+    Withering:
+      "The quest is struggling to stay alive. Your contribution can be the one that saves it.",
+  };
+  return copyByStateMap[state];
 };
 
 export async function getQuestPageData(
@@ -45,14 +56,17 @@ export async function getQuestPageData(
   });
   if (!quest) return null;
 
-  const [nodes, historyWithRelations, latestLeadRows, latestQuestionRows] =
+  const [nodes, history, latestLeadRows, latestQuestionRows] =
     await Promise.all([
       db.query.nodeTable.findMany({ where: eq(nodeTable.questId, questId) }),
-      getQuestHistoryWithRelations(db, questId),
+      db.query.questHistoryTable.findMany({
+        where: eq(questHistoryTable.questId, questId),
+        orderBy: [desc(questHistoryTable.createdAt)],
+        with: { comment: true, proposedAnswer: true },
+      }),
       db.query.proposedAnswerTable.findMany({
         where: eq(proposedAnswerTable.questId, questId),
         orderBy: [desc(proposedAnswerTable.createdAt)],
-        limit: 24,
       }),
       db.query.chatMessagesTable.findMany({
         where: eq(chatMessagesTable.questId, questId),
@@ -80,7 +94,10 @@ export async function getQuestPageData(
     questionsWithUsers,
   ] = await Promise.all([
     latestComment
-      ? withUserData({ userId: latestComment.userId }, { fullName: "name" })
+      ? withUserData(
+          { userId: latestComment.userId },
+          { fullName: "name", imageUrl: true },
+        )
       : Promise.resolve(null),
     withUserData(nodes, { fullName: "name", imageUrl: true }),
     withUserData(latestLeadRows, { fullName: "name", imageUrl: true }),
@@ -106,58 +123,45 @@ export async function getQuestPageData(
   const viewLinkById = new Map(viewLinks.map((link) => [link.id, link]));
 
   const historyWithActors = await withUserData(
-    historyWithRelations.map((entry) => ({
-      ...entry,
-      userId: entry.history.actorUserId,
-    })),
+    history.map((entry) => ({ ...entry, userId: entry.actorUserId })),
     { fullName: "name", imageUrl: true },
   );
 
   const rankedLeads = [...leadsWithUsers]
-    .sort((a, b) => {
-      const aScore =
-        (a.status === "accepted" ? 1_000_000_000_000 : 0) +
-        new Date(a.decidedAt ?? a.createdAt).valueOf();
-      const bScore =
-        (b.status === "accepted" ? 1_000_000_000_000 : 0) +
-        new Date(b.decidedAt ?? b.createdAt).valueOf();
-      return bScore - aScore;
-    })
+    .sort((a, b) => b.score - a.score)
     .slice(0, 4);
 
-  const questHealthState = computeQuestState(
-    quest,
-    nodes,
-    historyWithRelations.map((entry) => entry.history),
-  );
+  const questHealthState = computeQuestState(quest, nodes, history);
 
   const latestCommenterName = latestCommentWithUser?.fullName ?? null;
   const terminatedAt =
-    historyWithRelations.find((entry) => entry.history.type === "terminated")
-      ?.history.createdAt ?? null;
+    history.find((entry) => entry.type === "terminated")?.createdAt ?? null;
+
+  const latestLeads = rankedLeads.map((lead) => ({
+    id: lead.id,
+    content: lead.content,
+    status: lead.status,
+    createdAt: lead.createdAt,
+    decidedAt: lead.decidedAt,
+    contributor: { name: lead.name, imageUrl: lead.imageUrl },
+  }));
+  const questStatistics = {
+    views,
+    shares,
+    leads: leadsCount,
+    comments: commentsCount,
+    latestCommenterName,
+  };
 
   return {
     questId: quest.id,
     questTitle: quest.title,
     rewardAmount: Number(quest.rewardAmount ?? 0),
-    latestLeads: rankedLeads.map((lead) => ({
-      id: lead.id,
-      content: lead.content,
-      status: lead.status,
-      createdAt: lead.createdAt,
-      decidedAt: lead.decidedAt,
-      contributor: { name: lead.name, imageUrl: lead.imageUrl },
-    })),
-    questStatistics: {
-      views,
-      shares,
-      leads: leadsCount,
-      comments: commentsCount,
-      latestCommenterName,
-    },
+    latestLeads,
+    questStatistics,
     questHealth: {
       state: questHealthState,
-      text: healthCopyByState[questHealthState],
+      text: healthCopyByState(quest, questHealthState, questStatistics),
     },
     latestQuestions: questionsWithUsers.map((message) => ({
       id: message.id,
@@ -167,14 +171,14 @@ export async function getQuestPageData(
     })),
     questDescription: quest.description,
     questHistory: historyWithActors.map((entry) => ({
-      id: entry.history.id,
-      type: entry.history.type,
-      createdAt: entry.history.createdAt,
+      id: entry.id,
+      type: entry.type,
+      createdAt: entry.createdAt,
       actor: { name: entry.name, imageUrl: entry.imageUrl },
       comment: entry.comment?.content ?? null,
       lead: entry.proposedAnswer?.content ?? null,
-      linkId: entry.history.linkId ?? null,
-      nodeId: entry.history.nodeId ?? null,
+      linkId: entry.linkId ?? null,
+      nodeId: entry.nodeId ?? null,
     })),
     shareTreeNodes: nodesWithUsers.map((node) => {
       const edgeLink = node.viewLinkId
