@@ -3,8 +3,8 @@
 import dynamic from "next/dynamic";
 import { Timeline } from "@/components/timeline";
 import type { ReactNode } from "react";
-import type { ReFlowNodeSimple } from "./ReflowTree";
 import { LoadingElement } from "@/components/loading";
+import type { ReFlowNodeSimple } from "@/components/reflow_tree";
 
 export type TimelineAction = React.ComponentProps<
   typeof Timeline

@@ -23,8 +23,8 @@ import {
 import { getQuestAndNodesForLinkByLinkCode } from "./link.server";
 import type { QuestHistoryWithRelations } from "../common/quest_history";
 import { and, eq } from "drizzle-orm";
-import { SocialMediaName } from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
 import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
+import type { SocialMediaNames } from "@/db/constants";
 
 type HistoryEntryWithActor = QuestHistoryWithRelations & {
   actorName?: string | null;
@@ -61,7 +61,7 @@ export const prepareUserNode = async ({
   db: HopeflowDb;
   link: typeof linkTable.$inferSelect;
   userId: string;
-  referer: SocialMediaName;
+  referer: SocialMediaNames;
 }): Promise<PreparedNodeResult> => {
   const existingNode = await db.query.nodeTable.findFirst({
     where: and(

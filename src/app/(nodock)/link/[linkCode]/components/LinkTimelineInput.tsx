@@ -6,12 +6,12 @@ import { SafeUser } from "@/helpers/server/auth";
 import { Button } from "@/components/button";
 import { getReadLinkTimelineQueryKey } from "@/apiHooks/link/readLinkTimeline";
 import { useAddLinkTimelineComment } from "@/apiHooks/link/addLinkTimelineComment";
-import type { SocialMediaName } from "./ReflowTree";
 import type { LinkTimelineReadResult } from "../../types";
 import { useQueryClient } from "@tanstack/react-query";
 import { getLinkStatsCardQueryKey } from "@/apiHooks/link/linkStatsCard";
 import { useDeferredAction } from "@/app/deferred_action_context";
 import { useEffect } from "react";
+import type { SocialMediaNames } from "@/db/constants";
 
 export function LinkTimelineInput({
   linkCode,
@@ -21,7 +21,7 @@ export function LinkTimelineInput({
 }: {
   linkCode: string;
   user?: SafeUser;
-  referer?: SocialMediaName;
+  referer?: SocialMediaNames;
   questId: string;
 }) {
   const commentInputId = useId();
@@ -98,7 +98,7 @@ export function LinkTimelineInput({
     },
   });
 
-  const resolvedReferer: SocialMediaName = referer ?? "unknown";
+  const resolvedReferer: SocialMediaNames = referer ?? "unknown";
   const { defer, consume } = useDeferredAction("comment");
 
   const handleMutation = useCallback(

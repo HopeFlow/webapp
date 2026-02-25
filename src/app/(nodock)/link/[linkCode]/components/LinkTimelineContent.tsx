@@ -12,11 +12,11 @@ import {
 } from "@/apiHooks/link/readLinkTimeline";
 import { useReactToLinkTimelineComment } from "@/apiHooks/link/reactToLinkTimelineComment";
 import { LinkTimelineInput } from "./LinkTimelineInput";
-import type { SocialMediaName } from "./ReflowTree";
 import type { LinkTimelineReadResult, LinkTimelineReaction } from "../../types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDeferredAction } from "@/app/deferred_action_context";
 import { useEffect } from "react";
+import type { SocialMediaNames } from "@/db/constants";
 
 export type TimelineAction = React.ComponentProps<
   typeof Timeline
@@ -32,7 +32,7 @@ export function LinkTimelineContent({
 }: {
   linkCode: string;
   user?: SafeUser;
-  referer?: SocialMediaName;
+  referer?: SocialMediaNames;
   questId: string;
 }) {
   const {
@@ -108,7 +108,7 @@ export function LinkTimelineContent({
       });
     },
   });
-  const resolvedReferer: SocialMediaName = referer ?? "unknown";
+  const resolvedReferer: SocialMediaNames = referer ?? "unknown";
 
   const { defer, consume } = useDeferredAction("reaction");
 

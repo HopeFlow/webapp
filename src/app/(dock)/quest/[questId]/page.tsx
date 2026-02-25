@@ -8,9 +8,8 @@ import {
   questHistoryTable,
   questTable,
 } from "@/db/schema";
-import { withUserData } from "@/helpers/server/auth";
+import { ensureUserHasRole, withUserData } from "@/helpers/server/auth";
 import { computeQuestState, type QuestState } from "@/helpers/server/db";
-import { getQuestHistoryWithRelations } from "@/app/(nodock)/common/quest_history";
 import { desc, eq, inArray } from "drizzle-orm";
 import { QuestStarterView, type QuestPageData } from "./starter";
 import { withParams } from "@/helpers/server/page_component";
@@ -48,14 +47,11 @@ const healthCopyByState = (
 };
 
 export async function getQuestPageData(
-  questId: string,
+  db: Awaited<ReturnType<typeof getHopeflowDatabase>>,
+  quest: typeof questTable.$inferSelect,
 ): Promise<QuestPageData | null> {
-  const db = await getHopeflowDatabase();
-  const quest = await db.query.questTable.findFirst({
-    where: eq(questTable.id, questId),
-  });
   if (!quest) return null;
-
+  const questId = quest.id;
   const [nodes, history, latestLeadRows, latestQuestionRows] =
     await Promise.all([
       db.query.nodeTable.findMany({ where: eq(nodeTable.questId, questId) }),
@@ -213,12 +209,19 @@ export async function getQuestPageData(
 
 export default withParams(
   async function QuestPage({ questId }: { questId: string }) {
-    // TODO: See the following list
-    // - Ensure user has required role
-    // - Move logic from .data here
-    // - Revisit the whole mess
+    const db = await getHopeflowDatabase();
+    const quest = await db.query.questTable.findFirst({
+      where: eq(questTable.id, questId),
+    });
 
-    const questData = await getQuestPageData(questId);
+    if (!quest) notFound();
+
+    // TODO: Handle draft more properly
+    if (!quest.seekerId) notFound();
+
+    ensureUserHasRole(quest.seekerId, [], ["seeker"]);
+
+    const questData = await getQuestPageData(db, quest);
     if (!questData) notFound();
 
     return (

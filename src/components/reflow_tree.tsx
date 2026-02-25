@@ -1,7 +1,3 @@
-import {
-  type SocialMediaName,
-  ReFlowNodeSimple,
-} from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
 import { cn } from "@/helpers/client/tailwind_helpers";
 import {
   FacebookLogo,
@@ -16,6 +12,42 @@ import {
   WhatsAppLogo,
 } from "@/components/logos/socialMedia";
 import { AppTimeAgo } from "@/helpers/client/time";
+import { JSX, ReactNode } from "react";
+import { IconProps } from "@/components/icons/types";
+import type { SocialMediaNames } from "@/db/constants";
+
+export type IconElement = (props: IconProps) => JSX.Element;
+
+// Types
+
+export type ReFlowNodeSimple = {
+  id: string;
+  readonly title?: string;
+  readonly createdAt: Date;
+  readonly imageUrl?: string | null;
+  readonly potentialNode?: boolean;
+  readonly tooltip?: ReactNode;
+  readonly targetNode?: boolean;
+  readonly strength?: number;
+  readonly rank?: number;
+  readonly optimistic?: boolean;
+  children: Array<ReFlowNodeSimple>;
+  referer: SocialMediaNames | null;
+};
+
+export type ReFlowNode = Omit<ReFlowNodeSimple, "children"> & {
+  readonly children: ReadonlyArray<ReFlowNode>;
+  readonly icon?: IconElement;
+};
+
+export function computeRelationshipStrength<T extends { strength?: number }>(
+  branch: T[],
+) {
+  return Math.min.apply(
+    null,
+    branch.map((b) => b.strength ?? 0),
+  );
+}
 
 const MARGIN_X = 42;
 const MARGIN_Y_BOTTOM = 42;
@@ -54,7 +86,7 @@ type PlacedReFlowNode = Omit<ReFlowNodeSimple, "children"> & {
   children: PlacedReFlowNode[];
 };
 
-const REFERER_ICON_MAP: Partial<Record<SocialMediaName, typeof FacebookLogo>> =
+const REFERER_ICON_MAP: Partial<Record<SocialMediaNames, typeof FacebookLogo>> =
   {
     facebook: FacebookLogo,
     instagram: InstagramLogo,

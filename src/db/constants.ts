@@ -52,6 +52,7 @@ export const socialMediaNames = [
   "whatsapp",
   "unknown",
 ] as const;
+export type SocialMediaNames = (typeof socialMediaNames)[number];
 export const emailFrequencyDef = ["immediate", "daily", "weekly"] as const;
 export type ScreeningQuestion = {
   question: string;

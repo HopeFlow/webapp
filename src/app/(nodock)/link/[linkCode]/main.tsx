@@ -14,10 +14,9 @@ import {
   LinkRewardAccordion,
 } from "./components/LinkAccordions";
 import { LinkStoryContent } from "./components/LinkStoryContent";
-import type { SocialMediaName } from "./components/ReflowTree";
 import { LinkFooterSection } from "./components/LinkFooterSection";
 import { LinkTitleSection } from "./components/LinkTitleSection";
-import { QuestMedia } from "@/db/constants";
+import type { QuestMedia, SocialMediaNames } from "@/db/constants";
 import { LinkTimelineContent } from "./components/LinkTimelineContent";
 import { LinkBotonicalTree } from "./components/LinkBotonicalTree";
 import { LinkReflowTree } from "./components/LinkReflowTree";
@@ -151,7 +150,7 @@ export function LinkMain({
   inviter: SerializedInviter;
   linkCode: string;
   questId: string;
-  referer: SocialMediaName;
+  referer: SocialMediaNames;
 }) {
   // Normalize inviter messaging so the UI always has readable names and copy.
   const inviterName = inviter.displayName?.trim() || "Someone";

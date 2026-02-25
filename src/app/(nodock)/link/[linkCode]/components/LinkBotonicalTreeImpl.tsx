@@ -14,7 +14,7 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
-import type { ReFlowNodeSimple } from "./ReflowTree";
+import type { ReFlowNodeSimple } from "@/components/reflow_tree";
 
 // const MAX_CHILDREN_PER_LEVEL = 10;
 

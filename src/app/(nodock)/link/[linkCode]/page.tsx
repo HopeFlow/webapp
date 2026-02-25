@@ -24,8 +24,7 @@ import AccessRestricted from "./components/accessRestricted";
 import { notFound } from "next/navigation";
 import QuestOwnerNotice from "./components/questOwnerNotice";
 import AlreadyContributorNotice from "./components/alreadyContributorNotice";
-import { socialMediaNames } from "@/db/constants";
-import type { SocialMediaName } from "./components/ReflowTree";
+import { type SocialMediaNames, socialMediaNames } from "@/db/constants";
 import ErrorPreparingPage from "./components/ErrorPreparingPage";
 const isSocialMediaName = (
   value: unknown,
@@ -38,7 +37,7 @@ async function ContentsForUser({
   referer,
   // headers: reqHeaders,
 }: { referer?: string; linkCode: string } & { headers: ReadonlyHeaders }) {
-  const sanitizedReferer: SocialMediaName = isSocialMediaName(referer)
+  const sanitizedReferer: SocialMediaNames = isSocialMediaName(referer)
     ? referer
     : "unknown";
   const { seekerView, link, quest, nodes, accessRestricted } =

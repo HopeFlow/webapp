@@ -66,6 +66,7 @@
     "@types/react-dom": "^19",
     "@types/three": "^0.181.0",
     "@types/unidecode": "^1.1.0",
+    "baseline-browser-mapping": "^2.10.0",
     "daisyui": "^5.3.1",
     "drizzle-kit": "^0.31.4",
     "eslint": "^9",

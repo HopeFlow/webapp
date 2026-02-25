@@ -3,11 +3,8 @@
 import { useMemo, useState } from "react";
 import { LinkBotonicalTree } from "@/app/(nodock)/link/[linkCode]/components/LinkBotonicalTree";
 import { LinkReflowTree } from "@/app/(nodock)/link/[linkCode]/components/LinkReflowTree";
-import type {
-  ReFlowNodeSimple,
-  SocialMediaName,
-} from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
-import { socialMediaNames } from "@/db/constants";
+import { socialMediaNames, type SocialMediaNames } from "@/db/constants";
+import type { ReFlowNodeSimple } from "@/components/reflow_tree";
 
 const DEFAULT_DRAFT_QUEST_ID = "draft-playground";
 
@@ -49,8 +46,8 @@ const AVATAR_PATHS = [
   "/img/avatar9.jpeg",
 ];
 
-const refererChoices: SocialMediaName[] = socialMediaNames.filter(
-  (name): name is SocialMediaName => name !== "unknown",
+const refererChoices: SocialMediaNames[] = socialMediaNames.filter(
+  (name): name is SocialMediaNames => name !== "unknown",
 );
 
 const MIN_WIDTH = 1;
@@ -66,7 +63,7 @@ const randomName = () => `${randomItem(FIRST_NAMES)} ${randomItem(LAST_NAMES)}`;
 
 const randomAvatar = () => randomItem(AVATAR_PATHS);
 
-const randomReferer = (): SocialMediaName | null => {
+const randomReferer = (): SocialMediaNames | null => {
   if (!refererChoices.length) return null;
   return Math.random() > 0.7 ? null : randomItem(refererChoices);
 };

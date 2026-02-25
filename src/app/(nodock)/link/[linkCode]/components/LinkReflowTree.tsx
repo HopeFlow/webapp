@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { ReFlowNodeSimple } from "./ReflowTree";
-import { ReflowTree } from "@/components/reflow_tree";
+import { type ReFlowNodeSimple, ReflowTree } from "@/components/reflow_tree";
 
 type LinkReflowTreeProps = {
   activeNodeId?: string;

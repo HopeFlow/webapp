@@ -1,4 +1,4 @@
-import { SocialMediaName } from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
+import type { SocialMediaNames } from "@/db/constants";
 
 export type LinkStatusStatIcon =
   | "views"
@@ -56,14 +56,14 @@ export interface LinkTimelineReadResult {
 
 export interface LinkTimelineCreateInput {
   content: string;
-  referer: SocialMediaName;
+  referer: SocialMediaNames;
   linkCode: string;
 }
 
 export interface LinkTimelineReactionInput {
   commentId: string;
   reaction: LinkTimelineReaction | null;
-  referer: SocialMediaName;
+  referer: SocialMediaNames;
   linkCode: string;
 }
 

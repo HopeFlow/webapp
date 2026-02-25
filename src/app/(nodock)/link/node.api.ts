@@ -10,13 +10,13 @@ import {
 import { linkTable } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { prepareUserNode } from "./timeline.api";
-import { SocialMediaName } from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
 import {
   getQuestAndNodesForLinkByLinkCode,
   getWinnerPathsForQuests,
 } from "./link.server";
-import { ReFlowNodeSimple } from "@/app/(nodock)/link/[linkCode]/components/ReflowTree";
 import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
+import type { ReFlowNodeSimple } from "@/components/reflow_tree";
+import type { SocialMediaNames } from "@/db/constants";
 
 export const readNodes = createApiEndpoint({
   uniqueKey: "link::readNodes",
@@ -123,7 +123,7 @@ export const addNode = createApiEndpoint({
   uniqueKey: "link::addNode",
   type: "mutation",
   // eslint-disable-next-line hopeflow/require-ensure-user-has-role -- public broadcast links allow any authenticated user to join and private targeted links handle access via JWT token
-  handler: async (linkCode: string, referer: SocialMediaName) => {
+  handler: async (linkCode: string, referer: SocialMediaNames) => {
     const viewer = await currentUserNoThrow();
     if (!viewer) throw new Error("Please sign in to join the quest");
 
