@@ -152,6 +152,7 @@ export async function getQuestPageData(
   return {
     questId: quest.id,
     questTitle: quest.title,
+    screeningQuestions: quest.screeningQuestions,
     rewardAmount: Number(quest.rewardAmount ?? 0),
     latestLeads,
     questStatistics,

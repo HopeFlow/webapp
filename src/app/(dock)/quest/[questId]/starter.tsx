@@ -18,6 +18,7 @@ import { PencilSquareIcon } from "@/components/icons/pencil_square";
 import { ArrowRightIcon } from "@/components/icons/arrow_right";
 import type { questTable } from "@/db/schema";
 import type { QuestState } from "@/helpers/server/db";
+import type { ScreeningQuestion } from "@/db/constants";
 
 type QuestStatus = typeof questTable.$inferSelect.status;
 type UserShape = { name: string | null; imageUrl: string | null };
@@ -25,6 +26,7 @@ type UserShape = { name: string | null; imageUrl: string | null };
 export type QuestPageData = {
   questId: string;
   questTitle: string;
+  screeningQuestions: ScreeningQuestion[] | null;
   rewardAmount: number;
   latestLeads: Array<{
     id: string;
