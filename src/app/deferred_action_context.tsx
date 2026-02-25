@@ -2,7 +2,6 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useGotoLogin } from "@/helpers/client/routes";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, ReactNode, useContext, useCallback } from "react";
 
 type DeferredActionType =

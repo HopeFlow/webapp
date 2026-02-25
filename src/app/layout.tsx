@@ -6,9 +6,6 @@ import Providers from "./providers";
 import "./daisyui.css";
 import "./globals.css";
 import SplashScreen from "./splashScreen";
-import { RealtimeProvider } from "@/helpers/client/realtime";
-import { createRealtimeJwt } from "@/helpers/server/realtime.server";
-import { currentUserNoThrow } from "@/helpers/server/auth";
 
 const geistSans = Geist({
   variable: "--font-hopeflow-sans",

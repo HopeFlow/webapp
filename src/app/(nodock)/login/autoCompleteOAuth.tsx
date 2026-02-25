@@ -16,7 +16,8 @@ export function AutoCompleteOAuth({ url }: { url?: string }) {
   useEffect(() => {
     (async () => {
       const timezone = getBrowserTimeZone();
-      const ok = await update.mutateAsync({
+      // TODO: Does success of following mutation affect the flow?
+      await update.mutateAsync({
         timezone,
         emailEnabled: USER_PROFILE_DEFAULTS.emailEnabled,
         emailFrequency: USER_PROFILE_DEFAULTS.emailFrequency,
