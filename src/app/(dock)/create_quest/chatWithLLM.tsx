@@ -60,6 +60,7 @@ export const ChatWithLLM = ({
       postUserMessage(value);
       if (textAreaRef.current) {
         textAreaRef.current.value = "";
+        console.log({ ta: textAreaRef.current });
         textAreaRef.current.style.height = "";
         textAreaRef.current.focus();
       }

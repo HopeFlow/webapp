@@ -37,6 +37,11 @@ export function MessageArea({
     const proxiedNode =
       node &&
       new Proxy(node, {
+        get(target, prop) {
+          const result = Reflect.get(target, prop);
+          if (typeof result === "function") return result.bind(target);
+          return result;
+        },
         set(target, prop, value) {
           const didSet = Reflect.set(target, prop, value);
           if (prop === "value") reset(String(value ?? ""));
