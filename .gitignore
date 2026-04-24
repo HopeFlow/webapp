@@ -16,6 +16,7 @@ pnpm-workspace.yaml
 
 # production
 .vscode
+.codex
 /build
 
 # misc

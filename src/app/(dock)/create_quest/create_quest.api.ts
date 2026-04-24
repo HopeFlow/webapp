@@ -129,6 +129,11 @@ export const insertQuest = createApiEndpoint({
     if (!title) throw new Error("Title is required");
     if (!description) throw new Error("Description is required");
 
+    const rewardAmount = Number(payload.rewardAmount);
+    if (!Number.isFinite(rewardAmount) || rewardAmount < 0) {
+      throw new Error("Reward amount must be a positive value or zero");
+    }
+
     const { env } = await getCloudflareContext({ async: true });
     const bucket = env.hopeflow;
     if (!bucket) throw new Error("Storage bucket is unavailable");
@@ -158,11 +163,7 @@ export const insertQuest = createApiEndpoint({
           title,
           shareTitle: payload.shareTitle?.trim() || title,
           description,
-          rewardAmount: `${
-            Number.isFinite(payload.rewardAmount)
-              ? Math.max(0, payload.rewardAmount)
-              : 0
-          }`,
+          rewardAmount: `${rewardAmount}`,
           baseBlobPath,
           creatorId: user.id,
           seekerId: user.id,

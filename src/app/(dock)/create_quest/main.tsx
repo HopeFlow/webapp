@@ -18,6 +18,7 @@ import type { InsertQuestData } from "./types";
 import { ConfirmQuestType } from "./confirmQuestType";
 import { Overview } from "./overview";
 import { useInsertQuest } from "@/apiHooks/createQuest/insertQuest";
+import { SetReward } from "./setReward";
 
 export function CreateQuestMain({ user }: { user: SafeUser }) {
   const [gotoNextStep, setGotoNextStep] = useState(false);
@@ -66,6 +67,11 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
     (v: typeof media) => setInserQuestData((d) => ({ ...d, media: v })),
     [],
   );
+  const setRewardAmount = useCallback(
+    (v: typeof rewardAmount) =>
+      setInserQuestData((d) => ({ ...d, rewardAmount: v })),
+    [],
+  );
 
   const continueToNextStep = useCallback(() => {
     setGotoNextStep(true);
@@ -92,13 +98,24 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
       return;
     }
 
+    if (
+      typeof rewardAmount === "number" &&
+      (!Number.isFinite(rewardAmount) || rewardAmount < 0)
+    ) {
+      console.warn("Attempted to create quest with invalid reward amount");
+      return;
+    }
+
+    const normalizedRewardAmount =
+      typeof rewardAmount === "number" ? rewardAmount : 0;
+
     try {
       await createQuest({
         type,
         title: title.trim(),
         shareTitle: shareTitle.trim(),
         description: description.trim(),
-        rewardAmount: Number.isFinite(rewardAmount) ? Number(rewardAmount) : 0,
+        rewardAmount: normalizedRewardAmount,
         coverPhoto,
         media: media ?? [],
       });
@@ -153,9 +170,15 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
       continueToNextStep={continueToNextStep}
       key={`confirmTitle-${title}`}
     />,
+    <SetReward
+      rewardAmount={rewardAmount}
+      setRewardAmount={setRewardAmount}
+      continueToNextStep={continueToNextStep}
+      key={`setReward-${rewardAmount}`}
+    />,
     [
       <GenerateCoverPhoto
-        active={stableStepIndex === 4 && stepIndex === 4}
+        active={stableStepIndex === 5 && stepIndex === 5}
         generating={isCoverPhotoGenerating}
         continueToNextStep={continueToNextStep}
         key="generateCoverPhoto"
