@@ -19,6 +19,7 @@ import { ConfirmQuestType } from "./confirmQuestType";
 import { Overview } from "./overview";
 import { useInsertQuest } from "@/apiHooks/createQuest/insertQuest";
 import { SetReward } from "./setReward";
+import type { ScreeningQuestion } from "@/db/constants";
 
 export function CreateQuestMain({ user }: { user: SafeUser }) {
   const [gotoNextStep, setGotoNextStep] = useState(false);
@@ -31,11 +32,21 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
     useState<QuestIntentState | null>(null);
 
   const [
-    { type, title, shareTitle, description, rewardAmount, coverPhoto, media },
+    {
+      type,
+      title,
+      shareTitle,
+      description,
+      rewardAmount,
+      coverPhoto,
+      media,
+      screeningQuestions,
+    },
     setInserQuestData,
   ] = useState<Partial<InsertQuestData>>({
     type: "unrestricted",
     rewardAmount: 500,
+    screeningQuestions: [],
   });
   const { mutateAsync: createQuest, isPending: isCreatingQuest } =
     useInsertQuest();
@@ -70,6 +81,11 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
   const setRewardAmount = useCallback(
     (v: typeof rewardAmount) =>
       setInserQuestData((d) => ({ ...d, rewardAmount: v })),
+    [],
+  );
+  const setScreeningQuestions = useCallback(
+    (v: ScreeningQuestion[]) =>
+      setInserQuestData((d) => ({ ...d, screeningQuestions: v })),
     [],
   );
 
@@ -118,6 +134,7 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
         rewardAmount: normalizedRewardAmount,
         coverPhoto,
         media: media ?? [],
+        screeningQuestions: screeningQuestions ?? [],
       });
     } catch (error) {
       console.error("Failed to create quest", error);
@@ -130,6 +147,7 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
     coverPhoto,
     rewardAmount,
     media,
+    screeningQuestions,
     createQuest,
   ]);
 
@@ -199,6 +217,8 @@ export function CreateQuestMain({ user }: { user: SafeUser }) {
       key="uploadAdditionalMedia"
     />,
     <ConfirmScreeningQuestions
+      screeningQuestions={screeningQuestions ?? []}
+      setScreeningQuestions={setScreeningQuestions}
       continueToNextStep={continueToNextStep}
       key="confirmScreeningQuestions"
     />,

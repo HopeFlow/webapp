@@ -9,7 +9,11 @@ import { getHopeflowDatabase } from "@/db";
 import { linkTable, nodeTable, questTable } from "@/db/schema";
 import { createApiEndpoint } from "@/helpers/server/create_api_endpoint";
 import { currentUserNoThrow } from "@/helpers/server/auth";
-import type { CoverPhoto as QuestCoverPhoto, QuestMedia } from "@/db/constants";
+import type {
+  CoverPhoto as QuestCoverPhoto,
+  QuestMedia,
+  ScreeningQuestion,
+} from "@/db/constants";
 import { eq } from "drizzle-orm";
 
 const R2_PUBLIC_BASE_URL =
@@ -116,6 +120,20 @@ const persistMedia = async (
 const generateLinkCode = () =>
   crypto.randomUUID().replace(/-/g, "").slice(0, 12);
 
+const normalizeScreeningQuestions = (
+  screeningQuestions: ScreeningQuestion[] | undefined,
+) => {
+  const normalized = (screeningQuestions ?? [])
+    .map((question) => ({
+      question: question.question.trim(),
+      answer: question.answer.trim(),
+      answerRequired: Boolean(question.answerRequired),
+    }))
+    .filter((question) => question.question && question.answer);
+
+  return normalized.length > 0 ? normalized : null;
+};
+
 export const insertQuest = createApiEndpoint({
   uniqueKey: "createQuest::insertQuest",
   type: "mutation",
@@ -133,6 +151,9 @@ export const insertQuest = createApiEndpoint({
     if (!Number.isFinite(rewardAmount) || rewardAmount < 0) {
       throw new Error("Reward amount must be a positive value or zero");
     }
+    const screeningQuestions = normalizeScreeningQuestions(
+      payload.screeningQuestions,
+    );
 
     const { env } = await getCloudflareContext({ async: true });
     const bucket = env.hopeflow;
@@ -169,6 +190,7 @@ export const insertQuest = createApiEndpoint({
           seekerId: user.id,
           coverPhoto,
           media: media ?? null,
+          screeningQuestions,
         }),
       db
         .insert(nodeTable)
